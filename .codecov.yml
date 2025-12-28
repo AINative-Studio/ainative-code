@@ -1,0 +1,97 @@
+codecov:
+  require_ci_to_pass: yes
+  notify:
+    wait_for_ci: yes
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 2%
+        if_ci_failed: error
+
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+        if_ci_failed: error
+
+    changes:
+      default:
+        if_ci_failed: error
+
+parsers:
+  gcov:
+    branch_detection:
+      conditional: yes
+      loop: yes
+      method: no
+      macro: no
+
+comment:
+  layout: "reach,diff,flags,tree,files"
+  behavior: default
+  require_changes: no
+  require_base: no
+  require_head: yes
+
+ignore:
+  - "**/*_test.go"
+  - "**/testdata/**/*"
+  - "tests/**/*"
+  - "**/*.pb.go"
+  - "**/*.gen.go"
+  - "cmd/**/*"  # Main entry points don't need coverage
+  - "scripts/**/*"
+  - "docs/**/*"
+  - "examples/**/*"
+
+flags:
+  unittests:
+    paths:
+      - internal/
+      - pkg/
+    carryforward: true
+
+component_management:
+  individual_components:
+    - component_id: auth
+      name: Authentication
+      paths:
+        - internal/auth/**
+        - pkg/auth/**
+
+    - component_id: llm
+      name: LLM Providers
+      paths:
+        - internal/llm/**
+        - pkg/llm/**
+
+    - component_id: tui
+      name: Terminal UI
+      paths:
+        - internal/tui/**
+        - pkg/tui/**
+
+    - component_id: config
+      name: Configuration
+      paths:
+        - internal/config/**
+        - pkg/config/**
+
+    - component_id: api
+      name: API Clients
+      paths:
+        - internal/api/**
+        - pkg/api/**
+
+    - component_id: database
+      name: Database
+      paths:
+        - internal/database/**
+        - pkg/database/**

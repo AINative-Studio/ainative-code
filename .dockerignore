@@ -1,0 +1,70 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# GitHub
+.github
+
+# Build artifacts
+build/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.out
+coverage.html
+gosec-report.json
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+*.md
+!README.md
+docs/
+examples/
+
+# CI/CD
+.travis.yml
+.gitlab-ci.yml
+Jenkinsfile
+
+# Testing
+tests/
+testdata/
+
+# Configuration
+.env
+.env.local
+*.yaml
+*.yml
+!.golangci.yml
+!.codecov.yml
+
+# Dependencies (will be downloaded in build)
+vendor/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# Scripts
+scripts/
+Makefile
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore

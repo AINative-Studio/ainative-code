@@ -1,0 +1,141 @@
+# AINative Code Configuration Example
+# © 2024 AINative Studio. All rights reserved.
+#
+# This is an example configuration file for AINative Code.
+# Copy this file to ~/.config/ainative-code/config.yaml and customize it.
+#
+# Tagline: AI-Native Development, Natively
+
+# LLM Provider Configuration
+providers:
+  anthropic:
+    # Dynamic API key resolution from password manager
+    api_key: "$(pass show anthropic)"
+    model: "claude-3-5-sonnet-20241022"
+    max_tokens: 8192
+    temperature: 0.7
+
+  openai:
+    # Environment variable resolution
+    api_key: "${OPENAI_API_KEY}"
+    model: "gpt-4-turbo-preview"
+    max_tokens: 4096
+    temperature: 0.7
+
+  gemini:
+    # macOS Keychain resolution
+    api_key: "$(security find-generic-password -w -s gemini)"
+    model: "gemini-pro"
+    max_tokens: 4096
+
+  bedrock:
+    # AWS credentials from environment
+    aws_access_key_id: "${AWS_ACCESS_KEY_ID}"
+    aws_secret_access_key: "${AWS_SECRET_ACCESS_KEY}"
+    aws_region: "us-east-1"
+    model: "anthropic.claude-3-sonnet-20240229-v1:0"
+
+  azure:
+    # Azure OpenAI configuration
+    api_key: "${AZURE_OPENAI_API_KEY}"
+    endpoint: "https://your-resource.openai.azure.com"
+    deployment: "gpt-4"
+    api_version: "2024-02-15-preview"
+
+  ollama:
+    # Local Ollama instance
+    endpoint: "http://localhost:11434"
+    model: "llama3"
+
+# Default provider selection
+default_provider: "anthropic"
+
+# AINative Platform Authentication
+ainative:
+  auth_url: "https://auth.ainative.studio"
+  auto_login: true  # Automatically trigger OAuth flow if token expired
+
+  # Service Endpoints
+  zerodb:
+    api_url: "https://api.zerodb.ainative.studio"
+    default_project: "my-project-id"
+
+  design:
+    api_url: "https://design.ainative.studio"
+
+  strapi:
+    api_url: "https://strapi.ainative.studio"
+
+  rlhf:
+    api_url: "https://rlhf.ainative.studio"
+    auto_submit: false  # Prompt before submitting feedback
+
+# Session Configuration
+session:
+  storage: "~/.local/share/ainative-code/sessions.db"
+  auto_save: true
+  max_history: 1000  # Maximum messages per session
+
+# TUI Preferences - AINative Brand Colors
+ui:
+  theme: "default"  # default, dark, light, custom
+  show_thinking: true  # Display extended thinking blocks
+  syntax_highlighting: true
+  line_numbers: true
+  colors:
+    primary: "#6366F1"    # Indigo
+    secondary: "#8B5CF6"  # Purple
+    success: "#10B981"    # Green
+    error: "#EF4444"      # Red
+    accent: "#EC4899"     # Pink
+
+# Tool Permissions
+tools:
+  bash:
+    enabled: true
+    require_confirmation: true  # Prompt before executing bash commands
+
+  file_operations:
+    enabled: true
+    require_confirmation: false
+
+  web_search:
+    enabled: true
+    provider: "brave"  # brave, google, duckduckgo
+
+# MCP (Model Context Protocol) Servers
+mcp_servers:
+  - name: "github"
+    transport: "stdio"
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_TOKEN: "$(gh auth token)"
+
+  - name: "postgres"
+    transport: "stdio"
+    command: "mcp-server-postgres"
+    args: ["postgresql://localhost/mydb"]
+
+# Advanced Features
+features:
+  extended_thinking: true
+  prompt_caching: true
+  streaming: true
+
+# Logging Configuration
+logging:
+  level: "info"  # debug, info, warn, error, fatal
+  format: "json"  # json, text
+  output: "~/.local/share/ainative-code/logs/ainative-code.log"
+  rotation:
+    max_size: 100  # MB
+    max_age: 30    # days
+    max_backups: 10
+
+# Environment Variable Prefix
+# All environment variables should use AINATIVE_CODE_* prefix
+# Examples:
+# - AINATIVE_CODE_CONFIG_PATH
+# - AINATIVE_CODE_LOG_LEVEL
+# - AINATIVE_CODE_DEFAULT_PROVIDER

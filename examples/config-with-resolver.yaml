@@ -1,0 +1,356 @@
+# AINative Code Configuration with Dynamic API Key Resolution
+# This file demonstrates all supported methods of API key resolution
+
+app:
+  name: "ainative-code"
+  version: "0.1.0"
+  environment: "production"
+  debug: false
+
+# ============================================================================
+# LLM Provider Configurations
+# ============================================================================
+
+llm:
+  default_provider: "anthropic"
+
+  # Anthropic Claude - Using password manager (pass)
+  anthropic:
+    api_key: "$(pass show anthropic/api-key)"
+    model: "claude-3-5-sonnet-20241022"
+    max_tokens: 4096
+    temperature: 0.7
+    top_p: 1.0
+    top_k: 0
+    timeout: "30s"
+    retry_attempts: 3
+    api_version: "2023-06-01"
+
+  # OpenAI - Using environment variable (recommended for containers)
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    model: "gpt-4-turbo-preview"
+    max_tokens: 4096
+    temperature: 0.7
+    top_p: 1.0
+    timeout: "30s"
+    retry_attempts: 3
+
+  # Google Gemini - Using file path
+  google:
+    api_key: "~/secrets/google-api-key.txt"
+    model: "gemini-pro"
+    max_tokens: 4096
+    temperature: 0.7
+    top_p: 1.0
+    top_k: 40
+    timeout: "30s"
+    retry_attempts: 3
+
+  # AWS Bedrock - Using AWS Secrets Manager
+  bedrock:
+    region: "us-east-1"
+    model: "anthropic.claude-3-sonnet-20240229-v1:0"
+    # Access credentials from AWS Secrets Manager
+    access_key_id: "$(aws secretsmanager get-secret-value --secret-id bedrock/access-key-id --query SecretString --output text)"
+    secret_access_key: "$(aws secretsmanager get-secret-value --secret-id bedrock/secret-key --query SecretString --output text)"
+    max_tokens: 4096
+    temperature: 0.7
+    timeout: "60s"
+    retry_attempts: 3
+
+  # Azure OpenAI - Using 1Password CLI
+  azure:
+    api_key: "$(op read op://Private/Azure-OpenAI/api_key)"
+    endpoint: "https://my-openai-resource.openai.azure.com/"
+    deployment_name: "gpt-4-deployment"
+    api_version: "2023-05-15"
+    max_tokens: 4096
+    temperature: 0.7
+    timeout: "30s"
+    retry_attempts: 3
+
+  # Ollama - No API key needed (local)
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "llama2"
+    max_tokens: 4096
+    temperature: 0.7
+    timeout: "120s"
+    retry_attempts: 1
+    keep_alive: "5m"
+
+  # Fallback configuration
+  fallback:
+    enabled: true
+    providers:
+      - "anthropic"
+      - "openai"
+      - "azure"
+    max_retries: 2
+    retry_delay: "1s"
+
+# ============================================================================
+# Platform Configuration
+# ============================================================================
+
+platform:
+  authentication:
+    method: "jwt"
+    # Using HashiCorp Vault
+    api_key: "$(vault kv get -field=api_key secret/platform/api)"
+    token: "$(vault kv get -field=token secret/platform/jwt)"
+    client_id: "ainative-client"
+    # Using environment variable
+    client_secret: "${PLATFORM_CLIENT_SECRET}"
+    timeout: "10s"
+
+  organization:
+    id: "org-123456"
+    name: "AINative Studio"
+    workspace: "production"
+
+# ============================================================================
+# Service Endpoints
+# ============================================================================
+
+services:
+  # ZeroDB - Using file path for password
+  zerodb:
+    enabled: true
+    endpoint: "localhost:5432"
+    database: "ainative"
+    username: "ainative_user"
+    password: "/run/secrets/zerodb_password"  # Docker/Kubernetes secret
+    ssl: true
+    ssl_mode: "require"
+    max_connections: 10
+    idle_connections: 2
+    conn_max_lifetime: "1h"
+    timeout: "5s"
+    retry_attempts: 3
+    retry_delay: "1s"
+
+  # Design Service - Using environment variable
+  design:
+    enabled: true
+    endpoint: "https://design.ainative.studio"
+    api_key: "${DESIGN_SERVICE_API_KEY}"
+    timeout: "30s"
+    retry_attempts: 3
+
+  # Strapi CMS - Using pass
+  strapi:
+    enabled: true
+    endpoint: "https://cms.ainative.studio"
+    api_key: "$(pass show strapi/api-key)"
+    timeout: "30s"
+    retry_attempts: 3
+
+  # RLHF Service - Using GCP Secret Manager
+  rlhf:
+    enabled: true
+    endpoint: "https://rlhf.ainative.studio"
+    api_key: "$(gcloud secrets versions access latest --secret=rlhf-api-key)"
+    timeout: "60s"
+    retry_attempts: 3
+    model_id: "rlhf-v1"
+
+# ============================================================================
+# Tool Configurations
+# ============================================================================
+
+tools:
+  filesystem:
+    enabled: true
+    allowed_paths:
+      - "/workspace"
+      - "/tmp"
+    blocked_paths:
+      - "/etc"
+      - "/root"
+    max_file_size: 104857600  # 100MB
+
+  terminal:
+    enabled: false  # Disabled by default for security
+    allowed_commands:
+      - "git"
+      - "npm"
+      - "python"
+    blocked_commands:
+      - "rm"
+      - "sudo"
+      - "chmod"
+    timeout: "5m"
+
+  browser:
+    enabled: false
+    headless: true
+    timeout: "30s"
+
+  code_analysis:
+    enabled: true
+    languages:
+      - "go"
+      - "python"
+      - "javascript"
+      - "typescript"
+    max_file_size: 10485760  # 10MB
+    include_tests: true
+
+# ============================================================================
+# Performance Settings
+# ============================================================================
+
+performance:
+  cache:
+    enabled: true
+    type: "redis"
+    ttl: "1h"
+    max_size: 500  # MB
+    # Using environment variable for Redis URL
+    redis_url: "${REDIS_URL}"
+
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+    burst_size: 10
+    time_window: "1m"
+
+  concurrency:
+    max_workers: 10
+    max_queue_size: 100
+    worker_timeout: "5m"
+
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    success_threshold: 2
+    timeout: "60s"
+    reset_timeout: "30s"
+
+# ============================================================================
+# Logging Configuration
+# ============================================================================
+
+logging:
+  level: "info"
+  format: "json"
+  output: "file"
+  file_path: "/var/log/ainative/app.log"
+  max_size: 100  # MB
+  max_backups: 3
+  max_age: 7  # days
+  compress: true
+  sensitive_keys:
+    - "api_key"
+    - "token"
+    - "password"
+    - "secret"
+
+# ============================================================================
+# Security Settings
+# ============================================================================
+
+security:
+  encrypt_config: true
+  # Encryption key from file (Kubernetes secret mount)
+  encryption_key: "/run/secrets/config_encryption_key"
+  allowed_origins:
+    - "https://app.ainative.studio"
+    - "https://dashboard.ainative.studio"
+  tls_enabled: true
+  # TLS certificates from file paths
+  tls_cert_path: "/etc/ssl/certs/ainative.crt"
+  tls_key_path: "/etc/ssl/private/ainative.key"
+  secret_rotation: "720h"  # 30 days
+
+# ============================================================================
+# Resolution Method Examples
+# ============================================================================
+#
+# 1. Direct String (not recommended for production):
+#    api_key: "sk-ant-api-key-123456"
+#
+# 2. Environment Variable:
+#    api_key: "${ANTHROPIC_API_KEY}"
+#    export ANTHROPIC_API_KEY="sk-ant-key"
+#
+# 3. File Path:
+#    api_key: "~/secrets/api-key.txt"
+#    api_key: "/run/secrets/api_key"
+#    api_key: "./config/api-key.txt"
+#
+# 4. Command Execution:
+#    # Password managers
+#    api_key: "$(pass show service/api-key)"
+#    api_key: "$(op read op://vault/item/field)"
+#
+#    # Cloud secret managers
+#    api_key: "$(aws secretsmanager get-secret-value --secret-id my-secret --query SecretString --output text)"
+#    api_key: "$(gcloud secrets versions access latest --secret=my-secret)"
+#    api_key: "$(az keyvault secret show --vault-name myvault --name mysecret --query value -o tsv)"
+#    api_key: "$(vault kv get -field=api_key secret/path)"
+#
+#    # Custom scripts
+#    api_key: "$(./scripts/get-api-key.sh)"
+#
+# ============================================================================
+# Environment Variables Setup
+# ============================================================================
+#
+# export OPENAI_API_KEY="sk-..."
+# export PLATFORM_CLIENT_SECRET="secret-..."
+# export DESIGN_SERVICE_API_KEY="design-..."
+# export REDIS_URL="redis://localhost:6379"
+#
+# ============================================================================
+# Docker Secrets Setup (docker-compose.yml)
+# ============================================================================
+#
+# services:
+#   app:
+#     image: ainative-code:latest
+#     secrets:
+#       - zerodb_password
+#       - config_encryption_key
+#
+# secrets:
+#   zerodb_password:
+#     file: ./secrets/zerodb_password.txt
+#   config_encryption_key:
+#     file: ./secrets/encryption_key.txt
+#
+# ============================================================================
+# Kubernetes Secrets Setup
+# ============================================================================
+#
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: ainative-secrets
+# type: Opaque
+# stringData:
+#   openai-api-key: "sk-..."
+#   platform-client-secret: "secret-..."
+#   zerodb-password: "password-..."
+#
+# ---
+# # Mount as environment variables
+# env:
+# - name: OPENAI_API_KEY
+#   valueFrom:
+#     secretKeyRef:
+#       name: ainative-secrets
+#       key: openai-api-key
+#
+# # Mount as files
+# volumeMounts:
+# - name: secrets
+#   mountPath: /run/secrets
+#   readOnly: true
+# volumes:
+# - name: secrets
+#   secret:
+#     secretName: ainative-secrets
+#

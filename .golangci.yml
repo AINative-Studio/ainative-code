@@ -1,0 +1,227 @@
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+  build-tags:
+    - integration
+  skip-dirs:
+    - vendor
+    - third_party
+    - testdata
+    - examples
+  skip-files:
+    - ".*\\.pb\\.go$"
+    - ".*\\.gen\\.go$"
+
+output:
+  formats:
+    - format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  uniq-by-line: true
+  sort-results: true
+
+linters:
+  enable:
+    # Default linters
+    - errcheck      # Check for unchecked errors
+    - gosimple      # Simplify code
+    - govet         # Vet examines Go source code
+    - ineffassign   # Detect ineffectual assignments
+    - staticcheck   # Advanced static analysis
+    - typecheck     # Type check
+    - unused        # Check for unused code
+
+    # Additional recommended linters
+    - gofmt         # Check code formatting
+    - goimports     # Check import formatting
+    - gocritic      # Comprehensive Go source code linter
+    - misspell      # Check for misspelled words
+    - revive        # Fast, configurable, extensible, flexible linter
+    - gosec         # Security checker
+    - unconvert     # Remove unnecessary type conversions
+    - unparam       # Find unused function parameters
+    - prealloc      # Find slice declarations that could be preallocated
+    - nolintlint    # Reports ill-formed or insufficient nolint directives
+    - goconst       # Find repeated strings that could be constants
+    - godot         # Check if comments end in period
+    - gocyclo       # Check cyclomatic complexity
+    - dupl          # Check for duplicate code
+    - funlen        # Check function length
+    - nestif        # Check deeply nested if statements
+    - whitespace    # Check for trailing whitespace
+    - wsl           # Whitespace linter
+    - nakedret      # Check naked returns in functions
+    - gomodguard    # Check for blocked module imports
+    - bodyclose     # Check for HTTP response body close
+    - noctx         # Check for http.Request without context
+    - rowserrcheck  # Check SQL rows.Err
+    - sqlclosecheck # Check SQL close
+    - exportloopref # Check for loop variable capture
+
+  disable:
+    - exhaustive    # Can be too strict
+    - exhaustruct   # Can be too strict
+    - forcetypeassert # Can be too strict
+    - gochecknoglobals # We may need some globals
+    - gochecknoinits   # Init functions are sometimes necessary
+    - godox            # Allow TODO/FIXME comments during development
+    - gomnd            # Magic number detection can be overly strict
+    - ireturn          # Can be too strict with interfaces
+    - varnamelen       # Variable name length can be flexible
+    - tagliatelle      # Struct tag naming can be flexible
+    - nlreturn         # Can be too strict about return statements
+    - testpackage      # Tests in same package are often better
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+    exclude-functions:
+      - (*database/sql.Rows).Close
+      - (*database/sql.DB).Close
+
+  govet:
+    enable-all: true
+    disable:
+      - shadow # Can be overly strict
+
+  gofmt:
+    simplify: true
+
+  goimports:
+    local-prefixes: github.com/AINative-studio/ainative-code
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - whyNoLint
+      - unnamedResult
+
+  gosec:
+    severity: medium
+    confidence: medium
+    excludes:
+      - G104 # Unhandled errors (covered by errcheck)
+    config:
+      G301: "0755"
+      G302: "0644"
+
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unused-parameter
+      - name: unreachable-code
+      - name: redefines-builtin-id
+
+  gocyclo:
+    min-complexity: 15
+
+  funlen:
+    lines: 100
+    statements: 50
+
+  nestif:
+    min-complexity: 5
+
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+    ignore-tests: true
+
+  dupl:
+    threshold: 100
+
+  misspell:
+    locale: US
+    ignore-words:
+      - ainative
+      - zerodb
+
+  nakedret:
+    max-func-lines: 30
+
+  prealloc:
+    simple: true
+    range-loops: true
+    for-loops: false
+
+  unparam:
+    check-exported: false
+
+  whitespace:
+    multi-if: false
+    multi-func: false
+
+  wsl:
+    strict-append: true
+    allow-assign-and-call: true
+    allow-assign-and-anything: false
+    allow-cuddle-declarations: false
+    allow-multiline-assign: true
+    allow-separated-leading-comment: false
+    force-case-trailing-whitespace: 0
+    force-err-cuddling: false
+    allow-trailing-comment: false
+    require-explanation: false
+    short-decl-lines: 1
+    max-blank-lines: 1
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false
+  fix: false
+
+  exclude-rules:
+    # Exclude some linters from running on tests
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - funlen
+        - goconst
+
+    # Exclude known false positives
+    - text: "weak cryptographic primitive"
+      linters:
+        - gosec
+
+    # Exclude linters for main packages
+    - path: cmd/
+      linters:
+        - gochecknoinits
+
+    # Allow embedding in main
+    - path: cmd/ainative-code/main\.go
+      linters:
+        - gochecknoglobals
+
+  exclude-use-default: false

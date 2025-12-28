@@ -1,0 +1,288 @@
+# AINative Code Configuration Example
+# This file demonstrates all available configuration options
+# Copy this file and customize it for your environment
+
+# Application settings
+app:
+  name: ainative-code
+  version: 0.1.0
+  environment: development  # development, staging, production
+  debug: true
+
+# LLM Provider Configuration
+llm:
+  # Default provider to use (anthropic, openai, google, bedrock, azure, ollama)
+  default_provider: anthropic
+
+  # Anthropic Claude Configuration
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}  # Set via environment variable
+    model: claude-3-5-sonnet-20241022
+    max_tokens: 4096
+    temperature: 0.7
+    top_p: 1.0
+    top_k: 0
+    timeout: 30s
+    retry_attempts: 3
+    api_version: "2023-06-01"
+    # base_url: https://api.anthropic.com  # Optional: override base URL
+
+  # OpenAI Configuration
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    model: gpt-4-turbo-preview
+    organization: ${OPENAI_ORG_ID}  # Optional
+    max_tokens: 4096
+    temperature: 0.7
+    top_p: 1.0
+    frequency_penalty: 0.0
+    presence_penalty: 0.0
+    timeout: 30s
+    retry_attempts: 3
+    # base_url: https://api.openai.com/v1  # Optional: override base URL
+
+  # Google Gemini Configuration
+  google:
+    api_key: ${GOOGLE_API_KEY}
+    model: gemini-pro
+    project_id: ${GOOGLE_PROJECT_ID}  # Optional for Vertex AI
+    location: us-central1  # Optional for Vertex AI
+    max_tokens: 4096
+    temperature: 0.7
+    top_p: 1.0
+    top_k: 40
+    timeout: 30s
+    retry_attempts: 3
+
+  # AWS Bedrock Configuration
+  bedrock:
+    region: us-east-1
+    model: anthropic.claude-3-sonnet-20240229-v1:0
+    # Option 1: Use AWS credentials
+    access_key_id: ${AWS_ACCESS_KEY_ID}
+    secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+    session_token: ${AWS_SESSION_TOKEN}  # Optional
+    # Option 2: Use AWS profile
+    # profile: default
+    max_tokens: 4096
+    temperature: 0.7
+    top_p: 1.0
+    timeout: 60s
+    retry_attempts: 3
+
+  # Azure OpenAI Configuration
+  azure:
+    api_key: ${AZURE_OPENAI_API_KEY}
+    endpoint: ${AZURE_OPENAI_ENDPOINT}
+    deployment_name: gpt-4-deployment
+    api_version: "2023-05-15"
+    max_tokens: 4096
+    temperature: 0.7
+    top_p: 1.0
+    timeout: 30s
+    retry_attempts: 3
+
+  # Ollama (Local LLM) Configuration
+  ollama:
+    base_url: http://localhost:11434
+    model: llama2
+    max_tokens: 4096
+    temperature: 0.7
+    top_p: 1.0
+    top_k: 40
+    timeout: 120s
+    retry_attempts: 1
+    keep_alive: 5m
+
+  # Fallback Configuration
+  fallback:
+    enabled: true
+    providers:
+      - anthropic
+      - openai
+      - ollama
+    max_retries: 2
+    retry_delay: 1s
+
+# AINative Platform Configuration
+platform:
+  authentication:
+    method: api_key  # api_key, jwt, oauth2
+    api_key: ${AINATIVE_API_KEY}
+    # For JWT authentication:
+    # token: ${AINATIVE_TOKEN}
+    # refresh_token: ${AINATIVE_REFRESH_TOKEN}
+    # For OAuth2 authentication:
+    # client_id: ${AINATIVE_CLIENT_ID}
+    # client_secret: ${AINATIVE_CLIENT_SECRET}
+    # token_url: https://auth.ainative.studio/oauth/token
+    # scopes:
+    #   - read
+    #   - write
+    timeout: 10s
+
+  organization:
+    id: ${AINATIVE_ORG_ID}
+    name: My Organization
+    workspace: default
+
+# Service Endpoints Configuration
+services:
+  # ZeroDB Configuration
+  zerodb:
+    enabled: true
+    endpoint: ${ZERODB_ENDPOINT}
+    database: ainative_code
+    username: ${ZERODB_USERNAME}
+    password: ${ZERODB_PASSWORD}
+    ssl: true
+    ssl_mode: require  # disable, require, verify-ca, verify-full
+    max_connections: 10
+    idle_connections: 2
+    conn_max_lifetime: 1h
+    timeout: 5s
+    retry_attempts: 3
+    retry_delay: 1s
+
+  # AINative Design Service
+  design:
+    enabled: true
+    endpoint: https://design.ainative.studio/api
+    api_key: ${DESIGN_API_KEY}
+    timeout: 30s
+    retry_attempts: 3
+
+  # Strapi CMS Service
+  strapi:
+    enabled: false
+    endpoint: ${STRAPI_ENDPOINT}
+    api_key: ${STRAPI_API_KEY}
+    timeout: 30s
+    retry_attempts: 3
+
+  # RLHF Service
+  rlhf:
+    enabled: false
+    endpoint: ${RLHF_ENDPOINT}
+    api_key: ${RLHF_API_KEY}
+    timeout: 60s
+    retry_attempts: 3
+    model_id: ${RLHF_MODEL_ID}
+
+# Tool Configurations
+tools:
+  # File System Tool
+  filesystem:
+    enabled: true
+    allowed_paths:
+      - /Users/aideveloper/projects
+      - /tmp/ainative
+    blocked_paths:
+      - /Users/aideveloper/.ssh
+      - /etc/passwd
+    max_file_size: 104857600  # 100MB in bytes
+    allowed_extensions:
+      - .go
+      - .py
+      - .js
+      - .ts
+      - .java
+      - .md
+      - .yaml
+      - .json
+
+  # Terminal Tool
+  terminal:
+    enabled: true
+    allowed_commands:
+      - git
+      - npm
+      - go
+      - python
+      - docker
+      - kubectl
+    blocked_commands:
+      - rm -rf /
+      - mkfs
+      - dd
+    timeout: 5m
+    working_dir: /Users/aideveloper/projects
+
+  # Browser Automation Tool
+  browser:
+    enabled: false
+    headless: true
+    timeout: 30s
+    user_agent: AINative-Code/0.1.0
+
+  # Code Analysis Tool
+  code_analysis:
+    enabled: true
+    languages:
+      - go
+      - python
+      - javascript
+      - typescript
+      - java
+    max_file_size: 10485760  # 10MB
+    include_tests: true
+
+# Performance Settings
+performance:
+  # Caching
+  cache:
+    enabled: true
+    type: memory  # memory, redis, memcached
+    ttl: 1h
+    max_size: 100  # MB
+    # redis_url: redis://localhost:6379/0
+    # memcached_url: localhost:11211
+
+  # Rate Limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+    burst_size: 10
+    time_window: 1m
+
+  # Concurrency
+  concurrency:
+    max_workers: 10
+    max_queue_size: 100
+    worker_timeout: 5m
+
+  # Circuit Breaker
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    success_threshold: 2
+    timeout: 60s
+    reset_timeout: 30s
+
+# Logging Configuration
+logging:
+  level: info  # debug, info, warn, error
+  format: json  # json, console
+  output: stdout  # stdout, file
+  # file_path: /var/log/ainative-code/app.log
+  max_size: 100  # MB
+  max_backups: 3
+  max_age: 7  # days
+  compress: true
+  sensitive_keys:
+    - api_key
+    - password
+    - token
+    - secret
+
+# Security Settings
+security:
+  encrypt_config: false
+  # encryption_key: ${CONFIG_ENCRYPTION_KEY}  # Must be 32+ chars for AES-256
+  allowed_origins:
+    - http://localhost:3000
+    - https://app.ainative.studio
+  tls_enabled: false
+  # tls_cert_path: /etc/ssl/certs/ainative.crt
+  # tls_key_path: /etc/ssl/private/ainative.key
+  # secret_rotation: 90d
