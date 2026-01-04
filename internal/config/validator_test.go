@@ -707,3 +707,541 @@ func TestIsValidEnum(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateGoogle(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *GoogleConfig
+		wantErr bool
+	}{
+		{
+			name: "valid google config",
+			config: &GoogleConfig{
+				APIKey:      "test-api-key",
+				Model:       "gemini-pro",
+				MaxTokens:   4096,
+				Temperature: 0.7,
+				TopP:        0.9,
+				Timeout:     30 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name:    "missing API key",
+			config:  &GoogleConfig{},
+			wantErr: true,
+		},
+		{
+			name: "invalid temperature",
+			config: &GoogleConfig{
+				APIKey:      "test-api-key",
+				Temperature: 1.5,
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid top_p",
+			config: &GoogleConfig{
+				APIKey: "test-api-key",
+				TopP:   -0.1,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				LLM: LLMConfig{
+					DefaultProvider: "google",
+					Google:          tt.config,
+				},
+			}
+			validator := NewValidator(cfg)
+			validator.validateGoogle()
+
+			hasErrors := len(validator.errs) > 0
+			if hasErrors != tt.wantErr {
+				t.Errorf("validateGoogle() error = %v, wantErr %v", hasErrors, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateBedrock(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *BedrockConfig
+		wantErr bool
+	}{
+		{
+			name: "valid bedrock config with credentials",
+			config: &BedrockConfig{
+				Region:          "us-east-1",
+				Model:           "anthropic.claude-3-sonnet",
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+				MaxTokens:       4096,
+				Temperature:     0.7,
+				TopP:            0.9,
+				Timeout:         60 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid bedrock config with profile",
+			config: &BedrockConfig{
+				Region:  "us-west-2",
+				Profile: "default",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing region",
+			config: &BedrockConfig{
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing credentials and profile",
+			config: &BedrockConfig{
+				Region: "us-east-1",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid temperature",
+			config: &BedrockConfig{
+				Region:          "us-east-1",
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+				Temperature:     2.0,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				LLM: LLMConfig{
+					DefaultProvider: "bedrock",
+					Bedrock:         tt.config,
+				},
+			}
+			validator := NewValidator(cfg)
+			validator.validateBedrock()
+
+			hasErrors := len(validator.errs) > 0
+			if hasErrors != tt.wantErr {
+				t.Errorf("validateBedrock() error = %v, wantErr %v", hasErrors, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateAzure(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *AzureConfig
+		wantErr bool
+	}{
+		{
+			name: "valid azure config",
+			config: &AzureConfig{
+				APIKey:         "test-api-key",
+				Endpoint:       "https://my-resource.openai.azure.com",
+				DeploymentName: "gpt-4-deployment",
+				MaxTokens:      4096,
+				Temperature:    0.7,
+				TopP:           0.9,
+				Timeout:        30 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name:    "missing API key",
+			config:  &AzureConfig{},
+			wantErr: true,
+		},
+		{
+			name: "missing endpoint",
+			config: &AzureConfig{
+				APIKey: "test-api-key",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid endpoint URL",
+			config: &AzureConfig{
+				APIKey:   "test-api-key",
+				Endpoint: "not-a-url",
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing deployment name",
+			config: &AzureConfig{
+				APIKey:   "test-api-key",
+				Endpoint: "https://my-resource.openai.azure.com",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid temperature",
+			config: &AzureConfig{
+				APIKey:         "test-api-key",
+				Endpoint:       "https://my-resource.openai.azure.com",
+				DeploymentName: "gpt-4",
+				Temperature:    3.0,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				LLM: LLMConfig{
+					DefaultProvider: "azure",
+					Azure:           tt.config,
+				},
+			}
+			validator := NewValidator(cfg)
+			validator.validateAzure()
+
+			hasErrors := len(validator.errs) > 0
+			if hasErrors != tt.wantErr {
+				t.Errorf("validateAzure() error = %v, wantErr %v", hasErrors, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateOllama(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *OllamaConfig
+		wantErr bool
+	}{
+		{
+			name: "valid ollama config",
+			config: &OllamaConfig{
+				BaseURL:     "http://localhost:11434",
+				Model:       "llama2",
+				MaxTokens:   2048,
+				Temperature: 0.8,
+				TopP:        0.9,
+				Timeout:     120 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing model",
+			config: &OllamaConfig{
+				BaseURL: "http://localhost:11434",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid base URL",
+			config: &OllamaConfig{
+				BaseURL: "not-a-url",
+				Model:   "llama2",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid temperature",
+			config: &OllamaConfig{
+				Model:       "llama2",
+				Temperature: 1.5,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				LLM: LLMConfig{
+					DefaultProvider: "ollama",
+					Ollama:          tt.config,
+				},
+			}
+			validator := NewValidator(cfg)
+			validator.validateOllama()
+
+			hasErrors := len(validator.errs) > 0
+			if hasErrors != tt.wantErr {
+				t.Errorf("validateOllama() error = %v, wantErr %v", hasErrors, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestIsValidEmail(t *testing.T) {
+	validator := &Validator{}
+
+	tests := []struct {
+		email string
+		valid bool
+	}{
+		{"user@example.com", true},
+		{"test.user@example.co.uk", true},
+		{"user+tag@example.com", true},
+		{"invalid", false},
+		{"@example.com", false},
+		{"user@", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.email, func(t *testing.T) {
+			result := validator.isValidEmail(tt.email)
+			if result != tt.valid {
+				t.Errorf("isValidEmail(%s) = %v, want %v", tt.email, result, tt.valid)
+			}
+		})
+	}
+}
+
+func TestValidateDesign(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *DesignConfig
+		wantErr bool
+	}{
+		{
+			name: "valid design config",
+			config: &DesignConfig{
+				Endpoint: "https://design.example.com",
+				Timeout:  30 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name:    "missing endpoint",
+			config:  &DesignConfig{},
+			wantErr: true,
+		},
+		{
+			name: "invalid endpoint URL",
+			config: &DesignConfig{
+				Endpoint: "not-a-url",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				Services: ServicesConfig{
+					Design: tt.config,
+				},
+			}
+			validator := NewValidator(cfg)
+			validator.validateDesign()
+
+			hasErrors := len(validator.errs) > 0
+			if hasErrors != tt.wantErr {
+				t.Errorf("validateDesign() error = %v, wantErr %v", hasErrors, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateStrapi(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *StrapiConfig
+		wantErr bool
+	}{
+		{
+			name: "valid strapi config",
+			config: &StrapiConfig{
+				Endpoint: "https://strapi.example.com",
+				Timeout:  30 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name:    "missing endpoint",
+			config:  &StrapiConfig{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				Services: ServicesConfig{
+					Strapi: tt.config,
+				},
+			}
+			validator := NewValidator(cfg)
+			validator.validateStrapi()
+
+			hasErrors := len(validator.errs) > 0
+			if hasErrors != tt.wantErr {
+				t.Errorf("validateStrapi() error = %v, wantErr %v", hasErrors, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateRLHF(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *RLHFConfig
+		wantErr bool
+	}{
+		{
+			name: "valid rlhf config",
+			config: &RLHFConfig{
+				Endpoint: "https://rlhf.example.com",
+				Timeout:  60 * time.Second,
+			},
+			wantErr: false,
+		},
+		{
+			name:    "missing endpoint",
+			config:  &RLHFConfig{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				Services: ServicesConfig{
+					RLHF: tt.config,
+				},
+			}
+			validator := NewValidator(cfg)
+			validator.validateRLHF()
+
+			hasErrors := len(validator.errs) > 0
+			if hasErrors != tt.wantErr {
+				t.Errorf("validateRLHF() error = %v, wantErr %v", hasErrors, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateFileSystemTool(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	tests := []struct {
+		name    string
+		config  *FileSystemToolConfig
+		wantErr bool
+	}{
+		{
+			name: "valid filesystem config",
+			config: &FileSystemToolConfig{
+				Enabled:      true,
+				AllowedPaths: []string{tmpDir},
+				MaxFileSize:  104857600,
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing allowed paths",
+			config: &FileSystemToolConfig{
+				Enabled: true,
+			},
+			wantErr: true,
+		},
+		{
+			name: "relative path (invalid)",
+			config: &FileSystemToolConfig{
+				Enabled:      true,
+				AllowedPaths: []string{"relative/path"},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				Tools: ToolsConfig{
+					FileSystem: tt.config,
+				},
+			}
+			validator := NewValidator(cfg)
+			validator.validateFileSystemTool()
+
+			hasErrors := len(validator.errs) > 0
+			if hasErrors != tt.wantErr {
+				t.Errorf("validateFileSystemTool() error = %v, wantErr %v", hasErrors, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateBrowserTool(t *testing.T) {
+	config := &BrowserToolConfig{
+		Enabled: true,
+		Timeout: 30 * time.Second,
+	}
+
+	cfg := &Config{
+		Tools: ToolsConfig{
+			Browser: config,
+		},
+	}
+	validator := NewValidator(cfg)
+	validator.validateBrowserTool()
+
+	// validateBrowserTool should not produce errors for valid config
+	if len(validator.errs) > 0 {
+		t.Errorf("validateBrowserTool() unexpected errors: %v", validator.errs)
+	}
+}
+
+func TestValidateCodeAnalysisTool(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *CodeAnalysisToolConfig
+		wantErr bool
+	}{
+		{
+			name: "valid code analysis config",
+			config: &CodeAnalysisToolConfig{
+				Enabled:     true,
+				Languages:   []string{"go", "python"},
+				MaxFileSize: 10485760,
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty languages (should use defaults)",
+			config: &CodeAnalysisToolConfig{
+				Enabled: true,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				Tools: ToolsConfig{
+					CodeAnalysis: tt.config,
+				},
+			}
+			validator := NewValidator(cfg)
+			validator.validateCodeAnalysisTool()
+
+			hasErrors := len(validator.errs) > 0
+			if hasErrors != tt.wantErr {
+				t.Errorf("validateCodeAnalysisTool() error = %v, wantErr %v", hasErrors, tt.wantErr)
+			}
+		})
+	}
+}
