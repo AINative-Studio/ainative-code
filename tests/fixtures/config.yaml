@@ -1,0 +1,26 @@
+# Test configuration for integration tests
+provider:
+  name: "mock"
+  api_key: "test-api-key-12345"
+  base_url: "http://localhost:8080"
+  max_retries: 3
+  timeout: 30
+  default_model: "test-model-v1"
+
+database:
+  path: ":memory:"
+  max_connections: 10
+
+session:
+  auto_save: true
+  max_messages: 100
+
+tools:
+  allowed_commands:
+    - "echo"
+    - "cat"
+    - "ls"
+    - "pwd"
+    - "date"
+  timeout_seconds: 30
+  require_confirmation: false

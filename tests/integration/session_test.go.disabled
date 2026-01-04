@@ -1,0 +1,700 @@
+package integration
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/AINative-studio/ainative-code/internal/session"
+	"github.com/AINative-studio/ainative-code/tests/helpers"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestSessionPersistence_CreateSession tests creating a new session
+func TestSessionPersistence_CreateSession(t *testing.T) {
+	db := helpers.SetupTestDB(t)
+	mgr := session.NewSQLiteManager(db)
+	ctx := context.Background()
+
+	t.Run("create valid session", func(t *testing.T) {
+		sess := &session.Session{
+			ID:        uuid.New().String(),
+			Name:      "Test Session",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Status:    session.StatusActive,
+		}
+
+		err := mgr.CreateSession(ctx, sess)
+		require.NoError(t, err)
+
+		// Verify session was created
+		retrieved, err := mgr.GetSession(ctx, sess.ID)
+		require.NoError(t, err)
+		assert.Equal(t, sess.ID, retrieved.ID)
+		assert.Equal(t, sess.Name, retrieved.Name)
+		assert.Equal(t, sess.Status, retrieved.Status)
+	})
+
+	t.Run("create session with settings", func(t *testing.T) {
+		model := "test-model-v1"
+		temp := 0.7
+		maxTokens := int64(2048)
+
+		sess := &session.Session{
+			ID:          uuid.New().String(),
+			Name:        "Session with Settings",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Status:      session.StatusActive,
+			Model:       &model,
+			Temperature: &temp,
+			MaxTokens:   &maxTokens,
+			Settings: map[string]any{
+				"stream":        true,
+				"show_thinking": false,
+			},
+		}
+
+		err := mgr.CreateSession(ctx, sess)
+		require.NoError(t, err)
+
+		// Verify settings were persisted
+		retrieved, err := mgr.GetSession(ctx, sess.ID)
+		require.NoError(t, err)
+		assert.NotNil(t, retrieved.Model)
+		assert.Equal(t, model, *retrieved.Model)
+		assert.NotNil(t, retrieved.Temperature)
+		assert.InDelta(t, temp, *retrieved.Temperature, 0.001)
+		assert.NotNil(t, retrieved.MaxTokens)
+		assert.Equal(t, maxTokens, *retrieved.MaxTokens)
+		assert.NotNil(t, retrieved.Settings)
+		assert.Equal(t, true, retrieved.Settings["stream"])
+	})
+
+	t.Run("duplicate session ID should fail", func(t *testing.T) {
+		sess := &session.Session{
+			ID:        uuid.New().String(),
+			Name:      "Original",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Status:    session.StatusActive,
+		}
+
+		err := mgr.CreateSession(ctx, sess)
+		require.NoError(t, err)
+
+		// Try to create another session with same ID
+		duplicate := &session.Session{
+			ID:        sess.ID,
+			Name:      "Duplicate",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Status:    session.StatusActive,
+		}
+
+		err = mgr.CreateSession(ctx, duplicate)
+		assert.Error(t, err)
+	})
+}
+
+// TestSessionPersistence_AddMessage tests adding messages to session
+func TestSessionPersistence_AddMessage(t *testing.T) {
+	db := helpers.SetupTestDB(t)
+	mgr := session.NewSQLiteManager(db)
+	ctx := context.Background()
+
+	// Create a session first
+	sess := &session.Session{
+		ID:        uuid.New().String(),
+		Name:      "Message Test Session",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Status:    session.StatusActive,
+	}
+	require.NoError(t, mgr.CreateSession(ctx, sess))
+
+	t.Run("add user message", func(t *testing.T) {
+		msg := &session.Message{
+			ID:        uuid.New().String(),
+			SessionID: sess.ID,
+			Role:      session.RoleUser,
+			Content:   "Hello, assistant!",
+			Timestamp: time.Now(),
+		}
+
+		err := mgr.AddMessage(ctx, msg)
+		require.NoError(t, err)
+
+		// Verify message was added
+		retrieved, err := mgr.GetMessage(ctx, msg.ID)
+		require.NoError(t, err)
+		assert.Equal(t, msg.ID, retrieved.ID)
+		assert.Equal(t, msg.SessionID, retrieved.SessionID)
+		assert.Equal(t, msg.Role, retrieved.Role)
+		assert.Equal(t, msg.Content, retrieved.Content)
+	})
+
+	t.Run("add assistant message with metadata", func(t *testing.T) {
+		model := "test-model-v1"
+		tokens := int64(42)
+		finishReason := "stop"
+
+		msg := &session.Message{
+			ID:           uuid.New().String(),
+			SessionID:    sess.ID,
+			Role:         session.RoleAssistant,
+			Content:      "Hello! How can I help you?",
+			Timestamp:    time.Now(),
+			Model:        &model,
+			TokensUsed:   &tokens,
+			FinishReason: &finishReason,
+			Metadata: map[string]any{
+				"provider":    "mock",
+				"temperature": 0.7,
+			},
+		}
+
+		err := mgr.AddMessage(ctx, msg)
+		require.NoError(t, err)
+
+		// Verify metadata was persisted
+		retrieved, err := mgr.GetMessage(ctx, msg.ID)
+		require.NoError(t, err)
+		assert.NotNil(t, retrieved.Model)
+		assert.Equal(t, model, *retrieved.Model)
+		assert.NotNil(t, retrieved.TokensUsed)
+		assert.Equal(t, tokens, *retrieved.TokensUsed)
+		assert.NotNil(t, retrieved.Metadata)
+		assert.Equal(t, "mock", retrieved.Metadata["provider"])
+	})
+
+	t.Run("add message with parent", func(t *testing.T) {
+		// Add parent message
+		parentMsg := &session.Message{
+			ID:        uuid.New().String(),
+			SessionID: sess.ID,
+			Role:      session.RoleUser,
+			Content:   "Parent message",
+			Timestamp: time.Now(),
+		}
+		require.NoError(t, mgr.AddMessage(ctx, parentMsg))
+
+		// Add child message
+		childMsg := &session.Message{
+			ID:        uuid.New().String(),
+			SessionID: sess.ID,
+			Role:      session.RoleAssistant,
+			Content:   "Child message",
+			Timestamp: time.Now(),
+			ParentID:  &parentMsg.ID,
+		}
+		err := mgr.AddMessage(ctx, childMsg)
+		require.NoError(t, err)
+
+		// Verify parent link
+		retrieved, err := mgr.GetMessage(ctx, childMsg.ID)
+		require.NoError(t, err)
+		assert.NotNil(t, retrieved.ParentID)
+		assert.Equal(t, parentMsg.ID, *retrieved.ParentID)
+	})
+}
+
+// TestSessionPersistence_GetMessages tests retrieving messages from session
+func TestSessionPersistence_GetMessages(t *testing.T) {
+	db := helpers.SetupTestDB(t)
+	mgr := session.NewSQLiteManager(db)
+	ctx := context.Background()
+
+	// Create session and add multiple messages
+	sess := &session.Session{
+		ID:        uuid.New().String(),
+		Name:      "Multi-Message Session",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Status:    session.StatusActive,
+	}
+	require.NoError(t, mgr.CreateSession(ctx, sess))
+
+	// Add 5 messages
+	messageIDs := make([]string, 5)
+	for i := 0; i < 5; i++ {
+		msg := &session.Message{
+			ID:        uuid.New().String(),
+			SessionID: sess.ID,
+			Role:      session.RoleUser,
+			Content:   "Message " + string(rune('A'+i)),
+			Timestamp: time.Now().Add(time.Duration(i) * time.Second),
+		}
+		messageIDs[i] = msg.ID
+		require.NoError(t, mgr.AddMessage(ctx, msg))
+	}
+
+	t.Run("get all messages", func(t *testing.T) {
+		messages, err := mgr.GetMessages(ctx, sess.ID)
+		require.NoError(t, err)
+		assert.Len(t, messages, 5)
+	})
+
+	t.Run("get messages paginated", func(t *testing.T) {
+		// Get first 3 messages
+		messages, err := mgr.GetMessagesPaginated(ctx, sess.ID, 3, 0)
+		require.NoError(t, err)
+		assert.Len(t, messages, 3)
+
+		// Get next 2 messages
+		messages, err = mgr.GetMessagesPaginated(ctx, sess.ID, 3, 3)
+		require.NoError(t, err)
+		assert.Len(t, messages, 2)
+	})
+
+	t.Run("get message count", func(t *testing.T) {
+		count, err := mgr.GetSessionMessageCount(ctx, sess.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(5), count)
+	})
+}
+
+// TestSessionPersistence_SaveAndResume tests session save and resume
+func TestSessionPersistence_SaveAndResume(t *testing.T) {
+	db := helpers.SetupTestDB(t)
+	mgr := session.NewSQLiteManager(db)
+	ctx := context.Background()
+
+	// Create a session with conversation
+	sessionID := uuid.New().String()
+	sess := &session.Session{
+		ID:        sessionID,
+		Name:      "Conversation to Resume",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Status:    session.StatusActive,
+	}
+	require.NoError(t, mgr.CreateSession(ctx, sess))
+
+	// Add conversation
+	messages := []session.Message{
+		{
+			ID:        uuid.New().String(),
+			SessionID: sessionID,
+			Role:      session.RoleUser,
+			Content:   "What is the capital of France?",
+			Timestamp: time.Now(),
+		},
+		{
+			ID:        uuid.New().String(),
+			SessionID: sessionID,
+			Role:      session.RoleAssistant,
+			Content:   "The capital of France is Paris.",
+			Timestamp: time.Now().Add(time.Second),
+		},
+		{
+			ID:        uuid.New().String(),
+			SessionID: sessionID,
+			Role:      session.RoleUser,
+			Content:   "What's the population?",
+			Timestamp: time.Now().Add(2 * time.Second),
+		},
+	}
+
+	for i := range messages {
+		require.NoError(t, mgr.AddMessage(ctx, &messages[i]))
+	}
+
+	// Touch session to update timestamp
+	err := mgr.TouchSession(ctx, sessionID)
+	require.NoError(t, err)
+
+	// Simulate resuming the session
+	t.Run("resume session", func(t *testing.T) {
+		// Get session
+		resumedSess, err := mgr.GetSession(ctx, sessionID)
+		require.NoError(t, err)
+		assert.Equal(t, sessionID, resumedSess.ID)
+		assert.Equal(t, session.StatusActive, resumedSess.Status)
+
+		// Get conversation history
+		history, err := mgr.GetMessages(ctx, sessionID)
+		require.NoError(t, err)
+		assert.Len(t, history, 3)
+
+		// Verify message order
+		assert.Equal(t, session.RoleUser, history[0].Role)
+		assert.Contains(t, history[0].Content, "capital")
+		assert.Equal(t, session.RoleAssistant, history[1].Role)
+		assert.Contains(t, history[1].Content, "Paris")
+		assert.Equal(t, session.RoleUser, history[2].Role)
+		assert.Contains(t, history[2].Content, "population")
+	})
+}
+
+// TestSessionPersistence_ExportSession tests exporting session to different formats
+func TestSessionPersistence_ExportSession(t *testing.T) {
+	db := helpers.SetupTestDB(t)
+	mgr := session.NewSQLiteManager(db)
+	ctx := context.Background()
+
+	// Create session with messages
+	sessionID := uuid.New().String()
+	sess := &session.Session{
+		ID:        sessionID,
+		Name:      "Export Test Session",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Status:    session.StatusActive,
+	}
+	require.NoError(t, mgr.CreateSession(ctx, sess))
+
+	// Add messages
+	messages := []session.Message{
+		{
+			ID:        uuid.New().String(),
+			SessionID: sessionID,
+			Role:      session.RoleUser,
+			Content:   "Hello!",
+			Timestamp: time.Now(),
+		},
+		{
+			ID:        uuid.New().String(),
+			SessionID: sessionID,
+			Role:      session.RoleAssistant,
+			Content:   "Hi there!",
+			Timestamp: time.Now().Add(time.Second),
+		},
+	}
+	for i := range messages {
+		require.NoError(t, mgr.AddMessage(ctx, &messages[i]))
+	}
+
+	t.Run("export as JSON", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := mgr.ExportSession(ctx, sessionID, session.ExportFormatJSON, &buf)
+		require.NoError(t, err)
+
+		// Parse exported JSON
+		var exported session.SessionExport
+		err = json.NewDecoder(&buf).Decode(&exported)
+		require.NoError(t, err)
+
+		assert.Equal(t, sessionID, exported.Session.ID)
+		assert.Len(t, exported.Messages, 2)
+		assert.Equal(t, "Hello!", exported.Messages[0].Content)
+		assert.Equal(t, "Hi there!", exported.Messages[1].Content)
+	})
+
+	t.Run("export as Markdown", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := mgr.ExportSession(ctx, sessionID, session.ExportFormatMarkdown, &buf)
+		require.NoError(t, err)
+
+		markdown := buf.String()
+		assert.Contains(t, markdown, "Export Test Session")
+		assert.Contains(t, markdown, "User:")
+		assert.Contains(t, markdown, "Hello!")
+		assert.Contains(t, markdown, "Assistant:")
+		assert.Contains(t, markdown, "Hi there!")
+	})
+
+	t.Run("export as Text", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := mgr.ExportSession(ctx, sessionID, session.ExportFormatText, &buf)
+		require.NoError(t, err)
+
+		text := buf.String()
+		assert.Contains(t, text, "Export Test Session")
+		assert.Contains(t, text, "Hello!")
+		assert.Contains(t, text, "Hi there!")
+	})
+}
+
+// TestSessionPersistence_ListSessions tests listing sessions with filters
+func TestSessionPersistence_ListSessions(t *testing.T) {
+	db := helpers.SetupTestDB(t)
+	mgr := session.NewSQLiteManager(db)
+	ctx := context.Background()
+
+	// Create multiple sessions with different statuses
+	sessions := []session.Session{
+		{
+			ID:        uuid.New().String(),
+			Name:      "Active Session 1",
+			CreatedAt: time.Now().Add(-3 * time.Hour),
+			UpdatedAt: time.Now().Add(-3 * time.Hour),
+			Status:    session.StatusActive,
+		},
+		{
+			ID:        uuid.New().String(),
+			Name:      "Active Session 2",
+			CreatedAt: time.Now().Add(-2 * time.Hour),
+			UpdatedAt: time.Now().Add(-2 * time.Hour),
+			Status:    session.StatusActive,
+		},
+		{
+			ID:        uuid.New().String(),
+			Name:      "Archived Session",
+			CreatedAt: time.Now().Add(-1 * time.Hour),
+			UpdatedAt: time.Now().Add(-1 * time.Hour),
+			Status:    session.StatusArchived,
+		},
+	}
+
+	for i := range sessions {
+		require.NoError(t, mgr.CreateSession(ctx, &sessions[i]))
+	}
+
+	t.Run("list all sessions", func(t *testing.T) {
+		result, err := mgr.ListSessions(ctx)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(result), 3)
+	})
+
+	t.Run("list active sessions only", func(t *testing.T) {
+		result, err := mgr.ListSessions(ctx, session.WithStatus(session.StatusActive))
+		require.NoError(t, err)
+
+		activeCount := 0
+		for _, s := range result {
+			if s.Status == session.StatusActive {
+				activeCount++
+			}
+		}
+		assert.GreaterOrEqual(t, activeCount, 2)
+	})
+
+	t.Run("list with limit", func(t *testing.T) {
+		result, err := mgr.ListSessions(ctx, session.WithLimit(2))
+		require.NoError(t, err)
+		assert.LessOrEqual(t, len(result), 2)
+	})
+}
+
+// TestSessionPersistence_UpdateAndDelete tests session update and deletion
+func TestSessionPersistence_UpdateAndDelete(t *testing.T) {
+	db := helpers.SetupTestDB(t)
+	mgr := session.NewSQLiteManager(db)
+	ctx := context.Background()
+
+	t.Run("update session", func(t *testing.T) {
+		sess := &session.Session{
+			ID:        uuid.New().String(),
+			Name:      "Original Name",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Status:    session.StatusActive,
+		}
+		require.NoError(t, mgr.CreateSession(ctx, sess))
+
+		// Update session
+		sess.Name = "Updated Name"
+		sess.UpdatedAt = time.Now()
+		err := mgr.UpdateSession(ctx, sess)
+		require.NoError(t, err)
+
+		// Verify update
+		retrieved, err := mgr.GetSession(ctx, sess.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "Updated Name", retrieved.Name)
+	})
+
+	t.Run("archive session", func(t *testing.T) {
+		sess := &session.Session{
+			ID:        uuid.New().String(),
+			Name:      "To Archive",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Status:    session.StatusActive,
+		}
+		require.NoError(t, mgr.CreateSession(ctx, sess))
+
+		// Archive session
+		err := mgr.ArchiveSession(ctx, sess.ID)
+		require.NoError(t, err)
+
+		// Verify archived
+		retrieved, err := mgr.GetSession(ctx, sess.ID)
+		require.NoError(t, err)
+		assert.Equal(t, session.StatusArchived, retrieved.Status)
+	})
+
+	t.Run("soft delete session", func(t *testing.T) {
+		sess := &session.Session{
+			ID:        uuid.New().String(),
+			Name:      "To Delete",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Status:    session.StatusActive,
+		}
+		require.NoError(t, mgr.CreateSession(ctx, sess))
+
+		// Soft delete
+		err := mgr.DeleteSession(ctx, sess.ID)
+		require.NoError(t, err)
+
+		// Should still exist but marked as deleted
+		retrieved, err := mgr.GetSession(ctx, sess.ID)
+		require.NoError(t, err)
+		assert.Equal(t, session.StatusDeleted, retrieved.Status)
+	})
+
+	t.Run("hard delete session", func(t *testing.T) {
+		sess := &session.Session{
+			ID:        uuid.New().String(),
+			Name:      "To Hard Delete",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Status:    session.StatusActive,
+		}
+		require.NoError(t, mgr.CreateSession(ctx, sess))
+
+		// Hard delete
+		err := mgr.HardDeleteSession(ctx, sess.ID)
+		require.NoError(t, err)
+
+		// Should not exist
+		_, err = mgr.GetSession(ctx, sess.ID)
+		assert.Error(t, err)
+	})
+}
+
+// TestSessionPersistence_SearchMessages tests message search functionality
+func TestSessionPersistence_SearchMessages(t *testing.T) {
+	db := helpers.SetupTestDB(t)
+	mgr := session.NewSQLiteManager(db)
+	ctx := context.Background()
+
+	// Create session with searchable messages
+	sessionID := uuid.New().String()
+	sess := &session.Session{
+		ID:        sessionID,
+		Name:      "Search Test",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Status:    session.StatusActive,
+	}
+	require.NoError(t, mgr.CreateSession(ctx, sess))
+
+	// Add messages with specific content
+	messages := []session.Message{
+		{
+			ID:        uuid.New().String(),
+			SessionID: sessionID,
+			Role:      session.RoleUser,
+			Content:   "Tell me about Go programming language",
+			Timestamp: time.Now(),
+		},
+		{
+			ID:        uuid.New().String(),
+			SessionID: sessionID,
+			Role:      session.RoleAssistant,
+			Content:   "Go is a statically typed, compiled programming language",
+			Timestamp: time.Now().Add(time.Second),
+		},
+		{
+			ID:        uuid.New().String(),
+			SessionID: sessionID,
+			Role:      session.RoleUser,
+			Content:   "What about Python?",
+			Timestamp: time.Now().Add(2 * time.Second),
+		},
+	}
+	for i := range messages {
+		require.NoError(t, mgr.AddMessage(ctx, &messages[i]))
+	}
+
+	t.Run("search for Go", func(t *testing.T) {
+		results, err := mgr.SearchMessages(ctx, sessionID, "Go")
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(results), 1)
+
+		// Check that results contain "Go"
+		found := false
+		for _, msg := range results {
+			if strings.Contains(msg.Content, "Go") {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found)
+	})
+
+	t.Run("search for programming", func(t *testing.T) {
+		results, err := mgr.SearchMessages(ctx, sessionID, "programming")
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(results), 1)
+	})
+
+	t.Run("search with no results", func(t *testing.T) {
+		results, err := mgr.SearchMessages(ctx, sessionID, "nonexistent")
+		require.NoError(t, err)
+		assert.Empty(t, results)
+	})
+}
+
+// TestSessionPersistence_Statistics tests statistics operations
+func TestSessionPersistence_Statistics(t *testing.T) {
+	db := helpers.SetupTestDB(t)
+	mgr := session.NewSQLiteManager(db)
+	ctx := context.Background()
+
+	// Create session
+	sessionID := uuid.New().String()
+	sess := &session.Session{
+		ID:        sessionID,
+		Name:      "Stats Test",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Status:    session.StatusActive,
+	}
+	require.NoError(t, mgr.CreateSession(ctx, sess))
+
+	// Add messages with token counts
+	tokens1 := int64(100)
+	tokens2 := int64(150)
+
+	messages := []session.Message{
+		{
+			ID:         uuid.New().String(),
+			SessionID:  sessionID,
+			Role:       session.RoleUser,
+			Content:    "Message 1",
+			Timestamp:  time.Now(),
+			TokensUsed: &tokens1,
+		},
+		{
+			ID:         uuid.New().String(),
+			SessionID:  sessionID,
+			Role:       session.RoleAssistant,
+			Content:    "Message 2",
+			Timestamp:  time.Now().Add(time.Second),
+			TokensUsed: &tokens2,
+		},
+	}
+	for i := range messages {
+		require.NoError(t, mgr.AddMessage(ctx, &messages[i]))
+	}
+
+	t.Run("get message count", func(t *testing.T) {
+		count, err := mgr.GetSessionMessageCount(ctx, sessionID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(2), count)
+	})
+
+	t.Run("get total tokens", func(t *testing.T) {
+		total, err := mgr.GetTotalTokensUsed(ctx, sessionID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(250), total)
+	})
+
+	t.Run("get session summary", func(t *testing.T) {
+		summary, err := mgr.GetSessionSummary(ctx, sessionID)
+		require.NoError(t, err)
+		assert.Equal(t, sessionID, summary.ID)
+		assert.Equal(t, int64(2), summary.MessageCount)
+		assert.Equal(t, int64(250), summary.TotalTokens)
+	})
+}

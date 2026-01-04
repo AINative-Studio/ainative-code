@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ainative/ainative-code/internal/tools"
+	"github.com/AINative-studio/ainative-code/internal/tools"
 )
 
 // WriteFileTool implements a tool for writing file contents with path sandboxing.

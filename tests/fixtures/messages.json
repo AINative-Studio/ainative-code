@@ -1,0 +1,83 @@
+[
+  {
+    "id": "msg_001",
+    "session_id": "session_001",
+    "role": "user",
+    "content": "Hello, can you help me write a simple function?",
+    "timestamp": "2026-01-04T10:00:00Z",
+    "parent_id": null,
+    "tokens_used": null,
+    "model": null,
+    "finish_reason": null,
+    "metadata": {}
+  },
+  {
+    "id": "msg_002",
+    "session_id": "session_001",
+    "role": "assistant",
+    "content": "Of course! I'd be happy to help you write a function. What kind of function would you like to create?",
+    "timestamp": "2026-01-04T10:00:05Z",
+    "parent_id": "msg_001",
+    "tokens_used": 25,
+    "model": "test-model-v1",
+    "finish_reason": "stop",
+    "metadata": {
+      "provider": "mock",
+      "temperature": 0.7
+    }
+  },
+  {
+    "id": "msg_003",
+    "session_id": "session_001",
+    "role": "user",
+    "content": "A function to calculate the factorial of a number",
+    "timestamp": "2026-01-04T10:00:15Z",
+    "parent_id": "msg_002",
+    "tokens_used": null,
+    "model": null,
+    "finish_reason": null,
+    "metadata": {}
+  },
+  {
+    "id": "msg_004",
+    "session_id": "session_001",
+    "role": "assistant",
+    "content": "Here's a recursive factorial function:\n\n```go\nfunc factorial(n int) int {\n    if n <= 1 {\n        return 1\n    }\n    return n * factorial(n-1)\n}\n```",
+    "timestamp": "2026-01-04T10:00:20Z",
+    "parent_id": "msg_003",
+    "tokens_used": 58,
+    "model": "test-model-v1",
+    "finish_reason": "stop",
+    "metadata": {
+      "provider": "mock",
+      "temperature": 0.7
+    }
+  },
+  {
+    "id": "msg_005",
+    "session_id": "session_002",
+    "role": "user",
+    "content": "What's the weather like?",
+    "timestamp": "2026-01-04T11:00:00Z",
+    "parent_id": null,
+    "tokens_used": null,
+    "model": null,
+    "finish_reason": null,
+    "metadata": {}
+  },
+  {
+    "id": "msg_006",
+    "session_id": "session_002",
+    "role": "assistant",
+    "content": "I don't have access to real-time weather information. You would need to check a weather service or website for current conditions.",
+    "timestamp": "2026-01-04T11:00:03Z",
+    "parent_id": "msg_005",
+    "tokens_used": 32,
+    "model": "test-model-v1",
+    "finish_reason": "stop",
+    "metadata": {
+      "provider": "mock",
+      "temperature": 0.7
+    }
+  }
+]

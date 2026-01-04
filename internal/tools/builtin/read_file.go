@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ainative/ainative-code/internal/tools"
+	"github.com/AINative-studio/ainative-code/internal/tools"
 )
 
 // ReadFileTool implements a tool for reading file contents with path sandboxing.

@@ -1,0 +1,447 @@
+package integration
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/AINative-studio/ainative-code/internal/providers"
+	"github.com/AINative-studio/ainative-code/tests/helpers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestChatSession_Initialize tests initializing a provider with API key
+func TestChatSession_Initialize(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      providers.Config
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid configuration",
+			config: providers.Config{
+				APIKey:       "test-api-key",
+				BaseURL:      "http://localhost:8080",
+				MaxRetries:   3,
+				Timeout:      30,
+				DefaultModel: "test-model-v1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty API key should work with mock",
+			config: providers.Config{
+				APIKey:       "",
+				BaseURL:      "http://localhost:8080",
+				DefaultModel: "test-model-v1",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock provider
+			provider := helpers.NewMockProvider("mock")
+			defer provider.Close()
+
+			// Verify provider is initialized
+			assert.Equal(t, "mock", provider.Name())
+
+			// Test getting models
+			ctx := context.Background()
+			models, err := provider.Models(ctx)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotEmpty(t, models)
+			}
+		})
+	}
+}
+
+// TestChatSession_SendRequest tests sending a chat request
+func TestChatSession_SendRequest(t *testing.T) {
+	tests := []struct {
+		name           string
+		request        *providers.ChatRequest
+		setupMock      func(*helpers.MockProvider)
+		validateResult func(*testing.T, *providers.Response, error)
+	}{
+		{
+			name: "successful chat request",
+			request: &providers.ChatRequest{
+				Messages: []providers.Message{
+					{Role: providers.RoleUser, Content: "Hello, how are you?"},
+				},
+				Model:       "test-model-v1",
+				MaxTokens:   100,
+				Temperature: 0.7,
+			},
+			setupMock: func(mp *helpers.MockProvider) {
+				mp.SetChatResponse(&providers.Response{
+					Content:      "I'm doing well, thank you for asking!",
+					Model:        "test-model-v1",
+					Provider:     "mock",
+					FinishReason: "stop",
+					Usage: &providers.UsageInfo{
+						PromptTokens:     5,
+						CompletionTokens: 10,
+						TotalTokens:      15,
+					},
+					CreatedAt: time.Now(),
+				}, nil)
+			},
+			validateResult: func(t *testing.T, resp *providers.Response, err error) {
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+				assert.Equal(t, "I'm doing well, thank you for asking!", resp.Content)
+				assert.Equal(t, "test-model-v1", resp.Model)
+				assert.Equal(t, "stop", resp.FinishReason)
+				assert.NotNil(t, resp.Usage)
+				assert.Equal(t, 15, resp.Usage.TotalTokens)
+			},
+		},
+		{
+			name: "multi-turn conversation",
+			request: &providers.ChatRequest{
+				Messages: []providers.Message{
+					{Role: providers.RoleUser, Content: "What's the capital of France?"},
+					{Role: providers.RoleAssistant, Content: "The capital of France is Paris."},
+					{Role: providers.RoleUser, Content: "What's the population?"},
+				},
+				Model:       "test-model-v1",
+				MaxTokens:   150,
+				Temperature: 0.5,
+			},
+			setupMock: func(mp *helpers.MockProvider) {
+				mp.SetChatResponse(&providers.Response{
+					Content:      "Paris has a population of approximately 2.2 million people in the city proper.",
+					Model:        "test-model-v1",
+					Provider:     "mock",
+					FinishReason: "stop",
+					Usage: &providers.UsageInfo{
+						PromptTokens:     30,
+						CompletionTokens: 20,
+						TotalTokens:      50,
+					},
+					CreatedAt: time.Now(),
+				}, nil)
+			},
+			validateResult: func(t *testing.T, resp *providers.Response, err error) {
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+				assert.Contains(t, resp.Content, "population")
+				assert.Equal(t, 50, resp.Usage.TotalTokens)
+			},
+		},
+		{
+			name: "empty message content",
+			request: &providers.ChatRequest{
+				Messages: []providers.Message{
+					{Role: providers.RoleUser, Content: ""},
+				},
+				Model: "test-model-v1",
+			},
+			setupMock: func(mp *helpers.MockProvider) {
+				// Mock provider will still return a response
+				mp.SetChatResponse(&providers.Response{
+					Content:      "I received an empty message.",
+					Model:        "test-model-v1",
+					Provider:     "mock",
+					FinishReason: "stop",
+					CreatedAt:    time.Now(),
+				}, nil)
+			},
+			validateResult: func(t *testing.T, resp *providers.Response, err error) {
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := helpers.NewMockProvider("mock")
+			defer provider.Close()
+
+			if tt.setupMock != nil {
+				tt.setupMock(provider)
+			}
+
+			ctx := context.Background()
+			resp, err := provider.Chat(ctx, tt.request)
+
+			tt.validateResult(t, resp, err)
+
+			// Verify call was made
+			assert.Equal(t, 1, provider.GetCallCount())
+
+			// Verify request was captured
+			lastReq := provider.GetLastChatRequest()
+			require.NotNil(t, lastReq)
+			assert.Equal(t, tt.request.Model, lastReq.Model)
+		})
+	}
+}
+
+// TestChatSession_StreamingResponse tests receiving streaming responses
+func TestChatSession_StreamingResponse(t *testing.T) {
+	tests := []struct {
+		name          string
+		request       *providers.StreamRequest
+		setupMock     func(*helpers.MockProvider)
+		validateEvent func(*testing.T, []providers.Event)
+	}{
+		{
+			name: "successful streaming response",
+			request: &providers.StreamRequest{
+				Messages: []providers.Message{
+					{Role: providers.RoleUser, Content: "Write a haiku"},
+				},
+				Model:       "test-model-v1",
+				MaxTokens:   50,
+				Temperature: 0.8,
+			},
+			setupMock: func(mp *helpers.MockProvider) {
+				// Use default streaming events
+			},
+			validateEvent: func(t *testing.T, events []providers.Event) {
+				assert.NotEmpty(t, events)
+
+				// Check for message start
+				var hasStart, hasContent, hasStop bool
+				var content string
+
+				for _, evt := range events {
+					switch evt.Type {
+					case providers.EventMessageStart:
+						hasStart = true
+					case providers.EventTextDelta:
+						hasContent = true
+						content += evt.Data
+					case providers.EventMessageStop:
+						hasStop = true
+					}
+				}
+
+				assert.True(t, hasStart, "Should have message start event")
+				assert.True(t, hasContent, "Should have text delta events")
+				assert.True(t, hasStop, "Should have message stop event")
+				assert.NotEmpty(t, content, "Should have received content")
+			},
+		},
+		{
+			name: "custom streaming events",
+			request: &providers.StreamRequest{
+				Messages: []providers.Message{
+					{Role: providers.RoleUser, Content: "Count to 3"},
+				},
+				Model: "test-model-v1",
+			},
+			setupMock: func(mp *helpers.MockProvider) {
+				mp.SetStreamEvents([]providers.Event{
+					{Type: providers.EventMessageStart, Timestamp: time.Now()},
+					{Type: providers.EventTextDelta, Data: "1", Timestamp: time.Now()},
+					{Type: providers.EventTextDelta, Data: ", ", Timestamp: time.Now()},
+					{Type: providers.EventTextDelta, Data: "2", Timestamp: time.Now()},
+					{Type: providers.EventTextDelta, Data: ", ", Timestamp: time.Now()},
+					{Type: providers.EventTextDelta, Data: "3", Timestamp: time.Now()},
+					{Type: providers.EventMessageStop, Timestamp: time.Now()},
+				}, nil)
+			},
+			validateEvent: func(t *testing.T, events []providers.Event) {
+				assert.Len(t, events, 7)
+
+				content := ""
+				for _, evt := range events {
+					if evt.Type == providers.EventTextDelta {
+						content += evt.Data
+					}
+				}
+				assert.Equal(t, "1, 2, 3", content)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := helpers.NewMockProvider("mock")
+			defer provider.Close()
+
+			if tt.setupMock != nil {
+				tt.setupMock(provider)
+			}
+
+			ctx := context.Background()
+			eventChan, err := provider.Stream(ctx, tt.request)
+			require.NoError(t, err)
+			require.NotNil(t, eventChan)
+
+			// Collect all events
+			var events []providers.Event
+			for evt := range eventChan {
+				events = append(events, evt)
+			}
+
+			tt.validateEvent(t, events)
+		})
+	}
+}
+
+// TestChatSession_ErrorHandling tests error handling scenarios
+func TestChatSession_ErrorHandling(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupMock     func(*helpers.MockProviderWithErrors)
+		expectedError string
+	}{
+		{
+			name: "authentication error",
+			setupMock: func(mp *helpers.MockProviderWithErrors) {
+				mp.SimulateAuthError()
+			},
+			expectedError: "authentication failed",
+		},
+		{
+			name: "rate limit error",
+			setupMock: func(mp *helpers.MockProviderWithErrors) {
+				mp.SimulateRateLimitError()
+			},
+			expectedError: "rate limit exceeded",
+		},
+		{
+			name: "timeout error",
+			setupMock: func(mp *helpers.MockProviderWithErrors) {
+				mp.SimulateTimeoutError()
+			},
+			expectedError: "context deadline exceeded",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := helpers.NewMockProviderWithErrors("mock")
+			defer provider.Close()
+
+			tt.setupMock(provider)
+
+			ctx := context.Background()
+			req := &providers.ChatRequest{
+				Messages: []providers.Message{
+					{Role: providers.RoleUser, Content: "Test"},
+				},
+				Model: "test-model-v1",
+			}
+
+			resp, err := provider.Chat(ctx, req)
+
+			require.Error(t, err)
+			assert.Nil(t, resp)
+			assert.Contains(t, err.Error(), tt.expectedError)
+		})
+	}
+}
+
+// TestChatSession_ContextCancellation tests context cancellation during chat
+func TestChatSession_ContextCancellation(t *testing.T) {
+	provider := helpers.NewMockProvider("mock")
+	defer provider.Close()
+
+	// Create a context that's already cancelled
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	req := &providers.ChatRequest{
+		Messages: []providers.Message{
+			{Role: providers.RoleUser, Content: "This should be cancelled"},
+		},
+		Model: "test-model-v1",
+	}
+
+	resp, err := provider.Chat(ctx, req)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, context.Canceled))
+	assert.Nil(t, resp)
+}
+
+// TestChatSession_StreamContextCancellation tests cancellation during streaming
+func TestChatSession_StreamContextCancellation(t *testing.T) {
+	provider := helpers.NewMockProvider("mock")
+	defer provider.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	req := &providers.StreamRequest{
+		Messages: []providers.Message{
+			{Role: providers.RoleUser, Content: "Test"},
+		},
+		Model: "test-model-v1",
+	}
+
+	eventChan, err := provider.Stream(ctx, req)
+	require.NoError(t, err)
+
+	// Try to read events until context is cancelled
+	var eventCount int
+	for range eventChan {
+		eventCount++
+	}
+
+	// We should have received some events before cancellation
+	// (The mock sends events with 10ms delay, so we should get a few)
+	t.Logf("Received %d events before cancellation", eventCount)
+}
+
+// TestChatSession_ConcurrentRequests tests concurrent chat requests
+func TestChatSession_ConcurrentRequests(t *testing.T) {
+	provider := helpers.NewMockProvider("mock")
+	defer provider.Close()
+
+	ctx := context.Background()
+	numRequests := 10
+
+	// Channel to collect results
+	type result struct {
+		resp *providers.Response
+		err  error
+	}
+	results := make(chan result, numRequests)
+
+	// Send concurrent requests
+	for i := 0; i < numRequests; i++ {
+		go func(idx int) {
+			req := &providers.ChatRequest{
+				Messages: []providers.Message{
+					{Role: providers.RoleUser, Content: "Concurrent request"},
+				},
+				Model: "test-model-v1",
+			}
+
+			resp, err := provider.Chat(ctx, req)
+			results <- result{resp: resp, err: err}
+		}(i)
+	}
+
+	// Collect all results
+	var successCount int
+	for i := 0; i < numRequests; i++ {
+		res := <-results
+		if res.err == nil && res.resp != nil {
+			successCount++
+		}
+	}
+
+	assert.Equal(t, numRequests, successCount, "All concurrent requests should succeed")
+	assert.Equal(t, numRequests, provider.GetCallCount())
+}

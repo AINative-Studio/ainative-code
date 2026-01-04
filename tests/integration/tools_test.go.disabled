@@ -1,0 +1,491 @@
+package integration
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/AINative-studio/ainative-code/internal/tools"
+	"github.com/AINative-studio/ainative-code/internal/tools/builtin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestToolExecution_BashCommand tests executing bash commands safely
+func TestToolExecution_BashCommand(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          map[string]interface{}
+		allowedCmds    []string
+		wantErr        bool
+		validateResult func(*testing.T, *tools.Result)
+	}{
+		{
+			name: "simple echo command",
+			input: map[string]interface{}{
+				"command": "echo",
+				"args":    []interface{}{"Hello", "World"},
+			},
+			allowedCmds: []string{"echo"},
+			wantErr:     false,
+			validateResult: func(t *testing.T, result *tools.Result) {
+				assert.True(t, result.Success)
+				assert.Contains(t, result.Output, "Hello World")
+				assert.Equal(t, 0, result.Metadata["exit_code"])
+			},
+		},
+		{
+			name: "pwd command",
+			input: map[string]interface{}{
+				"command": "pwd",
+			},
+			allowedCmds: []string{"pwd"},
+			wantErr:     false,
+			validateResult: func(t *testing.T, result *tools.Result) {
+				assert.True(t, result.Success)
+				assert.Contains(t, result.Output, "Exit Code: 0")
+			},
+		},
+		{
+			name: "ls with directory",
+			input: map[string]interface{}{
+				"command": "ls",
+				"args":    []interface{}{"-la"},
+			},
+			allowedCmds: []string{"ls"},
+			wantErr:     false,
+			validateResult: func(t *testing.T, result *tools.Result) {
+				assert.True(t, result.Success)
+			},
+		},
+		{
+			name: "date command",
+			input: map[string]interface{}{
+				"command": "date",
+			},
+			allowedCmds: []string{"date"},
+			wantErr:     false,
+			validateResult: func(t *testing.T, result *tools.Result) {
+				assert.True(t, result.Success)
+				assert.Contains(t, result.Output, "2026") // Current year
+			},
+		},
+		{
+			name: "command with custom timeout",
+			input: map[string]interface{}{
+				"command":         "echo",
+				"args":            []interface{}{"test"},
+				"timeout_seconds": 5,
+			},
+			allowedCmds: []string{"echo"},
+			wantErr:     false,
+			validateResult: func(t *testing.T, result *tools.Result) {
+				assert.True(t, result.Success)
+				// Check that duration is less than timeout
+				durationMs := result.Metadata["duration_ms"].(int64)
+				assert.Less(t, durationMs, int64(5000))
+			},
+		},
+		{
+			name: "command not in allowed list",
+			input: map[string]interface{}{
+				"command": "rm",
+				"args":    []interface{}{"-rf", "/"},
+			},
+			allowedCmds: []string{"echo", "ls", "pwd"},
+			wantErr:     true,
+		},
+		{
+			name: "command with environment variables",
+			input: map[string]interface{}{
+				"command": "sh",
+				"args":    []interface{}{"-c", "echo $TEST_VAR"},
+				"env": map[string]interface{}{
+					"TEST_VAR": "test_value",
+				},
+			},
+			allowedCmds: []string{"sh"},
+			wantErr:     false,
+			validateResult: func(t *testing.T, result *tools.Result) {
+				assert.True(t, result.Success)
+				assert.Contains(t, result.Output, "test_value")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tool := builtin.NewExecCommandTool(tt.allowedCmds, "")
+			ctx := context.Background()
+
+			result, err := tool.Execute(ctx, tt.input)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, result)
+
+			if tt.validateResult != nil {
+				tt.validateResult(t, result)
+			}
+		})
+	}
+}
+
+// TestToolExecution_FileOperations tests file read/write operations
+func TestToolExecution_FileOperations(t *testing.T) {
+	// Create temporary directory for tests
+	tmpDir := t.TempDir()
+
+	t.Run("write and read file", func(t *testing.T) {
+		// Test file write
+		writeTool := builtin.NewWriteFileTool(tmpDir)
+		testFilePath := filepath.Join(tmpDir, "test.txt")
+		testContent := "This is a test file content\nLine 2\nLine 3"
+
+		writeInput := map[string]interface{}{
+			"path":    testFilePath,
+			"content": testContent,
+		}
+
+		ctx := context.Background()
+		writeResult, err := writeTool.Execute(ctx, writeInput)
+		require.NoError(t, err)
+		require.NotNil(t, writeResult)
+		assert.True(t, writeResult.Success)
+
+		// Verify file exists
+		_, err = os.Stat(testFilePath)
+		assert.NoError(t, err)
+
+		// Test file read
+		readTool := builtin.NewReadFileTool(tmpDir)
+		readInput := map[string]interface{}{
+			"path": testFilePath,
+		}
+
+		readResult, err := readTool.Execute(ctx, readInput)
+		require.NoError(t, err)
+		require.NotNil(t, readResult)
+		assert.True(t, readResult.Success)
+		assert.Contains(t, readResult.Output, testContent)
+	})
+
+	t.Run("write file with create directories", func(t *testing.T) {
+		writeTool := builtin.NewWriteFileTool(tmpDir)
+		nestedPath := filepath.Join(tmpDir, "nested", "dir", "file.txt")
+
+		writeInput := map[string]interface{}{
+			"path":    nestedPath,
+			"content": "Nested file content",
+		}
+
+		ctx := context.Background()
+		result, err := writeTool.Execute(ctx, writeInput)
+		require.NoError(t, err)
+		assert.True(t, result.Success)
+
+		// Verify nested directories were created
+		_, err = os.Stat(nestedPath)
+		assert.NoError(t, err)
+	})
+
+	t.Run("read non-existent file", func(t *testing.T) {
+		readTool := builtin.NewReadFileTool(tmpDir)
+		readInput := map[string]interface{}{
+			"path": filepath.Join(tmpDir, "does-not-exist.txt"),
+		}
+
+		ctx := context.Background()
+		result, err := readTool.Execute(ctx, readInput)
+
+		// Should return error for non-existent file
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("write outside allowed directory", func(t *testing.T) {
+		writeTool := builtin.NewWriteFileTool(tmpDir)
+
+		// Try to write outside tmpDir
+		outsidePath := "/tmp/outside.txt"
+		writeInput := map[string]interface{}{
+			"path":    outsidePath,
+			"content": "This should fail",
+		}
+
+		ctx := context.Background()
+		result, err := writeTool.Execute(ctx, writeInput)
+
+		// Should fail due to security restriction
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+// TestToolExecution_OutputValidation tests output and error handling
+func TestToolExecution_OutputValidation(t *testing.T) {
+	t.Run("capture stdout and stderr separately", func(t *testing.T) {
+		tool := builtin.NewExecCommandTool([]string{"sh"}, "")
+
+		// Command that writes to both stdout and stderr
+		input := map[string]interface{}{
+			"command":        "sh",
+			"args":           []interface{}{"-c", "echo 'stdout'; echo 'stderr' >&2"},
+			"capture_stderr": true,
+		}
+
+		ctx := context.Background()
+		result, err := tool.Execute(ctx, input)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		assert.Contains(t, result.Output, "stdout")
+		assert.Contains(t, result.Output, "stderr")
+		assert.Contains(t, result.Output, "--- STDOUT ---")
+		assert.Contains(t, result.Output, "--- STDERR ---")
+	})
+
+	t.Run("capture combined output", func(t *testing.T) {
+		tool := builtin.NewExecCommandTool([]string{"sh"}, "")
+
+		input := map[string]interface{}{
+			"command":        "sh",
+			"args":           []interface{}{"-c", "echo 'combined'"},
+			"capture_stderr": false,
+		}
+
+		ctx := context.Background()
+		result, err := tool.Execute(ctx, input)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		assert.Contains(t, result.Output, "combined")
+		// Should not have separate stderr section
+		assert.NotContains(t, result.Output, "--- STDERR ---")
+	})
+
+	t.Run("non-zero exit code", func(t *testing.T) {
+		tool := builtin.NewExecCommandTool([]string{"sh"}, "")
+
+		input := map[string]interface{}{
+			"command": "sh",
+			"args":    []interface{}{"-c", "exit 42"},
+		}
+
+		ctx := context.Background()
+		result, err := tool.Execute(ctx, input)
+		require.NoError(t, err) // Execute succeeds even with non-zero exit
+		require.NotNil(t, result)
+
+		assert.False(t, result.Success)
+		assert.Equal(t, 42, result.Metadata["exit_code"])
+	})
+}
+
+// TestToolExecution_TimeoutAndCancellation tests timeout and cancellation
+func TestToolExecution_TimeoutAndCancellation(t *testing.T) {
+	t.Run("command timeout", func(t *testing.T) {
+		tool := builtin.NewExecCommandTool([]string{"sleep"}, "")
+
+		input := map[string]interface{}{
+			"command":         "sleep",
+			"args":            []interface{}{"10"},
+			"timeout_seconds": 1, // 1 second timeout
+		}
+
+		ctx := context.Background()
+		start := time.Now()
+		result, err := tool.Execute(ctx, input)
+		duration := time.Since(start)
+
+		// Should timeout and return error
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "timeout")
+
+		// Should complete within reasonable time (not wait for full 10 seconds)
+		assert.Less(t, duration, 3*time.Second)
+	})
+
+	t.Run("context cancellation", func(t *testing.T) {
+		tool := builtin.NewExecCommandTool([]string{"sleep"}, "")
+
+		input := map[string]interface{}{
+			"command": "sleep",
+			"args":    []interface{}{"10"},
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// Cancel after a short delay
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			cancel()
+		}()
+
+		start := time.Now()
+		result, err := tool.Execute(ctx, input)
+		duration := time.Since(start)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+
+		// Should complete quickly after cancellation
+		assert.Less(t, duration, 2*time.Second)
+	})
+
+	t.Run("timeout with default value", func(t *testing.T) {
+		tool := builtin.NewExecCommandTool([]string{"echo"}, "")
+
+		input := map[string]interface{}{
+			"command": "echo",
+			"args":    []interface{}{"fast"},
+		}
+
+		ctx := context.Background()
+		result, err := tool.Execute(ctx, input)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.True(t, result.Success)
+
+		// Check that duration is captured
+		durationMs, ok := result.Metadata["duration_ms"].(int64)
+		assert.True(t, ok)
+		assert.Greater(t, durationMs, int64(0))
+	})
+}
+
+// TestToolExecution_WorkingDirectory tests working directory handling
+func TestToolExecution_WorkingDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	t.Run("custom working directory", func(t *testing.T) {
+		tool := builtin.NewExecCommandTool([]string{"pwd"}, tmpDir)
+
+		input := map[string]interface{}{
+			"command": "pwd",
+		}
+
+		ctx := context.Background()
+		result, err := tool.Execute(ctx, input)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		assert.True(t, result.Success)
+		// Output should contain the temp directory path
+		assert.Contains(t, result.Output, tmpDir)
+	})
+
+	t.Run("override working directory in input", func(t *testing.T) {
+		tool := builtin.NewExecCommandTool([]string{"pwd"}, "/tmp")
+
+		input := map[string]interface{}{
+			"command":     "pwd",
+			"working_dir": tmpDir,
+		}
+
+		ctx := context.Background()
+		result, err := tool.Execute(ctx, input)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		// Should use the override directory
+		assert.Contains(t, result.Output, tmpDir)
+		assert.Equal(t, tmpDir, result.Metadata["working_dir"])
+	})
+}
+
+// TestToolExecution_SecurityRestrictions tests security features
+func TestToolExecution_SecurityRestrictions(t *testing.T) {
+	t.Run("no allowed commands configured", func(t *testing.T) {
+		// Empty allowed commands list should deny all
+		tool := builtin.NewExecCommandTool([]string{}, "")
+
+		input := map[string]interface{}{
+			"command": "echo",
+			"args":    []interface{}{"test"},
+		}
+
+		ctx := context.Background()
+		result, err := tool.Execute(ctx, input)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "no allowed commands configured")
+	})
+
+	t.Run("command validation with whitelist", func(t *testing.T) {
+		allowedCmds := []string{"echo", "ls", "pwd"}
+		tool := builtin.NewExecCommandTool(allowedCmds, "")
+
+		testCases := []struct {
+			command string
+			wantErr bool
+		}{
+			{"echo", false},
+			{"ls", false},
+			{"pwd", false},
+			{"rm", true},
+			{"curl", true},
+			{"wget", true},
+		}
+
+		for _, tc := range testCases {
+			t.Run(fmt.Sprintf("command_%s", tc.command), func(t *testing.T) {
+				input := map[string]interface{}{
+					"command": tc.command,
+				}
+
+				ctx := context.Background()
+				result, err := tool.Execute(ctx, input)
+
+				if tc.wantErr {
+					assert.Error(t, err)
+					assert.Nil(t, result)
+					assert.Contains(t, err.Error(), "not in allowed commands")
+				} else {
+					// May fail for other reasons, but not permission
+					if err != nil {
+						assert.NotContains(t, err.Error(), "not in allowed commands")
+					}
+				}
+			})
+		}
+	})
+}
+
+// TestToolExecution_Metadata tests metadata collection
+func TestToolExecution_Metadata(t *testing.T) {
+	tool := builtin.NewExecCommandTool([]string{"echo"}, "")
+
+	input := map[string]interface{}{
+		"command": "echo",
+		"args":    []interface{}{"test", "output"},
+		"env": map[string]interface{}{
+			"MY_VAR": "my_value",
+		},
+	}
+
+	ctx := context.Background()
+	result, err := tool.Execute(ctx, input)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// Verify metadata fields
+	assert.Equal(t, "echo", result.Metadata["command"])
+	assert.NotNil(t, result.Metadata["args"])
+	assert.Equal(t, 0, result.Metadata["exit_code"])
+	assert.NotNil(t, result.Metadata["duration_ms"])
+	assert.NotNil(t, result.Metadata["stdout_bytes"])
+	assert.NotNil(t, result.Metadata["stderr_bytes"])
+	assert.NotNil(t, result.Metadata["env_vars"])
+}

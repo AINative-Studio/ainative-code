@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ainative/ainative-code/internal/tools"
+	"github.com/AINative-studio/ainative-code/internal/tools"
 )
 
 // HTTPRequestTool implements a tool for making HTTP requests with security restrictions.
