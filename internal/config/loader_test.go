@@ -491,3 +491,103 @@ security:
 		t.Errorf("Logging.Level = %v, want warn", cfg.Logging.Level)
 	}
 }
+
+func TestWithResolver(t *testing.T) {
+	resolver := NewResolver()
+	loader := NewLoader(WithResolver(resolver))
+
+	if loader.resolver == nil {
+		t.Error("WithResolver() should set resolver")
+	}
+}
+
+func TestGetViper(t *testing.T) {
+	loader := NewLoader()
+
+	// Load a basic config first
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.yaml")
+	configContent := `
+app:
+  name: test-app
+
+llm:
+  default_provider: anthropic
+  anthropic:
+    api_key: sk-ant-test
+
+platform:
+  authentication:
+    method: api_key
+    api_key: test-key
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+
+	if _, err := loader.LoadFromFile(configPath); err != nil {
+		t.Fatalf("LoadFromFile() error = %v", err)
+	}
+
+	viper := loader.GetViper()
+	if viper == nil {
+		t.Error("GetViper() should return viper instance")
+	}
+
+	// Verify we can access config through viper
+	if viper.GetString("app.name") != "test-app" {
+		t.Errorf("viper.GetString(\"app.name\") = %v, want test-app", viper.GetString("app.name"))
+	}
+}
+
+func TestWriteConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputPath := filepath.Join(tmpDir, "input.yaml")
+	outputPath := filepath.Join(tmpDir, "output.yaml")
+
+	inputContent := `
+app:
+  name: test-app
+  environment: development
+
+llm:
+  default_provider: anthropic
+  anthropic:
+    api_key: sk-ant-test
+
+platform:
+  authentication:
+    method: api_key
+    api_key: test-key
+`
+
+	if err := os.WriteFile(inputPath, []byte(inputContent), 0644); err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+
+	loader := NewLoader()
+	cfg, err := loader.LoadFromFile(inputPath)
+	if err != nil {
+		t.Fatalf("LoadFromFile() error = %v", err)
+	}
+
+	if err := WriteConfig(cfg, outputPath); err != nil {
+		t.Fatalf("WriteConfig() error = %v", err)
+	}
+
+	// Verify output file was created
+	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
+		t.Error("WriteConfig() should create output file")
+	}
+
+	// Verify we can load the written config
+	loader2 := NewLoader()
+	cfg2, err := loader2.LoadFromFile(outputPath)
+	if err != nil {
+		t.Fatalf("Failed to load written config: %v", err)
+	}
+
+	if cfg2.App.Name != "test-app" {
+		t.Errorf("Written config App.Name = %v, want test-app", cfg2.App.Name)
+	}
+}
