@@ -201,6 +201,11 @@ func (c *Client) startCallbackServer(ctx context.Context) (code, state string, e
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", c.config.CallbackPort),
 		Handler: mux,
+		// Security: Prevent Slowloris attacks
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Start server in goroutine
