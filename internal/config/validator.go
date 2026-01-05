@@ -156,6 +156,13 @@ func (v *Validator) validateAnthropic() {
 	if cfg.BaseURL != "" && !v.isValidURL(cfg.BaseURL) {
 		v.addError("llm.anthropic.base_url", "must be a valid URL")
 	}
+
+	// Validate extended thinking configuration if present
+	if cfg.ExtendedThinking != nil {
+		if err := ValidateExtendedThinkingConfig(cfg.ExtendedThinking); err != nil {
+			v.errs = append(v.errs, err)
+		}
+	}
 }
 
 // validateOpenAI validates OpenAI configuration

@@ -7,15 +7,17 @@ import (
 
 // Model represents the TUI application state
 type Model struct {
-	viewport  viewport.Model
-	textInput textinput.Model
-	messages  []Message
-	width     int
-	height    int
-	ready     bool
-	quitting  bool
-	streaming bool
-	err       error
+	viewport       viewport.Model
+	textInput      textinput.Model
+	messages       []Message
+	thinkingState  *ThinkingState
+	thinkingConfig ThinkingConfig
+	width          int
+	height         int
+	ready          bool
+	quitting       bool
+	streaming      bool
+	err            error
 }
 
 // Message represents a chat message
@@ -33,11 +35,13 @@ func NewModel() Model {
 	ti.Width = 50
 
 	return Model{
-		textInput: ti,
-		messages:  []Message{},
-		ready:     false,
-		quitting:  false,
-		streaming: false,
+		textInput:      ti,
+		messages:       []Message{},
+		thinkingState:  NewThinkingState(),
+		thinkingConfig: DefaultThinkingConfig(),
+		ready:          false,
+		quitting:       false,
+		streaming:      false,
 	}
 }
 
@@ -124,4 +128,56 @@ func (m *Model) SetStreaming(streaming bool) {
 // SetQuitting sets the quitting state
 func (m *Model) SetQuitting(quitting bool) {
 	m.quitting = quitting
+}
+
+// Thinking-related methods
+
+// ToggleThinkingDisplay toggles the display of thinking blocks
+func (m *Model) ToggleThinkingDisplay() {
+	m.thinkingState.ToggleDisplay()
+}
+
+// AddThinking adds a new thinking block
+func (m *Model) AddThinking(content string, depth int) {
+	m.thinkingState.AddThinkingBlock(content, depth)
+}
+
+// AppendThinking appends content to the current thinking block
+func (m *Model) AppendThinking(content string) {
+	m.thinkingState.AppendToCurrentBlock(content)
+}
+
+// CollapseAllThinking collapses all thinking blocks
+func (m *Model) CollapseAllThinking() {
+	m.thinkingState.CollapseAll()
+}
+
+// ExpandAllThinking expands all thinking blocks
+func (m *Model) ExpandAllThinking() {
+	m.thinkingState.ExpandAll()
+}
+
+// ClearThinking removes all thinking blocks
+func (m *Model) ClearThinking() {
+	m.thinkingState.ClearBlocks()
+}
+
+// IsThinkingVisible returns whether thinking blocks are visible
+func (m *Model) IsThinkingVisible() bool {
+	return m.thinkingState.ShowThinking
+}
+
+// GetThinkingState returns the thinking state
+func (m *Model) GetThinkingState() *ThinkingState {
+	return m.thinkingState
+}
+
+// GetThinkingConfig returns the thinking configuration
+func (m *Model) GetThinkingConfig() ThinkingConfig {
+	return m.thinkingConfig
+}
+
+// SetThinkingConfig sets the thinking configuration
+func (m *Model) SetThinkingConfig(config ThinkingConfig) {
+	m.thinkingConfig = config
 }

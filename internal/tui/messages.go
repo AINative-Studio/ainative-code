@@ -30,6 +30,24 @@ type userInputMsg struct {
 	input string
 }
 
+// thinkingChunkMsg represents a chunk of thinking content
+type thinkingChunkMsg struct {
+	content string
+	depth   int
+}
+
+// thinkingDoneMsg signals the end of a thinking block
+type thinkingDoneMsg struct{}
+
+// toggleThinkingMsg signals to toggle thinking display
+type toggleThinkingMsg struct{}
+
+// collapseAllThinkingMsg signals to collapse all thinking blocks
+type collapseAllThinkingMsg struct{}
+
+// expandAllThinkingMsg signals to expand all thinking blocks
+type expandAllThinkingMsg struct{}
+
 // windowSizeMsg is handled by Bubble Tea automatically via tea.WindowSizeMsg
 
 // Helper functions to create commands that return messages
@@ -66,5 +84,40 @@ func SendStreamDone() tea.Cmd {
 func SendUserInput(input string) tea.Cmd {
 	return func() tea.Msg {
 		return userInputMsg{input: input}
+	}
+}
+
+// SendThinkingChunk creates a command that sends a thinking chunk
+func SendThinkingChunk(content string, depth int) tea.Cmd {
+	return func() tea.Msg {
+		return thinkingChunkMsg{content: content, depth: depth}
+	}
+}
+
+// SendThinkingDone creates a command that sends a thinking done message
+func SendThinkingDone() tea.Cmd {
+	return func() tea.Msg {
+		return thinkingDoneMsg{}
+	}
+}
+
+// SendToggleThinking creates a command that toggles thinking display
+func SendToggleThinking() tea.Cmd {
+	return func() tea.Msg {
+		return toggleThinkingMsg{}
+	}
+}
+
+// SendCollapseAllThinking creates a command to collapse all thinking
+func SendCollapseAllThinking() tea.Cmd {
+	return func() tea.Msg {
+		return collapseAllThinkingMsg{}
+	}
+}
+
+// SendExpandAllThinking creates a command to expand all thinking
+func SendExpandAllThinking() tea.Cmd {
+	return func() tea.Msg {
+		return expandAllThinkingMsg{}
 	}
 }

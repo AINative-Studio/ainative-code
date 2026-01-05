@@ -63,6 +63,14 @@ type AnthropicConfig struct {
 	RetryAttempts   int           `mapstructure:"retry_attempts" yaml:"retry_attempts"`
 	BaseURL         string        `mapstructure:"base_url,omitempty" yaml:"base_url,omitempty"`
 	APIVersion      string        `mapstructure:"api_version" yaml:"api_version"`
+	ExtendedThinking *ExtendedThinkingConfig `mapstructure:"extended_thinking,omitempty" yaml:"extended_thinking,omitempty"`
+}
+
+// ExtendedThinkingConfig contains extended thinking visualization settings
+type ExtendedThinkingConfig struct {
+	Enabled    bool `mapstructure:"enabled" yaml:"enabled"`
+	AutoExpand bool `mapstructure:"auto_expand" yaml:"auto_expand"`
+	MaxDepth   int  `mapstructure:"max_depth" yaml:"max_depth"`
 }
 
 // OpenAIConfig contains OpenAI configuration
