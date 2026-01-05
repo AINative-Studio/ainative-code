@@ -1,0 +1,60 @@
+# Example configuration for Google Gemini provider
+
+llm:
+  default_provider: google
+
+  google:
+    api_key: "${GOOGLE_API_KEY}"  # Set via environment variable
+    model: "gemini-pro"
+    base_url: "https://generativelanguage.googleapis.com/v1beta"  # Optional, uses default if not set
+    max_tokens: 2048
+    temperature: 0.7
+    top_p: 0.95
+    top_k: 40
+    timeout: 60s
+    retry_attempts: 3
+
+    # Advanced retry configuration
+    retry:
+      max_attempts: 3
+      initial_delay: 1s
+      max_delay: 30s
+      multiplier: 2.0
+      enable_jitter: true
+      enable_token_reduction: true
+      token_reduction_percent: 25
+
+    # Safety settings (optional)
+    # safety_settings:
+    #   HARM_CATEGORY_HARASSMENT: BLOCK_MEDIUM_AND_ABOVE
+    #   HARM_CATEGORY_HATE_SPEECH: BLOCK_MEDIUM_AND_ABOVE
+    #   HARM_CATEGORY_SEXUALLY_EXPLICIT: BLOCK_MEDIUM_AND_ABOVE
+    #   HARM_CATEGORY_DANGEROUS_CONTENT: BLOCK_MEDIUM_AND_ABOVE
+
+  # Fallback configuration
+  fallback:
+    enabled: true
+    providers:
+      - google
+      - anthropic
+      - openai
+    max_retries: 2
+    retry_delay: 5s
+
+# Application settings
+app:
+  name: "ainative-code"
+  version: "1.0.0"
+  environment: "production"
+  debug: false
+
+# Logging configuration
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"
+
+# Security settings
+security:
+  encrypt_config: false
+  tls_enabled: false
