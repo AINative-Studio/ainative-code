@@ -41,7 +41,6 @@ func (t *ExecCommandTool) Description() string {
 // Schema returns the JSON schema for the tool's input parameters.
 func (t *ExecCommandTool) Schema() tools.ToolSchema {
 	maxCommandLength := 8192
-	maxArgsLength := 16384
 	return tools.ToolSchema{
 		Type: "object",
 		Properties: map[string]tools.PropertyDef{
