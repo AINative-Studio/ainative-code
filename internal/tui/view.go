@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/AINative-studio/ainative-code/pkg/lsp"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -75,7 +76,18 @@ func (m Model) View() string {
 	statusBar := m.renderStatusBar()
 	sb.WriteString(statusBar)
 
-	return sb.String()
+	content := sb.String()
+
+	// 4. Overlay popups (completion, hover, navigation)
+	if m.showCompletion {
+		content = overlayPopup(content, RenderCompletion(&m), m.width, m.height)
+	} else if m.showHover {
+		content = overlayPopup(content, RenderHover(&m), m.width, m.height)
+	} else if m.showNavigation {
+		content = overlayPopup(content, RenderNavigation(&m), m.width, m.height)
+	}
+
+	return content
 }
 
 // renderInputArea creates the input section with prompt and text field
@@ -119,7 +131,7 @@ func (m *Model) renderInputArea() string {
 func (m *Model) renderStatusBar() string {
 	var leftSection, rightSection string
 
-	// Left section: Streaming indicator or ready status
+	// Left section: Streaming indicator or ready status with LSP status
 	if m.streaming {
 		leftSection = streamingIndicatorStyle.Render("● Streaming...")
 	} else if m.err != nil {
@@ -128,6 +140,13 @@ func (m *Model) renderStatusBar() string {
 		readyStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("10"))
 		leftSection = readyStyle.Render("● Ready")
+	}
+
+	// Add LSP status indicator
+	if m.IsLSPEnabled() {
+		lspStatus := m.GetLSPStatus()
+		lspIndicator := renderLSPStatus(lspStatus)
+		leftSection += " " + lspIndicator
 	}
 
 	// Right section: Help hint and thinking status
@@ -279,4 +298,89 @@ func (m *Model) renderCompactView() string {
 	}
 
 	return m.View()
+}
+
+// renderLSPStatus renders the LSP connection status indicator
+func renderLSPStatus(status lsp.ConnectionStatus) string {
+	switch status {
+	case lsp.StatusConnected:
+		connectedStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("10"))
+		return connectedStyle.Render("[LSP: ●]")
+	case lsp.StatusConnecting:
+		connectingStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("11"))
+		return connectingStyle.Render("[LSP: ○]")
+	case lsp.StatusError:
+		errorLSPStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("9"))
+		return errorLSPStyle.Render("[LSP: ✗]")
+	case lsp.StatusDisconnected:
+		disconnectedStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("243"))
+		return disconnectedStyle.Render("[LSP: -]")
+	default:
+		return ""
+	}
+}
+
+// overlayPopup overlays a popup on top of the main content
+func overlayPopup(content, popup string, width, height int) string {
+	if popup == "" {
+		return content
+	}
+
+	// Split content into lines
+	contentLines := strings.Split(content, "\n")
+	popupLines := strings.Split(popup, "\n")
+
+	// Calculate popup position (center of screen)
+	popupHeight := len(popupLines)
+	popupWidth := 0
+	for _, line := range popupLines {
+		if lipgloss.Width(line) > popupWidth {
+			popupWidth = lipgloss.Width(line)
+		}
+	}
+
+	startRow := (height - popupHeight) / 2
+	startCol := (width - popupWidth) / 2
+
+	if startRow < 0 {
+		startRow = 0
+	}
+	if startCol < 0 {
+		startCol = 0
+	}
+
+	// Overlay popup on content
+	result := make([]string, len(contentLines))
+	copy(result, contentLines)
+
+	for i, popupLine := range popupLines {
+		row := startRow + i
+		if row >= 0 && row < len(result) {
+			// Replace part of the line with popup content
+			originalLine := result[row]
+			originalRunes := []rune(originalLine)
+
+			// Pad or truncate original line to ensure we can overlay
+			if len(originalRunes) < startCol+lipgloss.Width(popupLine) {
+				padding := startCol + lipgloss.Width(popupLine) - len(originalRunes)
+				originalLine += strings.Repeat(" ", padding)
+				originalRunes = []rune(originalLine)
+			}
+
+			// Insert popup line at the correct position
+			prefix := string(originalRunes[:startCol])
+			suffix := ""
+			if startCol+lipgloss.Width(popupLine) < len(originalRunes) {
+				suffix = string(originalRunes[startCol+lipgloss.Width(popupLine):])
+			}
+
+			result[row] = prefix + popupLine + suffix
+		}
+	}
+
+	return strings.Join(result, "\n")
 }

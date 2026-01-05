@@ -1,23 +1,34 @@
 package tui
 
 import (
+	"github.com/AINative-studio/ainative-code/pkg/lsp"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 )
 
 // Model represents the TUI application state
 type Model struct {
-	viewport       viewport.Model
-	textInput      textinput.Model
-	messages       []Message
-	thinkingState  *ThinkingState
-	thinkingConfig ThinkingConfig
-	width          int
-	height         int
-	ready          bool
-	quitting       bool
-	streaming      bool
-	err            error
+	viewport         viewport.Model
+	textInput        textinput.Model
+	messages         []Message
+	thinkingState    *ThinkingState
+	thinkingConfig   ThinkingConfig
+	width            int
+	height           int
+	ready            bool
+	quitting         bool
+	streaming        bool
+	err              error
+	lspClient        *lsp.Client
+	lspEnabled       bool
+	currentDocument  string
+	completionItems  []lsp.CompletionItem
+	showCompletion   bool
+	completionIndex  int
+	hoverInfo        *lsp.Hover
+	showHover        bool
+	navigationResult []lsp.Location
+	showNavigation   bool
 }
 
 // Message represents a chat message
@@ -35,14 +46,32 @@ func NewModel() Model {
 	ti.Width = 50
 
 	return Model{
-		textInput:      ti,
-		messages:       []Message{},
-		thinkingState:  NewThinkingState(),
-		thinkingConfig: DefaultThinkingConfig(),
-		ready:          false,
-		quitting:       false,
-		streaming:      false,
+		textInput:        ti,
+		messages:         []Message{},
+		thinkingState:    NewThinkingState(),
+		thinkingConfig:   DefaultThinkingConfig(),
+		ready:            false,
+		quitting:         false,
+		streaming:        false,
+		lspClient:        nil,
+		lspEnabled:       false,
+		completionItems:  []lsp.CompletionItem{},
+		showCompletion:   false,
+		completionIndex:  0,
+		hoverInfo:        nil,
+		showHover:        false,
+		navigationResult: []lsp.Location{},
+		showNavigation:   false,
 	}
+}
+
+// NewModelWithLSP creates a new TUI model with LSP enabled
+func NewModelWithLSP(workspace string) Model {
+	m := NewModel()
+	m.lspClient = lsp.NewClient()
+	m.lspEnabled = true
+	m.currentDocument = workspace
+	return m
 }
 
 // SetSize updates the model dimensions
@@ -180,4 +209,84 @@ func (m *Model) GetThinkingConfig() ThinkingConfig {
 // SetThinkingConfig sets the thinking configuration
 func (m *Model) SetThinkingConfig(config ThinkingConfig) {
 	m.thinkingConfig = config
+}
+
+// LSP-related methods
+
+// GetLSPClient returns the LSP client
+func (m *Model) GetLSPClient() *lsp.Client {
+	return m.lspClient
+}
+
+// IsLSPEnabled returns whether LSP is enabled
+func (m *Model) IsLSPEnabled() bool {
+	return m.lspEnabled && m.lspClient != nil
+}
+
+// GetLSPStatus returns the LSP connection status
+func (m *Model) GetLSPStatus() lsp.ConnectionStatus {
+	if m.lspClient == nil {
+		return lsp.StatusDisconnected
+	}
+	return m.lspClient.GetStatus()
+}
+
+// SetCompletionItems sets the completion items
+func (m *Model) SetCompletionItems(items []lsp.CompletionItem) {
+	m.completionItems = items
+	m.showCompletion = len(items) > 0
+	m.completionIndex = 0
+}
+
+// ClearCompletion clears the completion popup
+func (m *Model) ClearCompletion() {
+	m.completionItems = []lsp.CompletionItem{}
+	m.showCompletion = false
+	m.completionIndex = 0
+}
+
+// NextCompletion moves to the next completion item
+func (m *Model) NextCompletion() {
+	if len(m.completionItems) > 0 {
+		m.completionIndex = (m.completionIndex + 1) % len(m.completionItems)
+	}
+}
+
+// PrevCompletion moves to the previous completion item
+func (m *Model) PrevCompletion() {
+	if len(m.completionItems) > 0 {
+		m.completionIndex = (m.completionIndex - 1 + len(m.completionItems)) % len(m.completionItems)
+	}
+}
+
+// GetSelectedCompletion returns the currently selected completion item
+func (m *Model) GetSelectedCompletion() *lsp.CompletionItem {
+	if len(m.completionItems) > 0 && m.completionIndex >= 0 && m.completionIndex < len(m.completionItems) {
+		return &m.completionItems[m.completionIndex]
+	}
+	return nil
+}
+
+// SetHoverInfo sets the hover information
+func (m *Model) SetHoverInfo(hover *lsp.Hover) {
+	m.hoverInfo = hover
+	m.showHover = hover != nil
+}
+
+// ClearHover clears the hover popup
+func (m *Model) ClearHover() {
+	m.hoverInfo = nil
+	m.showHover = false
+}
+
+// SetNavigationResult sets the navigation result
+func (m *Model) SetNavigationResult(locations []lsp.Location) {
+	m.navigationResult = locations
+	m.showNavigation = len(locations) > 0
+}
+
+// ClearNavigation clears the navigation result
+func (m *Model) ClearNavigation() {
+	m.navigationResult = []lsp.Location{}
+	m.showNavigation = false
 }
