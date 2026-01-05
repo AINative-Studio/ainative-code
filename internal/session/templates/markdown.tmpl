@@ -1,0 +1,42 @@
+# {{.Session.Name}}
+
+**Session ID:** {{.Session.ID}}
+**Status:** {{.Session.Status}}
+**Created:** {{formatTime .Session.CreatedAt}}
+**Updated:** {{formatTime .Session.UpdatedAt}}
+
+{{if .Session.Model}}**Model:** {{.Session.Model}}{{end}}
+{{if .Session.Temperature}}**Temperature:** {{.Session.Temperature}}{{end}}
+{{if .Session.MaxTokens}}**Max Tokens:** {{.Session.MaxTokens}}{{end}}
+
+---
+
+## Metadata
+
+- **Total Messages:** {{.Metadata.MessageCount}}
+{{if gt .Metadata.TotalTokens 0}}- **Total Tokens Used:** {{.Metadata.TotalTokens}}{{end}}
+{{if .Metadata.Provider}}- **Provider:** {{.Metadata.Provider}}{{end}}
+{{if not .Metadata.FirstMessage.IsZero}}- **First Message:** {{formatTime .Metadata.FirstMessage}}{{end}}
+{{if not .Metadata.LastMessage.IsZero}}- **Last Message:** {{formatTime .Metadata.LastMessage}}{{end}}
+- **Exported:** {{formatTime .Metadata.ExportedAt}}
+
+---
+
+## Conversation
+
+{{range $i, $msg := .Messages}}
+### {{roleLabel $msg.Role}}
+
+{{$msg.Content}}
+
+{{if $msg.Timestamp}}*{{formatTime $msg.Timestamp}}*{{end}}
+{{if $msg.TokensUsed}}*Tokens used: {{$msg.TokensUsed}}*{{end}}
+{{if $msg.Model}}*Model: {{$msg.Model}}*{{end}}
+
+---
+
+{{end}}
+
+---
+
+*Exported by {{.Metadata.ExporterName}} v{{.Metadata.ExporterVer}}*

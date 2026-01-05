@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Session.Name}} - Session Export</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+
+        .header-info-item {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 15px;
+            border-radius: 4px;
+        }
+
+        .header-info-label {
+            font-weight: 600;
+            margin-right: 5px;
+        }
+
+        .metadata {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .metadata h2 {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+
+        .metadata-item {
+            padding: 8px 0;
+            font-size: 0.9em;
+        }
+
+        .metadata-label {
+            font-weight: 600;
+            color: #666;
+            margin-right: 5px;
+        }
+
+        .conversation {
+            padding: 30px;
+        }
+
+        .conversation h2 {
+            font-size: 1.5em;
+            margin-bottom: 25px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .message {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #ddd;
+        }
+
+        .message-user {
+            background: #e3f2fd;
+            border-left-color: #2196f3;
+        }
+
+        .message-assistant {
+            background: #f3e5f5;
+            border-left-color: #9c27b0;
+        }
+
+        .message-system {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+        }
+
+        .message-tool {
+            background: #e8f5e9;
+            border-left-color: #4caf50;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .message-role {
+            font-weight: 700;
+            font-size: 1.1em;
+            text-transform: capitalize;
+        }
+
+        .message-timestamp {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .message-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.95em;
+            line-height: 1.7;
+        }
+
+        .message-footer {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(0,0,0,0.05);
+            font-size: 0.85em;
+            color: #666;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .message-footer-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .message-footer-label {
+            font-weight: 600;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        code {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        code:not(pre code) {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #e83e8c;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .conversation {
+                padding: 20px;
+            }
+
+            .message {
+                padding: 15px;
+            }
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+            }
+
+            .message {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{.Session.Name}}</h1>
+            <div class="header-info">
+                <div class="header-info-item">
+                    <span class="header-info-label">Session ID:</span>
+                    <span>{{.Session.ID}}</span>
+                </div>
+                <div class="header-info-item">
+                    <span class="header-info-label">Status:</span>
+                    <span>{{.Session.Status}}</span>
+                </div>
+                <div class="header-info-item">
+                    <span class="header-info-label">Created:</span>
+                    <span>{{formatTime .Session.CreatedAt}}</span>
+                </div>
+                <div class="header-info-item">
+                    <span class="header-info-label">Updated:</span>
+                    <span>{{formatTime .Session.UpdatedAt}}</span>
+                </div>
+                {{if .Session.Model}}
+                <div class="header-info-item">
+                    <span class="header-info-label">Model:</span>
+                    <span>{{.Session.Model}}</span>
+                </div>
+                {{end}}
+                {{if .Session.Temperature}}
+                <div class="header-info-item">
+                    <span class="header-info-label">Temperature:</span>
+                    <span>{{.Session.Temperature}}</span>
+                </div>
+                {{end}}
+                {{if .Session.MaxTokens}}
+                <div class="header-info-item">
+                    <span class="header-info-label">Max Tokens:</span>
+                    <span>{{.Session.MaxTokens}}</span>
+                </div>
+                {{end}}
+            </div>
+        </div>
+
+        <div class="metadata">
+            <h2>Metadata</h2>
+            <div class="metadata-grid">
+                <div class="metadata-item">
+                    <span class="metadata-label">Total Messages:</span>
+                    <span>{{.Metadata.MessageCount}}</span>
+                </div>
+                {{if gt .Metadata.TotalTokens 0}}
+                <div class="metadata-item">
+                    <span class="metadata-label">Total Tokens Used:</span>
+                    <span>{{.Metadata.TotalTokens}}</span>
+                </div>
+                {{end}}
+                {{if .Metadata.Provider}}
+                <div class="metadata-item">
+                    <span class="metadata-label">Provider:</span>
+                    <span>{{.Metadata.Provider}}</span>
+                </div>
+                {{end}}
+                {{if not .Metadata.FirstMessage.IsZero}}
+                <div class="metadata-item">
+                    <span class="metadata-label">First Message:</span>
+                    <span>{{formatTime .Metadata.FirstMessage}}</span>
+                </div>
+                {{end}}
+                {{if not .Metadata.LastMessage.IsZero}}
+                <div class="metadata-item">
+                    <span class="metadata-label">Last Message:</span>
+                    <span>{{formatTime .Metadata.LastMessage}}</span>
+                </div>
+                {{end}}
+                <div class="metadata-item">
+                    <span class="metadata-label">Exported:</span>
+                    <span>{{formatTime .Metadata.ExportedAt}}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="conversation">
+            <h2>Conversation</h2>
+            {{range $i, $msg := .Messages}}
+            <div class="message {{roleClass $msg.Role}}">
+                <div class="message-header">
+                    <div class="message-role">{{roleLabel $msg.Role}}</div>
+                    {{if $msg.Timestamp}}
+                    <div class="message-timestamp">{{formatTime $msg.Timestamp}}</div>
+                    {{end}}
+                </div>
+                <div class="message-content">{{$msg.Content}}</div>
+                {{if or $msg.TokensUsed $msg.Model $msg.FinishReason}}
+                <div class="message-footer">
+                    {{if $msg.TokensUsed}}
+                    <div class="message-footer-item">
+                        <span class="message-footer-label">Tokens:</span>
+                        <span>{{$msg.TokensUsed}}</span>
+                    </div>
+                    {{end}}
+                    {{if $msg.Model}}
+                    <div class="message-footer-item">
+                        <span class="message-footer-label">Model:</span>
+                        <span>{{$msg.Model}}</span>
+                    </div>
+                    {{end}}
+                    {{if $msg.FinishReason}}
+                    <div class="message-footer-item">
+                        <span class="message-footer-label">Finish Reason:</span>
+                        <span>{{$msg.FinishReason}}</span>
+                    </div>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+
+        <div class="footer">
+            <p>Exported by {{.Metadata.ExporterName}} v{{.Metadata.ExporterVer}}</p>
+        </div>
+    </div>
+</body>
+</html>
