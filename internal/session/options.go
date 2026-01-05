@@ -1,5 +1,9 @@
 package session
 
+import (
+	"time"
+)
+
 // ListOptions contains options for listing sessions
 type ListOptions struct {
 	Status SessionStatus
@@ -60,9 +64,13 @@ func ApplyListOptions(opts ...ListOption) *ListOptions {
 
 // SearchOptions contains options for searching
 type SearchOptions struct {
-	Query  string
-	Limit  int64
-	Offset int64
+	Query    string
+	Limit    int64
+	Offset   int64
+	// FTS5 full-text search options
+	DateFrom *time.Time // Filter messages from this date
+	DateTo   *time.Time // Filter messages until this date
+	Provider string     // Filter by provider/model (e.g., "claude", "gpt")
 }
 
 // SearchOption is a functional option for configuring SearchOptions
@@ -96,6 +104,35 @@ func DefaultSearchOptions() *SearchOptions {
 		Limit:  50,
 		Offset: 0,
 	}
+}
+
+// DefaultSearchOptionsWithQuery returns default search options with a query
+func DefaultSearchOptionsWithQuery(query string) *SearchOptions {
+	return &SearchOptions{
+		Query:  query,
+		Limit:  50,
+		Offset: 0,
+	}
+}
+
+// Validate validates search options
+func (opts *SearchOptions) Validate() error {
+	if opts.Query == "" {
+		return ErrEmptySearchQuery
+	}
+	if opts.Limit <= 0 {
+		opts.Limit = 50 // default limit
+	}
+	if opts.Limit > 1000 {
+		return ErrSearchLimitExceeded
+	}
+	if opts.Offset < 0 {
+		opts.Offset = 0
+	}
+	if opts.DateFrom != nil && opts.DateTo != nil && opts.DateFrom.After(*opts.DateTo) {
+		return ErrInvalidDateRange
+	}
+	return nil
 }
 
 // ApplySearchOptions applies functional options to SearchOptions

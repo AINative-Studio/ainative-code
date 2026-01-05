@@ -91,6 +91,7 @@ func buildDSN(config *ConnectionConfig) string {
 		"_foreign_keys=on",
 		"_journal_mode=" + config.JournalMode,
 		"_synchronous=" + config.Synchronous,
+		"_fts5=on", // Enable FTS5 full-text search
 	}
 
 	for i, param := range params {
