@@ -73,3 +73,11 @@ func (e EventType) String() string {
 		return "Unknown"
 	}
 }
+
+// ThinkingBlock represents a thinking/reasoning block from Claude's extended thinking
+type ThinkingBlock struct {
+	Content   string
+	Index     int
+	Timestamp int64
+	Type      string
+}

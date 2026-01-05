@@ -34,6 +34,9 @@ type Config struct {
 	// BaseURL is the Ollama API endpoint (default: http://localhost:11434)
 	BaseURL string
 
+	// APIKey is the API key for hosted Ollama services (optional, for local use)
+	APIKey string
+
 	// Model is the name of the model to use (e.g., "llama2", "llama3", "codellama")
 	Model string
 
