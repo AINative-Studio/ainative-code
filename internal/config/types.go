@@ -292,10 +292,18 @@ type CacheConfig struct {
 
 // RateLimitConfig contains rate limiting settings
 type RateLimitConfig struct {
-	Enabled       bool          `mapstructure:"enabled" yaml:"enabled"`
-	RequestsPerMinute int       `mapstructure:"requests_per_minute" yaml:"requests_per_minute"`
-	BurstSize     int           `mapstructure:"burst_size" yaml:"burst_size"`
-	TimeWindow    time.Duration `mapstructure:"time_window" yaml:"time_window"`
+	Enabled           bool              `mapstructure:"enabled" yaml:"enabled"`
+	RequestsPerMinute int               `mapstructure:"requests_per_minute" yaml:"requests_per_minute"`
+	BurstSize         int               `mapstructure:"burst_size" yaml:"burst_size"`
+	TimeWindow        time.Duration     `mapstructure:"time_window" yaml:"time_window"`
+	PerUser           bool              `mapstructure:"per_user" yaml:"per_user"`
+	PerEndpoint       bool              `mapstructure:"per_endpoint" yaml:"per_endpoint"`
+	Storage           string            `mapstructure:"storage" yaml:"storage"` // memory, redis
+	RedisURL          string            `mapstructure:"redis_url,omitempty" yaml:"redis_url,omitempty"`
+	EndpointLimits    map[string]int    `mapstructure:"endpoint_limits,omitempty" yaml:"endpoint_limits,omitempty"`
+	SkipPaths         []string          `mapstructure:"skip_paths,omitempty" yaml:"skip_paths,omitempty"`
+	IPAllowlist       []string          `mapstructure:"ip_allowlist,omitempty" yaml:"ip_allowlist,omitempty"`
+	IPBlocklist       []string          `mapstructure:"ip_blocklist,omitempty" yaml:"ip_blocklist,omitempty"`
 }
 
 // ConcurrencyConfig contains concurrency settings
