@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/AINative-studio/ainative-code/internal/database"
 	"github.com/AINative-studio/ainative-code/internal/logger"
 	"github.com/AINative-studio/ainative-code/internal/session"
 )
@@ -253,7 +252,7 @@ func runSessionExport(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	db, err := database.Open()
+	db, err := getDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
@@ -371,7 +370,7 @@ func runSessionSearch(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	db, err := database.Open()
+	db, err := getDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
