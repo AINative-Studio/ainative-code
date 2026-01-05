@@ -100,6 +100,15 @@ func TestResolver_ResolveEnvVar(t *testing.T) {
 		assert.Equal(t, "sk-openai-key-456", result)
 	})
 
+	t.Run("resolves environment variable without braces", func(t *testing.T) {
+		os.Setenv("ANTHROPIC_API_KEY", "sk-ant-key-789")
+		defer os.Unsetenv("ANTHROPIC_API_KEY")
+
+		result, err := resolver.Resolve("$ANTHROPIC_API_KEY")
+		require.NoError(t, err)
+		assert.Equal(t, "sk-ant-key-789", result)
+	})
+
 	t.Run("errors on missing environment variable", func(t *testing.T) {
 		result, err := resolver.Resolve("${NONEXISTENT_VAR}")
 		assert.Error(t, err)
@@ -210,8 +219,11 @@ func TestResolver_ResolveFilePath(t *testing.T) {
 		tmpDir := t.TempDir()
 		keyFile := filepath.Join(tmpDir, "large.txt")
 
-		// Create a file larger than 1MB
-		largeContent := make([]byte, 2*1024*1024)
+		// Create a file larger than 1KB (new limit)
+		largeContent := make([]byte, 2*1024) // 2KB
+		for i := range largeContent {
+			largeContent[i] = byte('a' + (i % 26))
+		}
 		err := os.WriteFile(keyFile, largeContent, 0600)
 		require.NoError(t, err)
 

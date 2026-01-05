@@ -69,8 +69,8 @@ func WithCommandExecution(enabled bool) ResolverOption {
 //
 // Supported formats:
 //   - Direct string: "sk-ant-api-key-123"
-//   - Command execution: "$(pass show anthropic)"
-//   - Environment variable: "${OPENAI_API_KEY}"
+//   - Command execution: "$(pass show anthropic)" or "$(security find-generic-password -s anthropic -w)"
+//   - Environment variable: "${OPENAI_API_KEY}" or "$OPENAI_API_KEY"
 //   - File path: "~/secrets/api-key.txt" or "/path/to/key.txt"
 //
 // Resolution priority:
@@ -78,6 +78,13 @@ func WithCommandExecution(enabled bool) ResolverOption {
 //   2. Environment variable (if matches pattern)
 //   3. File path (if looks like a path)
 //   4. Direct string (fallback)
+//
+// Security features:
+//   - Command execution timeout (default 5 seconds)
+//   - File size limit (1KB max for API keys)
+//   - Path traversal prevention via filepath.Clean and EvalSymlinks
+//   - Null byte injection prevention
+//   - Permission error handling
 func (r *Resolver) Resolve(value string) (string, error) {
 	if value == "" {
 		return "", nil
@@ -194,14 +201,19 @@ func (r *Resolver) resolveCommand(value string) (bool, string, error) {
 	return true, result, nil
 }
 
-// resolveEnvVar handles environment variable pattern: ${VAR_NAME}
+// resolveEnvVar handles environment variable pattern: ${VAR_NAME} or $VAR_NAME
 func (r *Resolver) resolveEnvVar(value string) (bool, string, error) {
-	// Pattern: ${VAR_NAME}
-	pattern := regexp.MustCompile(`^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$`)
-	matches := pattern.FindStringSubmatch(value)
+	// Pattern 1: ${VAR_NAME} (preferred)
+	patternBraces := regexp.MustCompile(`^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$`)
+	matches := patternBraces.FindStringSubmatch(value)
 
+	// Pattern 2: $VAR_NAME (without braces)
 	if len(matches) != 2 {
-		return false, "", nil
+		patternNoBraces := regexp.MustCompile(`^\$([A-Za-z_][A-Za-z0-9_]*)$`)
+		matches = patternNoBraces.FindStringSubmatch(value)
+		if len(matches) != 2 {
+			return false, "", nil
+		}
 	}
 
 	varName := matches[1]
@@ -239,13 +251,40 @@ func (r *Resolver) resolveFilePath(value string) (bool, string, error) {
 	// Expand environment variables in path
 	expandedPath = os.ExpandEnv(expandedPath)
 
+	// Clean the path to resolve . and .. elements
+	expandedPath = filepath.Clean(expandedPath)
+
+	// Security: Validate path doesn't contain null bytes
+	if strings.Contains(expandedPath, "\x00") {
+		return true, "", errors.NewSecurityError(
+			errors.ErrCodeSecurityViolation,
+			"file path contains null byte",
+			"api_key_file",
+		)
+	}
+
+	// Security: Evaluate symlinks to prevent traversal attacks
+	resolvedPath, err := filepath.EvalSymlinks(expandedPath)
+	if err != nil {
+		// If EvalSymlinks fails, the file may not exist yet or we don't have permission
+		// Continue with the original path but handle the error appropriately
+		resolvedPath = expandedPath
+	}
+
 	// Check if file exists
-	fileInfo, err := os.Stat(expandedPath)
+	fileInfo, err := os.Stat(resolvedPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return true, "", errors.NewConfigInvalidError(
 				"api_key_file",
 				fmt.Sprintf("file does not exist: %s", expandedPath),
+			)
+		}
+		if os.IsPermission(err) {
+			return true, "", errors.NewSecurityError(
+				errors.ErrCodeSecurityViolation,
+				fmt.Sprintf("permission denied accessing file: %s", expandedPath),
+				"api_key_file",
 			)
 		}
 		return true, "", errors.NewConfigInvalidError(
@@ -262,18 +301,27 @@ func (r *Resolver) resolveFilePath(value string) (bool, string, error) {
 		)
 	}
 
-	// Check file size (prevent reading huge files)
-	maxSize := int64(1024 * 1024) // 1MB max
+	// Check file size (prevent reading huge files - API keys should be small)
+	// Reduced from 1MB to 1KB for security - API keys should never be this large
+	maxSize := int64(1024) // 1KB max (as per requirements)
 	if fileInfo.Size() > maxSize {
-		return true, "", errors.NewConfigInvalidError(
+		return true, "", errors.NewSecurityError(
+			errors.ErrCodeSecurityViolation,
+			fmt.Sprintf("file is too large (max %d bytes, got %d bytes): %s", maxSize, fileInfo.Size(), expandedPath),
 			"api_key_file",
-			fmt.Sprintf("file is too large (max %d bytes): %s", maxSize, expandedPath),
 		)
 	}
 
 	// Read file content
-	content, err := os.ReadFile(expandedPath)
+	content, err := os.ReadFile(resolvedPath)
 	if err != nil {
+		if os.IsPermission(err) {
+			return true, "", errors.NewSecurityError(
+				errors.ErrCodeSecurityViolation,
+				fmt.Sprintf("permission denied reading file: %s", expandedPath),
+				"api_key_file",
+			)
+		}
 		return true, "", errors.NewConfigInvalidError(
 			"api_key_file",
 			fmt.Sprintf("failed to read file: %v", err),

@@ -64,6 +64,7 @@ type AnthropicConfig struct {
 	BaseURL         string        `mapstructure:"base_url,omitempty" yaml:"base_url,omitempty"`
 	APIVersion      string        `mapstructure:"api_version" yaml:"api_version"`
 	ExtendedThinking *ExtendedThinkingConfig `mapstructure:"extended_thinking,omitempty" yaml:"extended_thinking,omitempty"`
+	Retry           *RetryConfig  `mapstructure:"retry,omitempty" yaml:"retry,omitempty"`
 }
 
 // ExtendedThinkingConfig contains extended thinking visualization settings
@@ -71,6 +72,23 @@ type ExtendedThinkingConfig struct {
 	Enabled    bool `mapstructure:"enabled" yaml:"enabled"`
 	AutoExpand bool `mapstructure:"auto_expand" yaml:"auto_expand"`
 	MaxDepth   int  `mapstructure:"max_depth" yaml:"max_depth"`
+}
+
+// RetryConfig contains advanced retry and error recovery configuration for LLM providers
+type RetryConfig struct {
+	// Basic retry settings (backward compatible)
+	MaxAttempts  int           `mapstructure:"max_attempts" yaml:"max_attempts"`
+	InitialDelay time.Duration `mapstructure:"initial_delay" yaml:"initial_delay"`
+	MaxDelay     time.Duration `mapstructure:"max_delay" yaml:"max_delay"`
+	Multiplier   float64       `mapstructure:"multiplier" yaml:"multiplier"`
+
+	// Advanced recovery settings
+	EnableJitter           bool `mapstructure:"enable_jitter" yaml:"enable_jitter"`
+	EnableAPIKeyResolution bool `mapstructure:"enable_api_key_resolution" yaml:"enable_api_key_resolution"`
+	EnableTokenReduction   bool `mapstructure:"enable_token_reduction" yaml:"enable_token_reduction"`
+	TokenReductionPercent  int  `mapstructure:"token_reduction_percent" yaml:"token_reduction_percent"`
+	EnableTimeoutIncrease  bool `mapstructure:"enable_timeout_increase" yaml:"enable_timeout_increase"`
+	TimeoutIncreasePercent int  `mapstructure:"timeout_increase_percent" yaml:"timeout_increase_percent"`
 }
 
 // OpenAIConfig contains OpenAI configuration
@@ -86,6 +104,7 @@ type OpenAIConfig struct {
 	Timeout         time.Duration `mapstructure:"timeout" yaml:"timeout"`
 	RetryAttempts   int           `mapstructure:"retry_attempts" yaml:"retry_attempts"`
 	BaseURL         string        `mapstructure:"base_url,omitempty" yaml:"base_url,omitempty"`
+	Retry           *RetryConfig  `mapstructure:"retry,omitempty" yaml:"retry,omitempty"`
 }
 
 // GoogleConfig contains Google (Gemini) configuration
