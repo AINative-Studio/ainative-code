@@ -45,12 +45,18 @@ var (
 func (m Model) View() string {
 	// Handle quitting state
 	if m.quitting {
-		return "Thanks for using ainative-code! Goodbye!\n"
+		quitStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("10")).
+			Bold(true).
+			Align(lipgloss.Center)
+		return quitStyle.Render("Thanks for using ainative-code! Goodbye!\n")
 	}
 
 	// Handle not ready state
 	if !m.ready {
-		return "Initializing TUI...\n"
+		loadingStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("14"))
+		return loadingStyle.Render("Initializing TUI...\n")
 	}
 
 	var sb strings.Builder
@@ -76,9 +82,10 @@ func (m Model) View() string {
 func (m *Model) renderInputArea() string {
 	var sb strings.Builder
 
-	// Add separator line
+	// Add separator line with improved styling
 	separator := strings.Repeat("─", m.width)
-	sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(separator))
+	separatorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	sb.WriteString(separatorStyle.Render(separator))
 	sb.WriteString("\n")
 
 	// Add prompt and input field
@@ -87,14 +94,22 @@ func (m *Model) renderInputArea() string {
 	sb.WriteString(" ")
 
 	if m.streaming {
-		// Show disabled state during streaming
-		disabledInput := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Render(m.textInput.Placeholder)
-		sb.WriteString(disabledInput)
+		// Show disabled state during streaming with optional animation
+		disabledStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240"))
+		sb.WriteString(disabledStyle.Render(m.textInput.Placeholder))
 	} else {
 		// Show active input field
 		sb.WriteString(m.textInput.View())
+	}
+
+	// Add input hint for small terminals
+	if m.width < 80 && !m.streaming {
+		hintStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("242")).
+			Italic(true)
+		sb.WriteString(" ")
+		sb.WriteString(hintStyle.Render("(Enter to send)"))
 	}
 
 	return sb.String()
@@ -110,13 +125,33 @@ func (m *Model) renderStatusBar() string {
 	} else if m.err != nil {
 		leftSection = errorStyle.Render("✗ Error occurred")
 	} else {
-		leftSection = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("10")).
-			Render("● Ready")
+		readyStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("10"))
+		leftSection = readyStyle.Render("● Ready")
 	}
 
-	// Right section: Help hint
-	rightSection = helpHintStyle.Render("Press ? for help")
+	// Right section: Help hint and thinking status
+	rightParts := []string{}
+
+	// Add thinking status if there are thinking blocks
+	if len(m.thinkingState.Blocks) > 0 {
+		thinkingStatus := ""
+		if m.thinkingState.ShowThinking {
+			thinkingStatus = "Thinking: ON"
+		} else {
+			thinkingStatus = "Thinking: OFF"
+		}
+		rightParts = append(rightParts, helpHintStyle.Render(thinkingStatus))
+	}
+
+	// Add scroll indicator for large content
+	scrollIndicator := m.renderScrollIndicator()
+	if scrollIndicator != "" {
+		rightParts = append(rightParts, scrollIndicator)
+	}
+
+	rightParts = append(rightParts, helpHintStyle.Render("Press ? for help"))
+	rightSection = strings.Join(rightParts, " | ")
 
 	// Calculate spacing
 	leftWidth := lipgloss.Width(leftSection)
@@ -130,6 +165,39 @@ func (m *Model) renderStatusBar() string {
 	// Combine sections
 	statusContent := leftSection + spacing + rightSection
 	return statusBarStyle.Render(statusContent)
+}
+
+// renderScrollIndicator renders a scroll position indicator
+func (m *Model) renderScrollIndicator() string {
+	if m.viewport.TotalLineCount() == 0 {
+		return ""
+	}
+
+	// Only show scroll indicator if there's content to scroll
+	if m.viewport.TotalLineCount() <= m.viewport.Height {
+		return ""
+	}
+
+	// Calculate scroll percentage
+	scrollPercent := 0
+	if m.viewport.TotalLineCount() > 0 {
+		scrollPercent = int(float64(m.viewport.YOffset) / float64(m.viewport.TotalLineCount()) * 100)
+	}
+
+	indicatorStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("242")).
+		Italic(true)
+
+	var indicator string
+	if scrollPercent == 0 {
+		indicator = "↑ Top"
+	} else if scrollPercent >= 100 {
+		indicator = "↓ Bottom"
+	} else {
+		indicator = fmt.Sprintf("↕ %d%%", scrollPercent)
+	}
+
+	return indicatorStyle.Render(indicator)
 }
 
 // FormatError formats an error message for display
@@ -168,4 +236,47 @@ func FormatSystemMessage(content string) string {
 
 	label := systemStyle.Render("System:")
 	return fmt.Sprintf("%s %s", label, content)
+}
+
+// renderCompactView renders a simplified view for very small terminals
+func (m *Model) renderCompactView() string {
+	if m.width < 40 || m.height < 10 {
+		var sb strings.Builder
+
+		// Show only the last message or a placeholder
+		if len(m.messages) > 0 {
+			lastMsg := m.messages[len(m.messages)-1]
+			var formatted string
+			switch lastMsg.Role {
+			case "user":
+				formatted = FormatUserMessage(lastMsg.Content)
+			case "assistant":
+				formatted = FormatAssistantMessage(lastMsg.Content)
+			case "system":
+				formatted = FormatSystemMessage(lastMsg.Content)
+			default:
+				formatted = lastMsg.Content
+			}
+			sb.WriteString(formatted)
+		} else {
+			placeholderStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("242")).
+				Italic(true)
+			sb.WriteString(placeholderStyle.Render("No messages yet"))
+		}
+
+		sb.WriteString("\n")
+
+		// Minimal status
+		statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+		if m.streaming {
+			sb.WriteString(statusStyle.Render("● Streaming..."))
+		} else {
+			sb.WriteString(statusStyle.Render("► Ready"))
+		}
+
+		return sb.String()
+	}
+
+	return m.View()
 }
