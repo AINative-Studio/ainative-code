@@ -113,12 +113,15 @@ type GoogleConfig struct {
 	Model           string        `mapstructure:"model" yaml:"model"`
 	ProjectID       string        `mapstructure:"project_id,omitempty" yaml:"project_id,omitempty"`
 	Location        string        `mapstructure:"location,omitempty" yaml:"location,omitempty"`
+	BaseURL         string        `mapstructure:"base_url,omitempty" yaml:"base_url,omitempty"`
 	MaxTokens       int           `mapstructure:"max_tokens" yaml:"max_tokens"`
 	Temperature     float64       `mapstructure:"temperature" yaml:"temperature"`
 	TopP            float64       `mapstructure:"top_p" yaml:"top_p"`
 	TopK            int           `mapstructure:"top_k" yaml:"top_k"`
 	Timeout         time.Duration `mapstructure:"timeout" yaml:"timeout"`
 	RetryAttempts   int           `mapstructure:"retry_attempts" yaml:"retry_attempts"`
+	SafetySettings  map[string]string `mapstructure:"safety_settings,omitempty" yaml:"safety_settings,omitempty"`
+	Retry           *RetryConfig  `mapstructure:"retry,omitempty" yaml:"retry,omitempty"`
 }
 
 // BedrockConfig contains AWS Bedrock configuration
@@ -206,19 +209,21 @@ type ServicesConfig struct {
 
 // ZeroDBConfig contains ZeroDB connection settings
 type ZeroDBConfig struct {
-	Enabled         bool          `mapstructure:"enabled" yaml:"enabled"`
-	Endpoint        string        `mapstructure:"endpoint" yaml:"endpoint"`
-	Database        string        `mapstructure:"database" yaml:"database"`
-	Username        string        `mapstructure:"username,omitempty" yaml:"username,omitempty"`
-	Password        string        `mapstructure:"password,omitempty" yaml:"password,omitempty"`
-	SSL             bool          `mapstructure:"ssl" yaml:"ssl"`
-	SSLMode         string        `mapstructure:"ssl_mode,omitempty" yaml:"ssl_mode,omitempty"`
-	MaxConnections  int           `mapstructure:"max_connections" yaml:"max_connections"`
-	IdleConnections int           `mapstructure:"idle_connections" yaml:"idle_connections"`
-	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime" yaml:"conn_max_lifetime"`
-	Timeout         time.Duration `mapstructure:"timeout" yaml:"timeout"`
-	RetryAttempts   int           `mapstructure:"retry_attempts" yaml:"retry_attempts"`
-	RetryDelay      time.Duration `mapstructure:"retry_delay" yaml:"retry_delay"`
+	Enabled          bool          `mapstructure:"enabled" yaml:"enabled"`
+	ProjectID        string        `mapstructure:"project_id,omitempty" yaml:"project_id,omitempty"`
+	ConnectionString string        `mapstructure:"connection_string,omitempty" yaml:"connection_string,omitempty"`
+	Endpoint         string        `mapstructure:"endpoint" yaml:"endpoint"`
+	Database         string        `mapstructure:"database" yaml:"database"`
+	Username         string        `mapstructure:"username,omitempty" yaml:"username,omitempty"`
+	Password         string        `mapstructure:"password,omitempty" yaml:"password,omitempty"`
+	SSL              bool          `mapstructure:"ssl" yaml:"ssl"`
+	SSLMode          string        `mapstructure:"ssl_mode,omitempty" yaml:"ssl_mode,omitempty"`
+	MaxConnections   int           `mapstructure:"max_connections" yaml:"max_connections"`
+	IdleConnections  int           `mapstructure:"idle_connections" yaml:"idle_connections"`
+	ConnMaxLifetime  time.Duration `mapstructure:"conn_max_lifetime" yaml:"conn_max_lifetime"`
+	Timeout          time.Duration `mapstructure:"timeout" yaml:"timeout"`
+	RetryAttempts    int           `mapstructure:"retry_attempts" yaml:"retry_attempts"`
+	RetryDelay       time.Duration `mapstructure:"retry_delay" yaml:"retry_delay"`
 }
 
 // DesignConfig contains AINative Design service settings

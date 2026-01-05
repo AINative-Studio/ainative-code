@@ -220,6 +220,8 @@ func (l *Loader) bindEnvVars() {
 		"platform.authentication.client_secret",
 
 		// ZeroDB
+		"services.zerodb.project_id",
+		"services.zerodb.connection_string",
 		"services.zerodb.endpoint",
 		"services.zerodb.username",
 		"services.zerodb.password",
