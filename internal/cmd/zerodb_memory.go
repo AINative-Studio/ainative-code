@@ -36,6 +36,9 @@ var (
 	listSessionID string
 	listLimit     int
 	listOffset    int
+
+	// Memory output flags
+	memoryOutputJSON bool
 )
 
 // zerodbMemoryCmd represents the zerodb memory command
@@ -186,7 +189,7 @@ func init() {
 	zerodbMemoryListCmd.MarkFlagRequired("agent-id")
 
 	// Global output flag for all memory commands
-	zerodbMemoryCmd.PersistentFlags().BoolVar(&zerodbOutputJSON, "json", false, "output in JSON format")
+	zerodbMemoryCmd.PersistentFlags().BoolVar(&memoryOutputJSON, "json", false, "output in JSON format")
 }
 
 func runMemoryStore(cmd *cobra.Command, args []string) error {
@@ -221,8 +224,8 @@ func runMemoryStore(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(memory)
+	if memoryOutputJSON {
+		return zerodbOutputJSON(memory)
 	}
 
 	fmt.Printf("Memory stored successfully!\n")
@@ -263,8 +266,8 @@ func runMemoryRetrieve(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(memories)
+	if memoryOutputJSON {
+		return zerodbOutputJSON(memories)
 	}
 
 	if len(memories) == 0 {
@@ -315,8 +318,8 @@ func runMemoryClear(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(resp)
+	if memoryOutputJSON {
+		return zerodbOutputJSON(resp)
 	}
 
 	if clearSessionID != "" {
@@ -362,14 +365,14 @@ func runMemoryList(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
+	if memoryOutputJSON {
 		result := map[string]interface{}{
 			"memories": memories,
 			"total":    total,
 			"limit":    listLimit,
 			"offset":   listOffset,
 		}
-		return outputAsJSON(result)
+		return zerodbOutputJSON(result)
 	}
 
 	if len(memories) == 0 {

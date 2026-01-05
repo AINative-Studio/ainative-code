@@ -100,8 +100,17 @@ test-coverage-check: ## Run tests and verify 80% coverage threshold
 
 test-integration: ## Run integration tests
 	@echo "$(COLOR_GREEN)Running integration tests...$(COLOR_RESET)"
-	@if [ -d "tests" ]; then \
-		$(GOTEST) -v -tags=integration ./tests/...; \
+	@if [ -d "tests/integration" ]; then \
+		$(GOTEST) -v -timeout=10m -tags=integration ./tests/integration/...; \
+	else \
+		echo "$(COLOR_YELLOW)No integration tests directory found$(COLOR_RESET)"; \
+	fi
+
+test-integration-coverage: ## Run integration tests with coverage
+	@echo "$(COLOR_GREEN)Running integration tests with coverage...$(COLOR_RESET)"
+	@if [ -d "tests/integration" ]; then \
+		$(GOTEST) -v -timeout=10m -tags=integration -coverprofile=integration-coverage.out -covermode=atomic ./tests/integration/...; \
+		$(GOCMD) tool cover -func=integration-coverage.out | grep total | awk '{print "Integration test coverage: " $$3}'; \
 	else \
 		echo "$(COLOR_YELLOW)No integration tests directory found$(COLOR_RESET)"; \
 	fi
@@ -109,6 +118,39 @@ test-integration: ## Run integration tests
 test-benchmark: ## Run benchmark tests
 	@echo "$(COLOR_GREEN)Running benchmark tests...$(COLOR_RESET)"
 	$(GOTEST) -bench=. -benchmem ./...
+
+test-e2e: build ## Run E2E tests
+	@echo "$(COLOR_GREEN)Running E2E tests...$(COLOR_RESET)"
+	@if [ -d "tests/e2e" ]; then \
+		cd tests/e2e && $(GOTEST) -v -timeout=10m ./...; \
+	else \
+		echo "$(COLOR_YELLOW)No E2E tests directory found$(COLOR_RESET)"; \
+	fi
+
+test-e2e-short: build ## Run E2E tests in short mode (skips long tests)
+	@echo "$(COLOR_GREEN)Running E2E tests (short mode)...$(COLOR_RESET)"
+	@if [ -d "tests/e2e" ]; then \
+		cd tests/e2e && $(GOTEST) -v -short -timeout=5m ./...; \
+	else \
+		echo "$(COLOR_YELLOW)No E2E tests directory found$(COLOR_RESET)"; \
+	fi
+
+test-e2e-verbose: build ## Run E2E tests with verbose output
+	@echo "$(COLOR_GREEN)Running E2E tests (verbose)...$(COLOR_RESET)"
+	@if [ -d "tests/e2e" ]; then \
+		cd tests/e2e && $(GOTEST) -v -timeout=10m ./... 2>&1 | tee e2e-test-output.log; \
+	else \
+		echo "$(COLOR_YELLOW)No E2E tests directory found$(COLOR_RESET)"; \
+	fi
+
+test-e2e-clean: ## Clean E2E test artifacts
+	@echo "$(COLOR_GREEN)Cleaning E2E test artifacts...$(COLOR_RESET)"
+	@rm -rf tests/e2e/artifacts/*
+	@rm -f tests/e2e/e2e-test-output.log
+	@echo "$(COLOR_GREEN)E2E artifacts cleaned!$(COLOR_RESET)"
+
+test-all: test test-integration test-e2e ## Run all tests (unit, integration, and E2E)
+	@echo "$(COLOR_GREEN)All tests completed!$(COLOR_RESET)"
 
 ##@ Code Quality
 

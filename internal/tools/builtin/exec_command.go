@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ainative/ainative-code/internal/tools"
+	"github.com/AINative-studio/ainative-code/internal/tools"
 )
 
 // ExecCommandTool implements a tool for executing shell commands with security restrictions.

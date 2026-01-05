@@ -34,6 +34,9 @@ var (
 	quantumSearchLimit           int
 	quantumSearchUseQuantumBoost bool
 	quantumSearchIncludeEntangled bool
+
+	// Quantum output flags
+	quantumOutputJSON bool
 )
 
 // zerodbQuantumCmd represents the zerodb quantum command
@@ -248,7 +251,7 @@ func init() {
 	zerodbQuantumSearchCmd.MarkFlagRequired("query-vector")
 
 	// Global output flag for all quantum commands
-	zerodbQuantumCmd.PersistentFlags().BoolVar(&zerodbOutputJSON, "json", false, "output in JSON format")
+	zerodbQuantumCmd.PersistentFlags().BoolVar(&quantumOutputJSON, "json", false, "output in JSON format")
 }
 
 func runQuantumEntangle(cmd *cobra.Command, args []string) error {
@@ -267,8 +270,8 @@ func runQuantumEntangle(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(resp)
+	if quantumOutputJSON {
+		return zerodbOutputJSON(resp)
 	}
 
 	fmt.Printf("Vectors entangled successfully!\n\n")
@@ -314,8 +317,8 @@ func runQuantumMeasure(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(resp)
+	if quantumOutputJSON {
+		return zerodbOutputJSON(resp)
 	}
 
 	fmt.Printf("Quantum Measurement Results:\n\n")
@@ -369,8 +372,8 @@ func runQuantumCompress(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(resp)
+	if quantumOutputJSON {
+		return zerodbOutputJSON(resp)
 	}
 
 	fmt.Printf("Vector compressed successfully!\n\n")
@@ -407,8 +410,8 @@ func runQuantumDecompress(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(resp)
+	if quantumOutputJSON {
+		return zerodbOutputJSON(resp)
 	}
 
 	fmt.Printf("Vector decompressed successfully!\n\n")
@@ -464,8 +467,8 @@ func runQuantumSearch(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(results)
+	if quantumOutputJSON {
+		return zerodbOutputJSON(results)
 	}
 
 	if len(results) == 0 {

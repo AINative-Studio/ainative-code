@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go get:*)",
+      "Bash(go install:*)",
+      "Bash(go mod tidy:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

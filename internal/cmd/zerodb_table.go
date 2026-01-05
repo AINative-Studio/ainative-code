@@ -41,6 +41,9 @@ var (
 	// Table delete flags
 	deleteTable string
 	deleteID    string
+
+	// Table output flags
+	tableOutputJSON bool
 )
 
 // zerodbTableCmd represents the zerodb table command
@@ -257,8 +260,8 @@ func runTableCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(table)
+	if tableOutputJSON {
+		return zerodbOutputJSON(table)
 	}
 
 	fmt.Printf("Table created successfully!\n")
@@ -291,8 +294,8 @@ func runTableInsert(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(doc)
+	if tableOutputJSON {
+		return zerodbOutputJSON(doc)
 	}
 
 	fmt.Printf("Document inserted successfully!\n")
@@ -353,8 +356,8 @@ func runTableQuery(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(docs)
+	if tableOutputJSON {
+		return zerodbOutputJSON(docs)
 	}
 
 	if len(docs) == 0 {
@@ -401,8 +404,8 @@ func runTableUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(doc)
+	if tableOutputJSON {
+		return zerodbOutputJSON(doc)
 	}
 
 	fmt.Printf("Document updated successfully!\n")
@@ -428,8 +431,8 @@ func runTableDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(map[string]interface{}{
+	if tableOutputJSON {
+		return zerodbOutputJSON(map[string]interface{}{
 			"success": true,
 			"id":      deleteID,
 			"table":   deleteTable,
@@ -459,8 +462,8 @@ func runTableList(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(tables)
+	if tableOutputJSON {
+		return zerodbOutputJSON(tables)
 	}
 
 	if len(tables) == 0 {

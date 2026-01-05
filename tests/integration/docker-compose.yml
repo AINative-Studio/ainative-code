@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # SQLite doesn't need a container - we use file-based or in-memory DB
+  # This compose file provides mock services for external dependencies
+
+  mock-auth:
+    image: mockserver/mockserver:latest
+    ports:
+      - "1080:1080"
+    environment:
+      MOCKSERVER_INITIALIZATION_JSON_PATH: /config/auth-expectations.json
+    volumes:
+      - ./mocks/auth-expectations.json:/config/auth-expectations.json
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mock-zerodb:
+    image: mockserver/mockserver:latest
+    ports:
+      - "1081:1080"
+    environment:
+      MOCKSERVER_INITIALIZATION_JSON_PATH: /config/zerodb-expectations.json
+    volumes:
+      - ./mocks/zerodb-expectations.json:/config/zerodb-expectations.json
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mock-strapi:
+    image: mockserver/mockserver:latest
+    ports:
+      - "1082:1080"
+    environment:
+      MOCKSERVER_INITIALIZATION_JSON_PATH: /config/strapi-expectations.json
+    volumes:
+      - ./mocks/strapi-expectations.json:/config/strapi-expectations.json
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Redis for caching tests (if needed)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  default:
+    name: ainative-integration-tests

@@ -36,6 +36,9 @@ var (
 	// Vector delete flags
 	vectorDeleteCollection string
 	vectorDeleteVectorID   string
+
+	// Vector output flags
+	vectorOutputJSON bool
 )
 
 // zerodbVectorCmd represents the zerodb vector command
@@ -207,7 +210,7 @@ func init() {
 	zerodbVectorDeleteCmd.MarkFlagRequired("id")
 
 	// Global output flag for all vector commands
-	zerodbVectorCmd.PersistentFlags().BoolVar(&zerodbOutputJSON, "json", false, "output in JSON format")
+	zerodbVectorCmd.PersistentFlags().BoolVar(&vectorOutputJSON, "json", false, "output in JSON format")
 }
 
 func runVectorCreateCollection(cmd *cobra.Command, args []string) error {
@@ -241,8 +244,8 @@ func runVectorCreateCollection(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(collection)
+	if vectorOutputJSON {
+		return zerodbOutputJSON(collection)
 	}
 
 	fmt.Printf("Collection created successfully!\n")
@@ -289,8 +292,8 @@ func runVectorInsert(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(vec)
+	if vectorOutputJSON {
+		return zerodbOutputJSON(vec)
 	}
 
 	fmt.Printf("Vector inserted successfully!\n")
@@ -336,8 +339,8 @@ func runVectorSearch(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(vectors)
+	if vectorOutputJSON {
+		return zerodbOutputJSON(vectors)
 	}
 
 	if len(vectors) == 0 {
@@ -387,8 +390,8 @@ func runVectorDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(map[string]interface{}{
+	if vectorOutputJSON {
+		return zerodbOutputJSON(map[string]interface{}{
 			"success":    true,
 			"id":         vectorDeleteVectorID,
 			"collection": vectorDeleteCollection,
@@ -418,8 +421,8 @@ func runVectorListCollections(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output result
-	if zerodbOutputJSON {
-		return outputAsJSON(collections)
+	if vectorOutputJSON {
+		return zerodbOutputJSON(collections)
 	}
 
 	if len(collections) == 0 {
