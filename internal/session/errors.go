@@ -42,6 +42,15 @@ var (
 
 	// ErrCircularReference is returned when a message references itself as parent
 	ErrCircularReference = errors.New("circular reference detected in message thread")
+
+	// ErrEmptySearchQuery is returned when search query is empty
+	ErrEmptySearchQuery = errors.New("search query cannot be empty")
+
+	// ErrSearchLimitExceeded is returned when search limit exceeds maximum
+	ErrSearchLimitExceeded = errors.New("search limit exceeds maximum allowed (1000)")
+
+	// ErrInvalidDateRange is returned when date range is invalid
+	ErrInvalidDateRange = errors.New("invalid date range: date_from must be before date_to")
 )
 
 // SessionError wraps errors with additional context

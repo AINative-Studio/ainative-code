@@ -76,3 +76,15 @@ CREATE INDEX idx_tool_executions_status ON tool_executions(status);
 CREATE INDEX idx_tool_executions_tool_name ON tool_executions(tool_name);
 CREATE INDEX idx_tool_executions_started_at ON tool_executions(started_at DESC);
 CREATE INDEX idx_tool_executions_message_started ON tool_executions(message_id, started_at DESC);
+
+-- FTS5 virtual table for full-text search on messages
+-- This enables fast full-text search across conversation content
+CREATE VIRTUAL TABLE messages_fts USING fts5(
+    message_id UNINDEXED,
+    session_id UNINDEXED,
+    role UNINDEXED,
+    content,
+    timestamp UNINDEXED,
+    model UNINDEXED,
+    tokenize = 'porter unicode61'
+);
