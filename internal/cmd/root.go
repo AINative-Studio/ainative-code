@@ -9,10 +9,11 @@ import (
 )
 
 var (
-	cfgFile  string
-	provider string
-	model    string
-	verbose  bool
+	cfgFile    string
+	provider   string
+	model      string
+	verbose    bool
+	skipSetup  bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -49,6 +50,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&provider, "provider", "", "AI provider (openai, anthropic, ollama)")
 	rootCmd.PersistentFlags().StringVar(&model, "model", "", "AI model to use")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
+	rootCmd.PersistentFlags().BoolVar(&skipSetup, "skip-setup", false, "skip first-time setup check")
 
 	// Bind flags to viper
 	viper.BindPFlag("provider", rootCmd.PersistentFlags().Lookup("provider"))
