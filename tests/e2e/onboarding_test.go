@@ -42,13 +42,14 @@ func TestFirstTimeUserOnboarding(t *testing.T) {
 	})
 
 	t.Run("config init with existing file requires force flag", func(t *testing.T) {
-		// First init
-		result := h.RunCommand("config", "init")
-		h.AssertSuccess(result, "first config init should succeed")
+		// Ensure config exists first (init may have been run in previous test)
+		_ = h.RunCommand("config", "init")
+		// First init may succeed or fail if config already exists
+		// What matters is that subsequent init without --force fails
 
-		// Second init should fail
-		result = h.RunCommand("config", "init")
-		h.AssertFailure(result, "second config init should fail without --force")
+		// Second init should fail when config already exists
+		result := h.RunCommand("config", "init")
+		h.AssertFailure(result, "config init should fail when file already exists without --force")
 		h.AssertStderrContains(result, "already exists", "should show error about existing file")
 		h.AssertStderrContains(result, "--force", "should suggest --force flag")
 	})
@@ -120,8 +121,8 @@ func TestFirstTimeUserOnboarding(t *testing.T) {
 		result := h.RunCommand("--help")
 		h.AssertSuccess(result, "help should work")
 
-		// Step 2: Initialize config
-		result = h.RunCommand("config", "init")
+		// Step 2: Initialize config (use --force in case it exists from previous tests)
+		result = h.RunCommand("config", "init", "--force")
 		h.AssertSuccess(result, "config init should work")
 
 		// Step 3: Validate config

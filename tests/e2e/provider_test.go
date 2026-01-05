@@ -172,6 +172,9 @@ func TestProviderEnvironmentConfig(t *testing.T) {
 	h := NewTestHelper(t)
 	defer h.Cleanup()
 
+	// Initialize config first to avoid provider not configured error
+	h.RunCommand("config", "init")
+
 	t.Run("provider can be set via environment", func(t *testing.T) {
 		env := map[string]string{
 			"AINATIVE_PROVIDER": "anthropic",
