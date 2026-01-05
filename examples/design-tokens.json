@@ -1,0 +1,66 @@
+{
+  "tokens": [
+    {
+      "name": "primary-color",
+      "type": "color",
+      "value": "#007bff",
+      "category": "colors",
+      "description": "Primary brand color"
+    },
+    {
+      "name": "secondary-color",
+      "type": "color",
+      "value": "#6c757d",
+      "category": "colors",
+      "description": "Secondary color"
+    },
+    {
+      "name": "success-color",
+      "type": "color",
+      "value": "#28a745",
+      "category": "colors"
+    },
+    {
+      "name": "spacing-base",
+      "type": "spacing",
+      "value": "16px",
+      "category": "spacing"
+    },
+    {
+      "name": "spacing-sm",
+      "type": "spacing",
+      "value": "8px",
+      "category": "spacing"
+    },
+    {
+      "name": "spacing-lg",
+      "type": "spacing",
+      "value": "32px",
+      "category": "spacing"
+    },
+    {
+      "name": "font-family-base",
+      "type": "typography",
+      "value": "Helvetica, Arial, sans-serif",
+      "category": "typography"
+    },
+    {
+      "name": "font-size-base",
+      "type": "font-size",
+      "value": "16px",
+      "category": "typography"
+    },
+    {
+      "name": "border-radius-sm",
+      "type": "border-radius",
+      "value": "4px",
+      "category": "borders"
+    },
+    {
+      "name": "shadow-sm",
+      "type": "shadow",
+      "value": "0 1px 2px rgba(0,0,0,0.1)",
+      "category": "shadows"
+    }
+  ]
+}
