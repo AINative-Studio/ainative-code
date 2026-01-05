@@ -91,6 +91,9 @@ func init() {
 
 	// Add subcommands
 	rlhfCmd.AddCommand(rlhfSubmitCmd)
+	rlhfCmd.AddCommand(rlhfInteractionCmd)    // TASK-061
+	rlhfCmd.AddCommand(rlhfCorrectionCmd)     // TASK-062
+	rlhfCmd.AddCommand(rlhfAnalyticsCmd)      // TASK-063
 	rlhfCmd.AddCommand(rlhfListCmd)
 	rlhfCmd.AddCommand(rlhfExportCmd)
 	rlhfCmd.AddCommand(rlhfStatsCmd)
