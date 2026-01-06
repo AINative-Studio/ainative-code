@@ -158,6 +158,11 @@ func (c *Config) HealthCheck(ctx context.Context) error {
 		return fmt.Errorf("failed to create health check request: %w", err)
 	}
 
+	// Add API key for hosted Ollama services
+	if c.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("ollama server not reachable at %s: %w", baseURL, err)

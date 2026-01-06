@@ -57,6 +57,11 @@ func ListModels(ctx context.Context, config *Config) ([]ModelInfo, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// Add API key for hosted Ollama services
+	if config.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+config.APIKey)
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, NewOllamaConnectionError(baseURL, err)

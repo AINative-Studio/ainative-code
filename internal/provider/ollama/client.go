@@ -181,6 +181,11 @@ func (o *OllamaProvider) buildChatRequest(ctx context.Context, messages []provid
 		req.Header.Set("Accept", "application/x-ndjson")
 	}
 
+	// Add API key for hosted Ollama services
+	if o.config.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+o.config.APIKey)
+	}
+
 	return req, nil
 }
 

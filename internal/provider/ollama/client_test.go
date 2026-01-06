@@ -490,3 +490,77 @@ func TestOllamaProvider_DifferentModels(t *testing.T) {
 		})
 	}
 }
+
+func TestOllamaProvider_APIKeyAuthentication(t *testing.T) {
+	testAPIKey := "test-api-key-12345"
+
+	// Create mock server that verifies API key in headers
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify Authorization header
+		authHeader := r.Header.Get("Authorization")
+		assert.Equal(t, "Bearer "+testAPIKey, authHeader, "API key should be sent in Authorization header")
+
+		resp := ollamaResponse{
+			Model:   "llama2",
+			Message: ollamaMessage{Role: "assistant", Content: "Authenticated response"},
+			Done:    true,
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	config := Config{
+		BaseURL: server.URL,
+		Model:   "llama2",
+		APIKey:  testAPIKey,
+	}
+
+	prov, err := NewOllamaProvider(config)
+	require.NoError(t, err)
+
+	messages := []provider.Message{
+		{Role: "user", Content: "Test message"},
+	}
+
+	ctx := context.Background()
+	resp, err := prov.Chat(ctx, messages)
+
+	require.NoError(t, err)
+	assert.Equal(t, "Authenticated response", resp.Content)
+}
+
+func TestOllamaProvider_NoAPIKey(t *testing.T) {
+	// Create mock server that verifies no API key is sent
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify no Authorization header when APIKey is empty
+		authHeader := r.Header.Get("Authorization")
+		assert.Empty(t, authHeader, "No Authorization header should be sent when APIKey is empty")
+
+		resp := ollamaResponse{
+			Model:   "llama2",
+			Message: ollamaMessage{Role: "assistant", Content: "No auth response"},
+			Done:    true,
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	config := Config{
+		BaseURL: server.URL,
+		Model:   "llama2",
+		// APIKey is intentionally not set
+	}
+
+	prov, err := NewOllamaProvider(config)
+	require.NoError(t, err)
+
+	messages := []provider.Message{
+		{Role: "user", Content: "Test message"},
+	}
+
+	ctx := context.Background()
+	resp, err := prov.Chat(ctx, messages)
+
+	require.NoError(t, err)
+	assert.Equal(t, "No auth response", resp.Content)
+}
