@@ -1,0 +1,82 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/AINative-studio/ainative-code/tests/benchmark
+cpu: Apple M3
+BenchmarkCLIStartup-8                         	70319252	        44.80 ns/op	         0.0000420 ms/startup	       0 B/op	       0 allocs/op
+BenchmarkCLIStartupWithConfig-8               	   10000	    326498 ns/op	         0.3334 ms/config-load	  257744 B/op	    4544 allocs/op
+BenchmarkCLIStartupWithLargeConfig-8          	   10000	    324127 ns/op	         0.3455 ms/large-config	  257739 B/op	    4544 allocs/op
+BenchmarkCommandCreation/RootCommand-8        	1000000000	         0.2775 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCommandCreation/ChatCommand-8        	1000000000	         0.2759 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCommandCreation/SessionCommand-8     	1000000000	         0.2750 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCommandCreation/ConfigCommand-8      	1000000000	         0.2746 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCLIVersionCheck-8                    	83105210	        45.00 ns/op	         0 μs/version	       0 B/op	       0 allocs/op
+BenchmarkCLIHelpGeneration-8                  	  651129	      5406 ns/op	         0.008375 ms/help	    5731 B/op	     115 allocs/op
+BenchmarkCLIBinaryLoad-8                      	80393330	        45.28 ns/op	         0.0000420 ms/binary-init	       0 B/op	       0 allocs/op
+--- BENCH: BenchmarkCLIBinaryLoad-8
+    cli_bench_test.go:234: SUCCESS: Binary initialization time 0.00ms meets target of 100.00ms
+    cli_bench_test.go:234: SUCCESS: Binary initialization time 0.00ms meets target of 100.00ms
+    cli_bench_test.go:234: SUCCESS: Binary initialization time 0.00ms meets target of 100.00ms
+    cli_bench_test.go:234: SUCCESS: Binary initialization time 0.00ms meets target of 100.00ms
+    cli_bench_test.go:234: SUCCESS: Binary initialization time 0.00ms meets target of 100.00ms
+BenchmarkDatabaseConnection-8                 	   12141	    294408 ns/op	         0.3150 ms/connect	    5814 B/op	     121 allocs/op
+--- FAIL: BenchmarkDatabaseInitialization
+    database_bench_test.go:55: Failed to initialize: [DB_TRANSACTION_FAILED] Transaction failed during migration 002_add_fts5_search: failed to execute migration SQL: no such module: fts5
+--- FAIL: BenchmarkSessionQueries
+    database_bench_test.go:78: Failed to initialize database: [DB_TRANSACTION_FAILED] Transaction failed during migration 002_add_fts5_search: failed to execute migration SQL: no such module: fts5
+--- FAIL: BenchmarkMessageInsertion
+    database_bench_test.go:173: Failed to initialize database: [DB_TRANSACTION_FAILED] Transaction failed during migration 002_add_fts5_search: failed to execute migration SQL: no such module: fts5
+--- FAIL: BenchmarkMessageRetrieval
+    database_bench_test.go:253: Failed to initialize database: [DB_TRANSACTION_FAILED] Transaction failed during migration 002_add_fts5_search: failed to execute migration SQL: no such module: fts5
+--- FAIL: BenchmarkTransactionPerformance
+    database_bench_test.go:311: Failed to initialize database: [DB_TRANSACTION_FAILED] Transaction failed during migration 002_add_fts5_search: failed to execute migration SQL: no such module: fts5
+--- FAIL: BenchmarkDatabaseExportPerformance
+    database_bench_test.go:388: Failed to initialize database: [DB_TRANSACTION_FAILED] Transaction failed during migration 002_add_fts5_search: failed to execute migration SQL: no such module: fts5
+--- FAIL: BenchmarkDatabaseConcurrency
+    database_bench_test.go:454: Failed to initialize database: [DB_TRANSACTION_FAILED] Transaction failed during migration 002_add_fts5_search: failed to execute migration SQL: no such module: fts5
+BenchmarkMemoryAtStartup-8                    	      69	  51451036 ns/op	         0 MB/alloc	      50 B/op	       0 allocs/op
+--- BENCH: BenchmarkMemoryAtStartup-8
+    memory_bench_test.go:53: WARNING: Startup memory 17592186044416.00MB exceeds target of 100.00MB
+    memory_bench_test.go:55: SUCCESS: Startup memory 0.00MB meets target of 100.00MB
+BenchmarkMemoryAtIdle-8                       	      34	 100971374 ns/op	         0.6167 MB/alloc	         0.6167 MB/heap	        14.39 MB/sys	      83 B/op	       0 allocs/op
+--- BENCH: BenchmarkMemoryAtIdle-8
+    memory_bench_test.go:87: Memory at idle - Alloc: 0.62MB, Heap: 0.62MB, Sys: 14.39MB
+    memory_bench_test.go:87: Memory at idle - Alloc: 0.62MB, Heap: 0.62MB, Sys: 14.39MB
+BenchmarkMemoryGrowthOverTime-8               	 2022134	      1785 ns/op	         0 MB/growth	       0 B/op	       0 allocs/op
+--- BENCH: BenchmarkMemoryGrowthOverTime-8
+    memory_bench_test.go:128: Memory growth after 0 iterations: 0.00MB
+    memory_bench_test.go:128: Memory growth after 0 iterations: 0.00MB
+    memory_bench_test.go:128: Memory growth after 0 iterations: 0.00MB
+    memory_bench_test.go:128: Memory growth after 0 iterations: 0.00MB
+    memory_bench_test.go:128: Memory growth after 0 iterations: 0.00MB
+--- FAIL: BenchmarkMemoryWithDatabase
+    memory_bench_test.go:154: Failed to initialize database: [DB_TRANSACTION_FAILED] Transaction failed during migration 002_add_fts5_search: failed to execute migration SQL: no such module: fts5
+--- FAIL: BenchmarkMemoryWithConfig
+    memory_bench_test.go:207: Failed to load config: configuration validation failed:
+          - [CONFIG_VALIDATION] Configuration validation failed for 'llm.anthropic.api_key': Anthropic API key is required
+          - [CONFIG_VALIDATION] Configuration validation failed for 'platform.authentication.api_key': API key is required when method is 'api_key'
+BenchmarkMemoryAllocations-8                  	  109671	     35089 ns/op	         0 MB/total-alloc	         0 mallocs	       0 B/op	       0 allocs/op
+BenchmarkMemoryLeakDetection-8                	   10000	   1220539 ns/op	         0.0002747 MB/leak-check	      16 B/op	       0 allocs/op
+--- BENCH: BenchmarkMemoryLeakDetection-8
+    memory_bench_test.go:284: Memory after 100 iterations: baseline=0.62MB, current=0.62MB, growth=0.00MB
+BenchmarkMemoryGarbageCollection-8            	   25246	    147459 ns/op	         0.1290 ms/gc	      13 B/op	       0 allocs/op
+BenchmarkRegressionCheck-8                    	 1696504	      2195 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStreamingTimeToFirstToken/Latency_10ms-8         	     354	  10194914 ns/op	        10.16 ms/first-token	    1165 B/op	       5 allocs/op
+--- BENCH: BenchmarkStreamingTimeToFirstToken/Latency_10ms-8
+    streaming_bench_test.go:137: SUCCESS: First token latency 11.04ms meets target of 50.00ms
+    streaming_bench_test.go:137: SUCCESS: First token latency 10.03ms meets target of 50.00ms
+    streaming_bench_test.go:137: SUCCESS: First token latency 10.16ms meets target of 50.00ms
+BenchmarkStreamingTimeToFirstToken/Latency_25ms-8         	     138	  26059459 ns/op	        25.94 ms/first-token	    1301 B/op	       6 allocs/op
+--- BENCH: BenchmarkStreamingTimeToFirstToken/Latency_25ms-8
+    streaming_bench_test.go:137: SUCCESS: First token latency 26.16ms meets target of 50.00ms
+    streaming_bench_test.go:137: SUCCESS: First token latency 26.07ms meets target of 50.00ms
+    streaming_bench_test.go:137: SUCCESS: First token latency 25.94ms meets target of 50.00ms
+BenchmarkStreamingTimeToFirstToken/Latency_50ms-8         	      69	  51082229 ns/op	        51.07 ms/first-token	    1318 B/op	       6 allocs/op
+--- BENCH: BenchmarkStreamingTimeToFirstToken/Latency_50ms-8
+    streaming_bench_test.go:135: WARNING: First token latency 51.09ms exceeds target of 50.00ms
+    streaming_bench_test.go:135: WARNING: First token latency 51.07ms exceeds target of 50.00ms
+BenchmarkStreamingResponseLatency-8                       	      92	  38541895 ns/op	        38.59 ms/total	     740 B/op	       4 allocs/op
+BenchmarkStreamingWithVariousMessageSizes/MessageSize_10-8         	     138	  25962704 ns/op	        26.03 ms/first-token	    1293 B/op	       5 allocs/op
+BenchmarkStreamingWithVariousMessageSizes/MessageSize_100-8        	     138	  25866185 ns/op	        28.81 ms/first-token	    1280 B/op	       6 allocs/op
+BenchmarkStreamingWithVariousMessageSizes/MessageSize_1000-8       	     138	  25932527 ns/op	        25.62 ms/first-token	    1412 B/op	       6 allocs/op
+BenchmarkStreamingWithVariousMessageSizes/MessageSize_10000-8      	     136	  25836926 ns/op	        25.78 ms/first-token	    1280 B/op	       6 allocs/op
+BenchmarkStreamingChannelOverhead/ChannelSend-8                    	

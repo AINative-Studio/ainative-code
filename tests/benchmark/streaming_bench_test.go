@@ -228,6 +228,14 @@ func BenchmarkStreamingChannelOverhead(b *testing.B) {
 	b.Run("ChannelSend", func(b *testing.B) {
 		ch := make(chan provider.Event, 100)
 
+		// Start goroutine to drain channel concurrently
+		done := make(chan bool)
+		go func() {
+			for range ch {
+			}
+			done <- true
+		}()
+
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			ch <- provider.Event{
@@ -237,9 +245,8 @@ func BenchmarkStreamingChannelOverhead(b *testing.B) {
 		}
 		close(ch)
 
-		// Drain channel
-		for range ch {
-		}
+		// Wait for channel to be drained
+		<-done
 	})
 
 	b.Run("ChannelReceive", func(b *testing.B) {

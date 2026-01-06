@@ -16,6 +16,9 @@ GOMOD=$(GOCMD) mod
 GOFMT=gofmt
 GOVET=$(GOCMD) vet
 
+# Build tags for SQLite features
+SQLITE_TAGS=sqlite_fts5
+
 # Directories
 BUILD_DIR=./build
 CMD_DIR=./cmd/ainative-code
@@ -40,7 +43,7 @@ help: ## Display this help message
 build: ## Build the application
 	@echo "$(COLOR_GREEN)Building $(BINARY_NAME)...$(COLOR_RESET)"
 	@mkdir -p $(BUILD_DIR)
-	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(CMD_DIR)
+	$(GOBUILD) -tags "$(SQLITE_TAGS)" $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(CMD_DIR)
 	@echo "$(COLOR_GREEN)Build complete: $(BUILD_DIR)/$(BINARY_NAME)$(COLOR_RESET)"
 
 build-all: ## Build for all platforms
@@ -62,7 +65,7 @@ run: build ## Build and run the application
 
 install: ## Install the application to $GOPATH/bin
 	@echo "$(COLOR_GREEN)Installing $(BINARY_NAME)...$(COLOR_RESET)"
-	$(GOCMD) install $(LDFLAGS) $(CMD_DIR)
+	$(GOCMD) install -tags "$(SQLITE_TAGS)" $(LDFLAGS) $(CMD_DIR)
 	@echo "$(COLOR_GREEN)Installed to $(shell go env GOPATH)/bin/$(BINARY_NAME)$(COLOR_RESET)"
 
 clean: ## Remove build artifacts
@@ -76,18 +79,18 @@ clean: ## Remove build artifacts
 
 test: ## Run unit tests
 	@echo "$(COLOR_GREEN)Running tests...$(COLOR_RESET)"
-	$(GOTEST) -v -race ./...
+	$(GOTEST) -tags "$(SQLITE_TAGS)" -v -race ./...
 
 test-coverage: ## Run tests with coverage report
 	@echo "$(COLOR_GREEN)Running tests with coverage...$(COLOR_RESET)"
-	$(GOTEST) -v -race -coverprofile=coverage.out -covermode=atomic ./...
+	$(GOTEST) -tags "$(SQLITE_TAGS)" -v -race -coverprofile=coverage.out -covermode=atomic ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 	@echo "$(COLOR_GREEN)Coverage report generated: coverage.html$(COLOR_RESET)"
 	@$(GOCMD) tool cover -func=coverage.out | grep total | awk '{print "Total coverage: " $$3}'
 
 test-coverage-check: ## Run tests and verify 80% coverage threshold
 	@echo "$(COLOR_GREEN)Running tests with coverage threshold check...$(COLOR_RESET)"
-	@$(GOTEST) -v -race -coverprofile=coverage.out -covermode=atomic ./...
+	@$(GOTEST) -tags "$(SQLITE_TAGS)" -v -race -coverprofile=coverage.out -covermode=atomic ./...
 	@COVERAGE=$$(go tool cover -func=coverage.out | grep total | awk '{print $$3}' | sed 's/%//'); \
 	THRESHOLD=80.0; \
 	echo "Coverage: $${COVERAGE}%"; \
@@ -101,7 +104,7 @@ test-coverage-check: ## Run tests and verify 80% coverage threshold
 test-integration: ## Run integration tests
 	@echo "$(COLOR_GREEN)Running integration tests...$(COLOR_RESET)"
 	@if [ -d "tests/integration" ]; then \
-		$(GOTEST) -v -timeout=10m -tags=integration ./tests/integration/...; \
+		$(GOTEST) -tags "$(SQLITE_TAGS) integration" -v -timeout=10m ./tests/integration/...; \
 	else \
 		echo "$(COLOR_YELLOW)No integration tests directory found$(COLOR_RESET)"; \
 	fi
@@ -109,7 +112,7 @@ test-integration: ## Run integration tests
 test-integration-coverage: ## Run integration tests with coverage
 	@echo "$(COLOR_GREEN)Running integration tests with coverage...$(COLOR_RESET)"
 	@if [ -d "tests/integration" ]; then \
-		$(GOTEST) -v -timeout=10m -tags=integration -coverprofile=integration-coverage.out -covermode=atomic ./tests/integration/...; \
+		$(GOTEST) -tags "$(SQLITE_TAGS) integration" -v -timeout=10m -coverprofile=integration-coverage.out -covermode=atomic ./tests/integration/...; \
 		$(GOCMD) tool cover -func=integration-coverage.out | grep total | awk '{print "Integration test coverage: " $$3}'; \
 	else \
 		echo "$(COLOR_YELLOW)No integration tests directory found$(COLOR_RESET)"; \
@@ -117,12 +120,12 @@ test-integration-coverage: ## Run integration tests with coverage
 
 test-benchmark: ## Run benchmark tests
 	@echo "$(COLOR_GREEN)Running benchmark tests...$(COLOR_RESET)"
-	$(GOTEST) -bench=. -benchmem ./...
+	$(GOTEST) -tags "$(SQLITE_TAGS)" -bench=. -benchmem ./...
 
 test-e2e: build ## Run E2E tests
 	@echo "$(COLOR_GREEN)Running E2E tests...$(COLOR_RESET)"
 	@if [ -d "tests/e2e" ]; then \
-		cd tests/e2e && $(GOTEST) -v -timeout=10m ./...; \
+		cd tests/e2e && $(GOTEST) -tags "$(SQLITE_TAGS)" -v -timeout=10m ./...; \
 	else \
 		echo "$(COLOR_YELLOW)No E2E tests directory found$(COLOR_RESET)"; \
 	fi
@@ -130,7 +133,7 @@ test-e2e: build ## Run E2E tests
 test-e2e-short: build ## Run E2E tests in short mode (skips long tests)
 	@echo "$(COLOR_GREEN)Running E2E tests (short mode)...$(COLOR_RESET)"
 	@if [ -d "tests/e2e" ]; then \
-		cd tests/e2e && $(GOTEST) -v -short -timeout=5m ./...; \
+		cd tests/e2e && $(GOTEST) -tags "$(SQLITE_TAGS)" -v -short -timeout=5m ./...; \
 	else \
 		echo "$(COLOR_YELLOW)No E2E tests directory found$(COLOR_RESET)"; \
 	fi
@@ -138,7 +141,7 @@ test-e2e-short: build ## Run E2E tests in short mode (skips long tests)
 test-e2e-verbose: build ## Run E2E tests with verbose output
 	@echo "$(COLOR_GREEN)Running E2E tests (verbose)...$(COLOR_RESET)"
 	@if [ -d "tests/e2e" ]; then \
-		cd tests/e2e && $(GOTEST) -v -timeout=10m ./... 2>&1 | tee e2e-test-output.log; \
+		cd tests/e2e && $(GOTEST) -tags "$(SQLITE_TAGS)" -v -timeout=10m ./... 2>&1 | tee e2e-test-output.log; \
 	else \
 		echo "$(COLOR_YELLOW)No E2E tests directory found$(COLOR_RESET)"; \
 	fi
