@@ -49,10 +49,16 @@ type Session struct {
 
 // NewStore creates a new local auth store with SQLite backend.
 func NewStore(dbPath string) (*Store, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	// Open database with connection parameters for better concurrency
+	db, err := sql.Open("sqlite", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
+
+	// Configure connection pool for SQLite
+	// SQLite works best with a single writer, so limit connections
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
 	store := &Store{db: db}
 

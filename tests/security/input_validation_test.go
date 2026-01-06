@@ -183,9 +183,15 @@ func TestInputValidation_SpecialCharacters(t *testing.T) {
 			tool := builtin.NewExecCommandTool([]string{"ls", "echo"}, "/tmp")
 
 			// When: Executing with special characters
+			// Convert []string to []interface{} for the map
+			args := make([]interface{}, len(tc.commandArgs))
+			for i, arg := range tc.commandArgs {
+				args[i] = arg
+			}
+
 			input := map[string]interface{}{
 				"command": "echo",
-				"args":    tc.commandArgs,
+				"args":    args,
 			}
 
 			result, err := tool.Execute(context.Background(), input)
@@ -218,7 +224,7 @@ func TestInputValidation_NullByteInjection(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Given: A file operation tool
-			tool := builtin.NewReadFileTool("/tmp")
+			tool := builtin.NewReadFileTool([]string{"/tmp"})
 
 			// When: Attempting to use null byte injection
 			input := map[string]interface{}{
@@ -289,7 +295,7 @@ func TestInputValidation_BoundaryValues(t *testing.T) {
 			// When: Executing with boundary timeout values
 			input := map[string]interface{}{
 				"command":         "sleep",
-				"args":            []string{"0.1"},
+				"args":            []interface{}{"0.1"}, // Use []interface{} instead of []string
 				"timeout_seconds": tc.timeout,
 			}
 

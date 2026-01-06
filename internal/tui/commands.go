@@ -6,44 +6,54 @@ import (
 	"io"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/AINative-studio/ainative-code/internal/provider"
+	"github.com/AINative-studio/ainative-code/internal/provider/anthropic"
 )
 
 // ProcessUserInput creates a command that processes user input and streams the response
 func ProcessUserInput(input string, apiKey string) tea.Cmd {
 	return func() tea.Msg {
-		// Create Anthropic client
-		client := anthropic.NewClient(
-			option.WithAPIKey(apiKey),
-		)
+		// Create Anthropic provider
+		config := anthropic.Config{
+			APIKey: apiKey,
+		}
+
+		client, err := anthropic.NewAnthropicProvider(config)
+		if err != nil {
+			return errMsg{err: fmt.Errorf("failed to create provider: %w", err)}
+		}
+		defer client.Close()
+
+		// Create messages
+		messages := []provider.Message{
+			{
+				Role:    "user",
+				Content: input,
+			},
+		}
 
 		// Create streaming request
 		ctx := context.Background()
-		stream := client.Messages.NewStreaming(ctx, anthropic.MessageNewParams{
-			Model: anthropic.F(anthropic.ModelClaude_3_5_Sonnet_20241022),
-			Messages: anthropic.F([]anthropic.MessageParam{
-				anthropic.NewUserMessage(anthropic.NewTextBlock(input)),
-			}),
-			MaxTokens: anthropic.Int(1024),
-		})
-
-		// Process stream
-		for stream.Next() {
-			event := stream.Current()
-
-			switch delta := event.Delta.(type) {
-			case anthropic.ContentBlockDeltaEventDelta:
-				if textDelta, ok := delta.AsUnion().(anthropic.TextDelta); ok {
-					// Send chunk to UI
-					return streamChunkMsg{content: textDelta.Text}
-				}
-			}
+		streamChan, err := client.Stream(
+			ctx,
+			messages,
+			provider.StreamWithModel("claude-3-5-sonnet-20241022"),
+			provider.StreamWithMaxTokens(1024),
+		)
+		if err != nil {
+			return errMsg{err: fmt.Errorf("failed to start stream: %w", err)}
 		}
 
-		// Check for streaming errors
-		if err := stream.Err(); err != nil {
-			return errMsg{err: fmt.Errorf("streaming error: %w", err)}
+		// Process stream
+		for event := range streamChan {
+			if event.Error != nil {
+				return errMsg{err: fmt.Errorf("streaming error: %w", event.Error)}
+			}
+
+			if event.Content != "" {
+				// Send chunk to UI
+				return streamChunkMsg{content: event.Content}
+			}
 		}
 
 		// Signal completion
