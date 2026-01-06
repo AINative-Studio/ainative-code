@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/rsa"
+	"errors"
 	"fmt"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -55,15 +56,15 @@ func ParseAccessToken(tokenString string, publicKey *rsa.PublicKey) (*AccessToke
 	})
 
 	if err != nil {
-		// Check if error is due to expiration
-		if jwt.ErrTokenExpired.Error() == err.Error() {
-			return nil, fmt.Errorf("%w: %v", ErrTokenExpired, err)
+		// Check if error is due to expiration using errors.Is
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, fmt.Errorf("%w", ErrTokenExpired)
 		}
 		// Check if error is due to signature verification
-		if jwt.ErrSignatureInvalid.Error() == err.Error() {
-			return nil, fmt.Errorf("%w: %v", ErrInvalidSignature, err)
+		if errors.Is(err, jwt.ErrTokenSignatureInvalid) {
+			return nil, fmt.Errorf("%w", ErrInvalidSignature)
 		}
-		return nil, fmt.Errorf("%w: %v", ErrTokenParseFailed, err)
+		return nil, fmt.Errorf("%w", ErrTokenParseFailed)
 	}
 
 	// Extract claims
@@ -74,8 +75,8 @@ func ParseAccessToken(tokenString string, publicKey *rsa.PublicKey) (*AccessToke
 
 	// Extract and validate issuer
 	issuer, err := claims.GetIssuer()
-	if err != nil {
-		return nil, fmt.Errorf("%w: missing issuer claim: %v", ErrInvalidClaims, err)
+	if err != nil || issuer == "" {
+		return nil, fmt.Errorf("%w: missing or invalid issuer claim", ErrInvalidClaims)
 	}
 	if issuer != "ainative-auth" {
 		return nil, fmt.Errorf("%w: expected 'ainative-auth', got '%s'",
@@ -83,9 +84,13 @@ func ParseAccessToken(tokenString string, publicKey *rsa.PublicKey) (*AccessToke
 	}
 
 	// Extract and validate audience
+	// Check if audience claim exists at all
+	if _, hasAud := claims["aud"]; !hasAud {
+		return nil, fmt.Errorf("%w: missing audience claim", ErrInvalidClaims)
+	}
 	audience, err := claims.GetAudience()
 	if err != nil {
-		return nil, fmt.Errorf("%w: missing audience claim: %v", ErrInvalidClaims, err)
+		return nil, fmt.Errorf("%w: invalid audience claim format", ErrInvalidClaims)
 	}
 	if len(audience) == 0 || audience[0] != "ainative-code" {
 		return nil, fmt.Errorf("%w: expected 'ainative-code', got '%v'",
@@ -182,15 +187,15 @@ func ParseRefreshToken(tokenString string, publicKey *rsa.PublicKey) (*RefreshTo
 	})
 
 	if err != nil {
-		// Check if error is due to expiration
-		if jwt.ErrTokenExpired.Error() == err.Error() {
-			return nil, fmt.Errorf("%w: %v", ErrTokenExpired, err)
+		// Check if error is due to expiration using errors.Is
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, fmt.Errorf("%w", ErrTokenExpired)
 		}
 		// Check if error is due to signature verification
-		if jwt.ErrSignatureInvalid.Error() == err.Error() {
-			return nil, fmt.Errorf("%w: %v", ErrInvalidSignature, err)
+		if errors.Is(err, jwt.ErrTokenSignatureInvalid) {
+			return nil, fmt.Errorf("%w", ErrInvalidSignature)
 		}
-		return nil, fmt.Errorf("%w: %v", ErrTokenParseFailed, err)
+		return nil, fmt.Errorf("%w", ErrTokenParseFailed)
 	}
 
 	// Extract claims
@@ -201,8 +206,8 @@ func ParseRefreshToken(tokenString string, publicKey *rsa.PublicKey) (*RefreshTo
 
 	// Extract and validate issuer
 	issuer, err := claims.GetIssuer()
-	if err != nil {
-		return nil, fmt.Errorf("%w: missing issuer claim: %v", ErrInvalidClaims, err)
+	if err != nil || issuer == "" {
+		return nil, fmt.Errorf("%w: missing or invalid issuer claim", ErrInvalidClaims)
 	}
 	if issuer != "ainative-auth" {
 		return nil, fmt.Errorf("%w: expected 'ainative-auth', got '%s'",
@@ -210,9 +215,13 @@ func ParseRefreshToken(tokenString string, publicKey *rsa.PublicKey) (*RefreshTo
 	}
 
 	// Extract and validate audience
+	// Check if audience claim exists at all
+	if _, hasAud := claims["aud"]; !hasAud {
+		return nil, fmt.Errorf("%w: missing audience claim", ErrInvalidClaims)
+	}
 	audience, err := claims.GetAudience()
 	if err != nil {
-		return nil, fmt.Errorf("%w: missing audience claim: %v", ErrInvalidClaims, err)
+		return nil, fmt.Errorf("%w: invalid audience claim format", ErrInvalidClaims)
 	}
 	if len(audience) == 0 || audience[0] != "ainative-code" {
 		return nil, fmt.Errorf("%w: expected 'ainative-code', got '%v'",

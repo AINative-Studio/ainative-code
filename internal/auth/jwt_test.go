@@ -166,17 +166,19 @@ func TestParseAccessToken_Errors(t *testing.T) {
 	wrongPrivateKey, _ := generateTestKeyPair(t)
 
 	tests := []struct {
-		name        string
-		tokenString string
-		publicKey   *rsa.PublicKey
-		claims      jwt.MapClaims
-		wrongKey    bool
-		expectError error
+		name           string
+		tokenString    string
+		publicKey      *rsa.PublicKey
+		usePublicKey   bool // true if publicKey field should be used (even if nil)
+		claims         jwt.MapClaims
+		wrongKey       bool
+		expectError    error
 	}{
 		{
-			name:        "nil public key",
-			publicKey:   nil,
-			expectError: ErrMissingPublicKey,
+			name:         "nil public key",
+			publicKey:    nil,
+			usePublicKey: true,
+			expectError:  ErrMissingPublicKey,
 		},
 		{
 			name: "invalid signature",
@@ -327,10 +329,10 @@ func TestParseAccessToken_Errors(t *testing.T) {
 			if tt.tokenString != "" {
 				tokenString = tt.tokenString
 				pubKey = publicKey
-			} else if tt.publicKey != nil {
-				pubKey = tt.publicKey
+			} else if tt.usePublicKey {
+				pubKey = tt.publicKey // Use provided publicKey (can be nil)
 			} else {
-				pubKey = publicKey
+				pubKey = publicKey // Use default valid publicKey
 			}
 
 			// Create token if claims provided
@@ -456,17 +458,19 @@ func TestParseRefreshToken_Errors(t *testing.T) {
 	wrongPrivateKey, _ := generateTestKeyPair(t)
 
 	tests := []struct {
-		name        string
-		tokenString string
-		publicKey   *rsa.PublicKey
-		claims      jwt.MapClaims
-		wrongKey    bool
-		expectError error
+		name           string
+		tokenString    string
+		publicKey      *rsa.PublicKey
+		usePublicKey   bool // true if publicKey field should be used (even if nil)
+		claims         jwt.MapClaims
+		wrongKey       bool
+		expectError    error
 	}{
 		{
-			name:        "nil public key",
-			publicKey:   nil,
-			expectError: ErrMissingPublicKey,
+			name:         "nil public key",
+			publicKey:    nil,
+			usePublicKey: true,
+			expectError:  ErrMissingPublicKey,
 		},
 		{
 			name: "invalid signature",
@@ -550,10 +554,10 @@ func TestParseRefreshToken_Errors(t *testing.T) {
 			if tt.tokenString != "" {
 				tokenString = tt.tokenString
 				pubKey = publicKey
-			} else if tt.publicKey != nil {
-				pubKey = tt.publicKey
+			} else if tt.usePublicKey {
+				pubKey = tt.publicKey // Use provided publicKey (can be nil)
 			} else {
-				pubKey = publicKey
+				pubKey = publicKey // Use default valid publicKey
 			}
 
 			// Create token if claims provided
