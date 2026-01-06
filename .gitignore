@@ -65,6 +65,7 @@ Thumbs.db
 .env.*.local
 config.local.yaml
 secrets.yaml
+.ainative/settings.local.json
 
 # Test coverage
 coverage.out
