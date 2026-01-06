@@ -41,9 +41,9 @@ func TestMetaProvider_Integration(t *testing.T) {
 		config.Model = meta.ModelLlama4Maverick
 	}
 
-	provider, err := meta.NewMetaProvider(config)
+	metaProvider, err := meta.NewMetaProvider(config)
 	require.NoError(t, err)
-	defer provider.Close()
+	defer metaProvider.Close()
 
 	t.Run("Chat", func(t *testing.T) {
 		messages := []provider.Message{
@@ -56,7 +56,7 @@ func TestMetaProvider_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		resp, err := provider.Chat(ctx, messages)
+		resp, err := metaProvider.Chat(ctx, messages)
 		require.NoError(t, err)
 
 		assert.NotEmpty(t, resp.Content)
@@ -83,7 +83,7 @@ func TestMetaProvider_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		resp, err := provider.Chat(ctx, messages,
+		resp, err := metaProvider.Chat(ctx, messages,
 			provider.WithTemperature(0.5),
 			provider.WithMaxTokens(50),
 		)
@@ -106,7 +106,7 @@ func TestMetaProvider_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		eventChan, err := provider.Stream(ctx, messages)
+		eventChan, err := metaProvider.Stream(ctx, messages)
 		require.NoError(t, err)
 
 		var fullContent string
@@ -159,7 +159,7 @@ func TestMetaProvider_Integration(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 
-				resp, err := provider.Chat(ctx, messages, provider.WithModel(model))
+				resp, err := metaProvider.Chat(ctx, messages, provider.WithModel(model))
 				require.NoError(t, err)
 
 				assert.NotEmpty(t, resp.Content)
@@ -183,7 +183,7 @@ func TestMetaProvider_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		resp, err := provider.Chat(ctx, messages)
+		resp, err := metaProvider.Chat(ctx, messages)
 		require.NoError(t, err)
 
 		assert.NotEmpty(t, resp.Content)
@@ -229,10 +229,10 @@ func TestMetaProvider_ModelValidation(t *testing.T) {
 				Model:   model,
 			}
 
-			provider, err := meta.NewMetaProvider(config)
+			p, err := meta.NewMetaProvider(config)
 			assert.NoError(t, err, "Model %s should be valid", model)
-			if provider != nil {
-				provider.Close()
+			if p != nil {
+				p.Close()
 			}
 		}
 	})
@@ -251,7 +251,7 @@ func TestMetaProvider_ErrorHandling(t *testing.T) {
 			Model:   meta.ModelLlama4Maverick,
 		}
 
-		provider, err := meta.NewMetaProvider(config)
+		p, err := meta.NewMetaProvider(config)
 		require.NoError(t, err)
 
 		messages := []provider.Message{
@@ -261,7 +261,7 @@ func TestMetaProvider_ErrorHandling(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		_, err = provider.Chat(ctx, messages)
+		_, err = p.Chat(ctx, messages)
 		assert.Error(t, err)
 
 		// Check if it's a Meta error
@@ -283,7 +283,7 @@ func TestMetaProvider_ErrorHandling(t *testing.T) {
 			Model:   meta.ModelLlama4Maverick,
 		}
 
-		provider, err := meta.NewMetaProvider(config)
+		p, err := meta.NewMetaProvider(config)
 		require.NoError(t, err)
 
 		messages := []provider.Message{
@@ -294,7 +294,7 @@ func TestMetaProvider_ErrorHandling(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 		defer cancel()
 
-		_, err = provider.Chat(ctx, messages)
+		_, err = p.Chat(ctx, messages)
 		assert.Error(t, err)
 		t.Logf("Expected timeout error: %v", err)
 	})

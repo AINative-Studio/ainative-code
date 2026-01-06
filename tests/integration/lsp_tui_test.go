@@ -46,7 +46,7 @@ func TestLSPTUIIntegration_CompletionFlow(t *testing.T) {
 		assert.Contains(t, model.GetUserInput(), "Model")
 
 		// Verify completion popup is closed
-		assert.False(t, model.ShowCompletion)
+		assert.False(t, model.GetShowCompletion())
 	})
 
 	t.Run("handles completion timeout gracefully", func(t *testing.T) {
@@ -82,8 +82,8 @@ func TestLSPTUIIntegration_HoverFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify hover info is displayed
-		assert.True(t, model.ShowHover)
-		assert.NotNil(t, model.HoverInfo)
+		assert.True(t, model.GetShowHover())
+		assert.NotNil(t, model.GetHoverInfo())
 
 		// Render hover popup
 		rendered := tui.RenderHover(&model)
@@ -92,8 +92,8 @@ func TestLSPTUIIntegration_HoverFlow(t *testing.T) {
 
 		// Clear hover
 		model.ClearHover()
-		assert.False(t, model.ShowHover)
-		assert.Nil(t, model.HoverInfo)
+		assert.False(t, model.GetShowHover())
+		assert.Nil(t, model.GetHoverInfo())
 	})
 
 	t.Run("handles hover for position without symbol", func(t *testing.T) {
@@ -109,8 +109,8 @@ func TestLSPTUIIntegration_HoverFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify no hover info is shown
-		assert.False(t, model.ShowHover)
-		assert.Nil(t, model.HoverInfo)
+		assert.False(t, model.GetShowHover())
+		assert.Nil(t, model.GetHoverInfo())
 	})
 }
 
@@ -130,8 +130,8 @@ func TestLSPTUIIntegration_NavigationFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify navigation results are displayed
-		assert.True(t, model.ShowNavigation)
-		assert.NotEmpty(t, model.NavigationResult)
+		assert.True(t, model.GetShowNavigation())
+		assert.NotEmpty(t, model.GetNavigationResult())
 
 		// Render navigation popup
 		rendered := tui.RenderNavigation(&model)
@@ -140,8 +140,8 @@ func TestLSPTUIIntegration_NavigationFlow(t *testing.T) {
 
 		// Clear navigation
 		model.ClearNavigation()
-		assert.False(t, model.ShowNavigation)
-		assert.Empty(t, model.NavigationResult)
+		assert.False(t, model.GetShowNavigation())
+		assert.Empty(t, model.GetNavigationResult())
 	})
 
 	t.Run("complete end-to-end find references flow", func(t *testing.T) {
@@ -159,11 +159,11 @@ func TestLSPTUIIntegration_NavigationFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify navigation results are displayed
-		assert.True(t, model.ShowNavigation)
-		assert.NotEmpty(t, model.NavigationResult)
+		assert.True(t, model.GetShowNavigation())
+		assert.NotEmpty(t, model.GetNavigationResult())
 
 		// Verify multiple references are found
-		assert.GreaterOrEqual(t, len(model.NavigationResult), 1)
+		assert.GreaterOrEqual(t, len(model.GetNavigationResult()), 1)
 	})
 
 	t.Run("handles navigation for position without symbol", func(t *testing.T) {
@@ -179,8 +179,8 @@ func TestLSPTUIIntegration_NavigationFlow(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify no navigation results
-		assert.False(t, model.ShowNavigation)
-		assert.Empty(t, model.NavigationResult)
+		assert.False(t, model.GetShowNavigation())
+		assert.Empty(t, model.GetNavigationResult())
 	})
 }
 
@@ -233,7 +233,7 @@ func TestLSPTUIIntegration_MultiplePopups(t *testing.T) {
 		// Trigger completion
 		err = tui.TriggerCompletion(ctx, &model, documentURI, 10, 5)
 		require.NoError(t, err)
-		assert.True(t, model.ShowCompletion)
+		assert.True(t, model.GetShowCompletion())
 
 		// Trigger hover (should replace completion)
 		err = tui.TriggerHover(ctx, &model, documentURI, 30, 10)
@@ -241,8 +241,8 @@ func TestLSPTUIIntegration_MultiplePopups(t *testing.T) {
 
 		// Clear completion manually to simulate user action
 		model.ClearCompletion()
-		assert.False(t, model.ShowCompletion)
-		assert.True(t, model.ShowHover)
+		assert.False(t, model.GetShowCompletion())
+		assert.True(t, model.GetShowHover())
 
 		// Trigger navigation (should replace hover)
 		err = tui.GotoDefinition(ctx, &model, documentURI, 30, 10)
@@ -250,8 +250,8 @@ func TestLSPTUIIntegration_MultiplePopups(t *testing.T) {
 
 		// Clear hover manually
 		model.ClearHover()
-		assert.False(t, model.ShowHover)
-		assert.True(t, model.ShowNavigation)
+		assert.False(t, model.GetShowHover())
+		assert.True(t, model.GetShowNavigation())
 	})
 }
 

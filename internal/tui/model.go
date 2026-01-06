@@ -290,3 +290,33 @@ func (m *Model) ClearNavigation() {
 	m.navigationResult = []lsp.Location{}
 	m.showNavigation = false
 }
+
+// GetShowCompletion returns whether the completion popup is shown
+func (m *Model) GetShowCompletion() bool {
+	return m.showCompletion
+}
+
+// GetShowHover returns whether the hover popup is shown
+func (m *Model) GetShowHover() bool {
+	return m.showHover
+}
+
+// GetHoverInfo returns the hover information
+func (m *Model) GetHoverInfo() *lsp.Hover {
+	return m.hoverInfo
+}
+
+// GetShowNavigation returns whether the navigation popup is shown
+func (m *Model) GetShowNavigation() bool {
+	return m.showNavigation
+}
+
+// GetNavigationResult returns the navigation results
+func (m *Model) GetNavigationResult() []lsp.Location {
+	return m.navigationResult
+}
+
+// SetValue sets the input value (for testing)
+func (m *Model) SetValue(value string) {
+	m.textInput.SetValue(value)
+}
