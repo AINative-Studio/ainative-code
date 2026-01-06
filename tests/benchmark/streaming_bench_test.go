@@ -105,7 +105,7 @@ func BenchmarkStreamingTimeToFirstToken(b *testing.B) {
 
 	for _, latency := range latencies {
 		b.Run(fmt.Sprintf("Latency_%dms", latency.Milliseconds()), func(b *testing.B) {
-			provider := &MockStreamingProvider{latency: latency}
+			mockProvider := &MockStreamingProvider{latency: latency}
 			messages := []provider.Message{
 				{Role: "user", Content: "Test message"},
 			}
@@ -114,7 +114,7 @@ func BenchmarkStreamingTimeToFirstToken(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				start := time.Now()
 
-				eventCh, err := provider.Stream(ctx, messages)
+				eventCh, err := mockProvider.Stream(ctx, messages)
 				if err != nil {
 					b.Fatalf("Stream failed: %v", err)
 				}
@@ -149,7 +149,7 @@ func BenchmarkStreamingTimeToFirstToken(b *testing.B) {
 // BenchmarkStreamingResponseLatency measures overall streaming response latency
 func BenchmarkStreamingResponseLatency(b *testing.B) {
 	ctx := context.Background()
-	provider := &MockStreamingProvider{latency: 25 * time.Millisecond}
+	mockProvider := &MockStreamingProvider{latency: 25 * time.Millisecond}
 
 	messages := []provider.Message{
 		{Role: "user", Content: "Test message"},
@@ -159,7 +159,7 @@ func BenchmarkStreamingResponseLatency(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		start := time.Now()
 
-		eventCh, err := provider.Stream(ctx, messages)
+		eventCh, err := mockProvider.Stream(ctx, messages)
 		if err != nil {
 			b.Fatalf("Stream failed: %v", err)
 		}
@@ -180,7 +180,7 @@ func BenchmarkStreamingResponseLatency(b *testing.B) {
 // BenchmarkStreamingWithVariousMessageSizes tests streaming with different message sizes
 func BenchmarkStreamingWithVariousMessageSizes(b *testing.B) {
 	ctx := context.Background()
-	provider := &MockStreamingProvider{latency: 25 * time.Millisecond}
+	mockProvider := &MockStreamingProvider{latency: 25 * time.Millisecond}
 
 	messageSizes := []int{10, 100, 1000, 10000}
 
@@ -200,7 +200,7 @@ func BenchmarkStreamingWithVariousMessageSizes(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				start := time.Now()
 
-				eventCh, err := provider.Stream(ctx, messages)
+				eventCh, err := mockProvider.Stream(ctx, messages)
 				if err != nil {
 					b.Fatalf("Stream failed: %v", err)
 				}
@@ -261,14 +261,14 @@ func BenchmarkStreamingChannelOverhead(b *testing.B) {
 	})
 
 	b.Run("ChannelRoundTrip", func(b *testing.B) {
-		provider := &MockStreamingProvider{latency: 1 * time.Millisecond}
+		mockProvider := &MockStreamingProvider{latency: 1 * time.Millisecond}
 		messages := []provider.Message{
 			{Role: "user", Content: "Test"},
 		}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			eventCh, _ := provider.Stream(ctx, messages)
+			eventCh, _ := mockProvider.Stream(ctx, messages)
 			for range eventCh {
 			}
 		}
@@ -278,7 +278,7 @@ func BenchmarkStreamingChannelOverhead(b *testing.B) {
 // BenchmarkStreamingConcurrentStreams measures performance with concurrent streams
 func BenchmarkStreamingConcurrentStreams(b *testing.B) {
 	ctx := context.Background()
-	provider := &MockStreamingProvider{latency: 10 * time.Millisecond}
+	mockProvider := &MockStreamingProvider{latency: 10 * time.Millisecond}
 
 	messages := []provider.Message{
 		{Role: "user", Content: "Test message"},
@@ -295,7 +295,7 @@ func BenchmarkStreamingConcurrentStreams(b *testing.B) {
 
 				for j := 0; j < n; j++ {
 					go func() {
-						eventCh, err := provider.Stream(ctx, messages)
+						eventCh, err := mockProvider.Stream(ctx, messages)
 						if err != nil {
 							done <- false
 							return
@@ -318,7 +318,7 @@ func BenchmarkStreamingConcurrentStreams(b *testing.B) {
 
 // BenchmarkStreamingContextCancellation measures context cancellation overhead
 func BenchmarkStreamingContextCancellation(b *testing.B) {
-	provider := &MockStreamingProvider{latency: 10 * time.Millisecond}
+	mockProvider := &MockStreamingProvider{latency: 10 * time.Millisecond}
 
 	messages := []provider.Message{
 		{Role: "user", Content: "Test message"},
@@ -328,7 +328,7 @@ func BenchmarkStreamingContextCancellation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
 
-		eventCh, err := provider.Stream(ctx, messages)
+		eventCh, err := mockProvider.Stream(ctx, messages)
 		if err != nil {
 			cancel()
 			continue
@@ -342,39 +342,37 @@ func BenchmarkStreamingContextCancellation(b *testing.B) {
 	}
 }
 
-// BenchmarkStreamingThinkingBlocks measures streaming with thinking blocks
-func BenchmarkStreamingThinkingBlocks(b *testing.B) {
+// BenchmarkStreamingEventProcessing measures event processing overhead
+func BenchmarkStreamingEventProcessing(b *testing.B) {
 	ctx := context.Background()
 
-	// Mock provider that includes thinking blocks
-	provider := &MockStreamingProvider{latency: 20 * time.Millisecond}
+	// Mock provider for testing event processing
+	mockProvider := &MockStreamingProvider{latency: 20 * time.Millisecond}
 
 	messages := []provider.Message{
-		{Role: "user", Content: "Complex question requiring thinking"},
+		{Role: "user", Content: "Test message for event processing"},
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		start := time.Now()
 
-		eventCh, err := provider.Stream(ctx, messages)
+		eventCh, err := mockProvider.Stream(ctx, messages)
 		if err != nil {
 			b.Fatalf("Stream failed: %v", err)
 		}
 
-		// Process events including thinking blocks
-		thinkingCount := 0
-		for event := range eventCh {
-			if event.Type == provider.EventTypeThinking {
-				thinkingCount++
-			}
+		// Process all events and count them
+		eventCount := 0
+		for range eventCh {
+			eventCount++
 		}
 
 		elapsed := time.Since(start)
 
 		if i == 0 {
-			b.ReportMetric(float64(elapsed.Nanoseconds())/1_000_000, "ms/with-thinking")
-			b.Logf("Processed %d thinking blocks", thinkingCount)
+			b.ReportMetric(float64(elapsed.Nanoseconds())/1_000_000, "ms/event-processing")
+			b.Logf("Processed %d events", eventCount)
 		}
 	}
 }

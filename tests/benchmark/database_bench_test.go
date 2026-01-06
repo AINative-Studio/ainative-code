@@ -85,11 +85,10 @@ func BenchmarkSessionQueries(b *testing.B) {
 	sessionIDs := make([]string, 10)
 	for i := 0; i < 10; i++ {
 		sessionID := uuid.New().String()
-		_, err := db.CreateSession(ctx, database.CreateSessionParams{
-			ID:        sessionID,
-			Title:     fmt.Sprintf("Test Session %d", i),
-			CreatedAt: time.Now().Unix(),
-			UpdatedAt: time.Now().Unix(),
+		err := db.CreateSession(ctx, database.CreateSessionParams{
+			ID:     sessionID,
+			Name:   fmt.Sprintf("Test Session %d", i),
+			Status: "active",
 		})
 		if err != nil {
 			b.Fatalf("Failed to create session: %v", err)
@@ -120,7 +119,10 @@ func BenchmarkSessionQueries(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			start := time.Now()
-			sessions, err := db.ListSessions(ctx)
+			sessions, err := db.ListSessions(ctx, database.ListSessionsParams{
+				Limit:  100,
+				Offset: 0,
+			})
 			elapsed := time.Since(start)
 
 			if err != nil {
@@ -138,7 +140,12 @@ func BenchmarkSessionQueries(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			start := time.Now()
-			sessions, err := db.SearchSessions(ctx, "Test")
+			sessions, err := db.SearchSessions(ctx, database.SearchSessionsParams{
+				Name:   "%Test%",
+				ID:     "%Test%",
+				Limit:  100,
+				Offset: 0,
+			})
 			elapsed := time.Since(start)
 
 			if err != nil {
@@ -171,11 +178,10 @@ func BenchmarkMessageInsertion(b *testing.B) {
 
 	// Create a test session
 	sessionID := uuid.New().String()
-	_, err = db.CreateSession(ctx, database.CreateSessionParams{
-		ID:        sessionID,
-		Title:     "Benchmark Session",
-		CreatedAt: time.Now().Unix(),
-		UpdatedAt: time.Now().Unix(),
+	err = db.CreateSession(ctx, database.CreateSessionParams{
+		ID:     sessionID,
+		Name:   "Benchmark Session",
+		Status: "active",
 	})
 	if err != nil {
 		b.Fatalf("Failed to create session: %v", err)
@@ -186,12 +192,11 @@ func BenchmarkMessageInsertion(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			start := time.Now()
 
-			_, err := db.CreateMessage(ctx, database.CreateMessageParams{
+			err := db.CreateMessage(ctx, database.CreateMessageParams{
 				ID:        uuid.New().String(),
 				SessionID: sessionID,
 				Role:      "user",
 				Content:   "Test message content",
-				CreatedAt: time.Now().Unix(),
 			})
 
 			elapsed := time.Since(start)
@@ -215,12 +220,11 @@ func BenchmarkMessageInsertion(b *testing.B) {
 
 			// Insert batch of messages
 			for j := 0; j < batchSize; j++ {
-				_, err := db.CreateMessage(ctx, database.CreateMessageParams{
+				err := db.CreateMessage(ctx, database.CreateMessageParams{
 					ID:        uuid.New().String(),
 					SessionID: sessionID,
 					Role:      "user",
 					Content:   fmt.Sprintf("Batch message %d", j),
-					CreatedAt: time.Now().Unix(),
 				})
 				if err != nil {
 					b.Fatalf("Failed to create message: %v", err)
@@ -254,11 +258,10 @@ func BenchmarkMessageRetrieval(b *testing.B) {
 
 	// Create test session with messages
 	sessionID := uuid.New().String()
-	_, err = db.CreateSession(ctx, database.CreateSessionParams{
-		ID:        sessionID,
-		Title:     "Benchmark Session",
-		CreatedAt: time.Now().Unix(),
-		UpdatedAt: time.Now().Unix(),
+	err = db.CreateSession(ctx, database.CreateSessionParams{
+		ID:     sessionID,
+		Name:   "Benchmark Session",
+		Status: "active",
 	})
 	if err != nil {
 		b.Fatalf("Failed to create session: %v", err)
@@ -266,12 +269,11 @@ func BenchmarkMessageRetrieval(b *testing.B) {
 
 	// Insert 100 messages
 	for i := 0; i < 100; i++ {
-		_, err := db.CreateMessage(ctx, database.CreateMessageParams{
+		err := db.CreateMessage(ctx, database.CreateMessageParams{
 			ID:        uuid.New().String(),
 			SessionID: sessionID,
 			Role:      "user",
 			Content:   fmt.Sprintf("Message %d", i),
-			CreatedAt: time.Now().Unix(),
 		})
 		if err != nil {
 			b.Fatalf("Failed to create message: %v", err)
@@ -282,7 +284,7 @@ func BenchmarkMessageRetrieval(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		start := time.Now()
 
-		messages, err := db.GetSessionMessages(ctx, sessionID)
+		messages, err := db.ListMessagesBySession(ctx, sessionID)
 		elapsed := time.Since(start)
 
 		if err != nil {
@@ -314,23 +316,21 @@ func BenchmarkTransactionPerformance(b *testing.B) {
 
 	b.Run("WithoutTransaction", func(b *testing.B) {
 		sessionID := uuid.New().String()
-		_, _ = db.CreateSession(ctx, database.CreateSessionParams{
-			ID:        sessionID,
-			Title:     "Test",
-			CreatedAt: time.Now().Unix(),
-			UpdatedAt: time.Now().Unix(),
+		_ = db.CreateSession(ctx, database.CreateSessionParams{
+			ID:     sessionID,
+			Name:   "Test",
+			Status: "active",
 		})
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			start := time.Now()
 
-			_, err := db.CreateMessage(ctx, database.CreateMessageParams{
+			err := db.CreateMessage(ctx, database.CreateMessageParams{
 				ID:        uuid.New().String(),
 				SessionID: sessionID,
 				Role:      "user",
 				Content:   "Test",
-				CreatedAt: time.Now().Unix(),
 			})
 
 			elapsed := time.Since(start)
@@ -353,12 +353,11 @@ func BenchmarkTransactionPerformance(b *testing.B) {
 			start := time.Now()
 
 			err := db.WithTx(ctx, func(q *database.Queries) error {
-				_, err := q.CreateMessage(ctx, database.CreateMessageParams{
+				err := q.CreateMessage(ctx, database.CreateMessageParams{
 					ID:        uuid.New().String(),
 					SessionID: sessionID,
 					Role:      "user",
 					Content:   "Test",
-					CreatedAt: time.Now().Unix(),
 				})
 				return err
 			})
@@ -394,11 +393,10 @@ func BenchmarkDatabaseExportPerformance(b *testing.B) {
 
 	// Create test data
 	sessionID := uuid.New().String()
-	_, err = db.CreateSession(ctx, database.CreateSessionParams{
-		ID:        sessionID,
-		Title:     "Export Test",
-		CreatedAt: time.Now().Unix(),
-		UpdatedAt: time.Now().Unix(),
+	err = db.CreateSession(ctx, database.CreateSessionParams{
+		ID:     sessionID,
+		Name:   "Export Test",
+		Status: "active",
 	})
 	if err != nil {
 		b.Fatalf("Failed to create session: %v", err)
@@ -406,12 +404,11 @@ func BenchmarkDatabaseExportPerformance(b *testing.B) {
 
 	// Insert messages
 	for i := 0; i < 50; i++ {
-		_, err := db.CreateMessage(ctx, database.CreateMessageParams{
+		err := db.CreateMessage(ctx, database.CreateMessageParams{
 			ID:        uuid.New().String(),
 			SessionID: sessionID,
 			Role:      "user",
 			Content:   fmt.Sprintf("Export message %d", i),
-			CreatedAt: time.Now().Unix(),
 		})
 		if err != nil {
 			b.Fatalf("Failed to create message: %v", err)
@@ -428,7 +425,7 @@ func BenchmarkDatabaseExportPerformance(b *testing.B) {
 			b.Fatalf("Failed to get session: %v", err)
 		}
 
-		messages, err := db.GetSessionMessages(ctx, sessionID)
+		messages, err := db.ListMessagesBySession(ctx, sessionID)
 		if err != nil {
 			b.Fatalf("Failed to get messages: %v", err)
 		}
@@ -462,11 +459,10 @@ func BenchmarkDatabaseConcurrency(b *testing.B) {
 
 	// Create test session
 	sessionID := uuid.New().String()
-	_, err = db.CreateSession(ctx, database.CreateSessionParams{
-		ID:        sessionID,
-		Title:     "Concurrent Test",
-		CreatedAt: time.Now().Unix(),
-		UpdatedAt: time.Now().Unix(),
+	err = db.CreateSession(ctx, database.CreateSessionParams{
+		ID:     sessionID,
+		Name:   "Concurrent Test",
+		Status: "active",
 	})
 	if err != nil {
 		b.Fatalf("Failed to create session: %v", err)
@@ -482,12 +478,11 @@ func BenchmarkDatabaseConcurrency(b *testing.B) {
 
 				for j := 0; j < n; j++ {
 					go func() {
-						_, err := db.CreateMessage(ctx, database.CreateMessageParams{
+						err := db.CreateMessage(ctx, database.CreateMessageParams{
 							ID:        uuid.New().String(),
 							SessionID: sessionID,
 							Role:      "user",
 							Content:   "Concurrent message",
-							CreatedAt: time.Now().Unix(),
 						})
 						done <- err == nil
 					}()

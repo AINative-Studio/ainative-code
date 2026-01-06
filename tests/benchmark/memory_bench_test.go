@@ -138,10 +138,7 @@ func BenchmarkMemoryWithDatabase(b *testing.B) {
 
 	// Create test database
 	dbPath := filepath.Join(helper.TempDir, "test.db")
-	cfg := &database.ConnectionConfig{
-		Driver: "sqlite3",
-		DSN:    dbPath,
-	}
+	cfg := database.DefaultConfig(dbPath)
 
 	// Force GC before test
 	runtime.GC()
@@ -206,7 +203,9 @@ log_level: info
 	for i := 0; i < b.N; i++ {
 		cfg := config.New()
 		cfg.SetConfigFile(configFile)
-		_ = cfg.Load()
+		if _, err := cfg.Load(); err != nil {
+			b.Fatalf("Failed to load config: %v", err)
+		}
 
 		runtime.GC()
 		time.Sleep(50 * time.Millisecond)

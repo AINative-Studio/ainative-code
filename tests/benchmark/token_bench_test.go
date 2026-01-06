@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/AINative-studio/ainative-code/internal/design"
+	"github.com/AINative-studio/ainative-code/internal/design/generators"
 )
 
 // BenchmarkTokenExtraction measures design token extraction performance
@@ -239,11 +240,11 @@ func BenchmarkTokenFormatting(b *testing.B) {
 	tokens := []design.Token{
 		{Name: "color-primary", Value: "#007bff", Type: design.TokenTypeColor},
 		{Name: "spacing-md", Value: "1rem", Type: design.TokenTypeSpacing},
-		{Name: "font-size-base", Value: "16px", Type: design.TokenTypeFontSize},
+		{Name: "font-size-base", Value: "16px", Type: design.TokenTypeTypography},
 	}
 
 	b.Run("JSON", func(b *testing.B) {
-		formatter := design.NewJSONFormatter()
+		formatter := design.NewJSONFormatter(true)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -264,7 +265,7 @@ func BenchmarkTokenFormatting(b *testing.B) {
 	})
 
 	b.Run("CSS", func(b *testing.B) {
-		formatter := design.NewCSSFormatter()
+		formatter := design.NewCSSVariablesFormatter("")
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -285,7 +286,7 @@ func BenchmarkTokenFormatting(b *testing.B) {
 	})
 
 	b.Run("SCSS", func(b *testing.B) {
-		formatter := design.NewSCSSFormatter()
+		formatter := design.NewSCSSVariablesFormatter()
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -313,17 +314,17 @@ func BenchmarkCodeGeneration(b *testing.B) {
 		{Name: "color-secondary", Value: "#6c757d", Type: design.TokenTypeColor},
 		{Name: "spacing-sm", Value: "0.5rem", Type: design.TokenTypeSpacing},
 		{Name: "spacing-md", Value: "1rem", Type: design.TokenTypeSpacing},
-		{Name: "font-size-base", Value: "16px", Type: design.TokenTypeFontSize},
+		{Name: "font-size-base", Value: "16px", Type: design.TokenTypeTypography},
 	}
 
 	b.Run("TypeScript", func(b *testing.B) {
-		generator := design.NewTypeScriptGenerator()
+		generator := generators.NewTypeScriptGenerator()
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			start := time.Now()
 
-			code, err := generator.Generate(tokens)
+			code, err := generator.Generate(tokens, "ts")
 			elapsed := time.Since(start)
 
 			if err != nil {
@@ -338,13 +339,13 @@ func BenchmarkCodeGeneration(b *testing.B) {
 	})
 
 	b.Run("JavaScript", func(b *testing.B) {
-		generator := design.NewJavaScriptGenerator()
+		generator := generators.NewTypeScriptGenerator()
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			start := time.Now()
 
-			code, err := generator.Generate(tokens)
+			code, err := generator.Generate(tokens, "js")
 			elapsed := time.Since(start)
 
 			if err != nil {
@@ -390,8 +391,8 @@ func BenchmarkTokenResolutionEndToEnd(b *testing.B) {
 		}
 
 		// Generate code
-		generator := design.NewTypeScriptGenerator()
-		_, err = generator.Generate(result.Tokens)
+		generator := generators.NewTypeScriptGenerator()
+		_, err = generator.Generate(result.Tokens, "ts")
 		if err != nil {
 			b.Fatalf("Generation failed: %v", err)
 		}
