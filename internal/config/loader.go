@@ -41,6 +41,12 @@ func NewLoader(opts ...LoaderOption) *Loader {
 	return l
 }
 
+// New is a convenience function for creating a new Loader with default options
+// This is provided for backwards compatibility and testing/benchmarking
+func New() *Loader {
+	return NewLoader()
+}
+
 // WithConfigPaths sets custom configuration file search paths
 func WithConfigPaths(paths ...string) LoaderOption {
 	return func(l *Loader) {
@@ -565,4 +571,10 @@ func (l *Loader) resolveAPIKeys(cfg *Config) error {
 	}
 
 	return nil
+}
+
+// SetConfigFile sets a specific config file path to load from
+// This is useful for testing and when you want to load from a specific file
+func (l *Loader) SetConfigFile(filePath string) {
+	l.viper.SetConfigFile(filePath)
 }

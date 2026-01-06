@@ -108,3 +108,23 @@ func GetModel() string {
 func GetVerbose() bool {
 	return verbose || viper.GetBool("verbose")
 }
+
+// NewRootCmd returns a new root command instance for testing/benchmarking
+func NewRootCmd() *cobra.Command {
+	return rootCmd
+}
+
+// NewChatCmd returns the chat command for testing/benchmarking
+func NewChatCmd() *cobra.Command {
+	return chatCmd
+}
+
+// NewSessionCmd returns the session command for testing/benchmarking
+func NewSessionCmd() *cobra.Command {
+	return sessionCmd
+}
+
+// NewConfigCmd returns the config command for testing/benchmarking
+func NewConfigCmd() *cobra.Command {
+	return configCmd
+}

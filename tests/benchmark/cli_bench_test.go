@@ -71,7 +71,7 @@ log_level: info
 		// Initialize config
 		cfg := config.New()
 		cfg.SetConfigFile(configFile)
-		_ = cfg.Load()
+		_, _ = cfg.Load()
 
 		elapsed := time.Since(start)
 
@@ -129,7 +129,7 @@ ui:
 
 		cfg := config.New()
 		cfg.SetConfigFile(configFile)
-		_ = cfg.Load()
+		_, _ = cfg.Load()
 
 		elapsed := time.Since(start)
 
