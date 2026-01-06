@@ -12,6 +12,26 @@
 
 A next-generation terminal-based AI coding assistant that combines the best features of open-source AI CLI tools with native integration to the AINative platform ecosystem.
 
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+  - [macOS](#macos)
+  - [Linux](#linux)
+  - [Windows](#windows)
+  - [Docker](#docker)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Completed Features](#completed-features)
+- [Development](#development)
+- [Project Structure](#project-structure)
+- [Contributing](#contributing)
+- [License](#license)
+- [Documentation](#documentation)
+- [Support](#support)
+- [Acknowledgments](#acknowledgments)
+
 ## Features
 
 - **Multi-Provider AI Support**: Anthropic Claude, OpenAI GPT, Google Gemini, AWS Bedrock, Azure OpenAI, and Ollama
@@ -289,13 +309,21 @@ ainative-code/
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development process, coding standards, and how to submit pull requests.
 
+Before contributing, please:
+1. Read our [Code of Conduct](CODE_OF_CONDUCT.md)
+2. Check existing [issues](https://github.com/AINative-studio/ainative-code/issues) and [pull requests](https://github.com/AINative-studio/ainative-code/pulls)
+3. Review the [Development Guide](docs/development/README.md)
+
+Quick contribution steps:
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Make your changes and add tests
+4. Ensure all tests pass (`make test`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
 ## License
 
