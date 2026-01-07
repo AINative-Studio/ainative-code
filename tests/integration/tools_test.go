@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/AINative-studio/ainative-code/internal/tools"
 	"github.com/AINative-studio/ainative-code/internal/tools/builtin"
@@ -163,7 +162,7 @@ func (s *ToolsIntegrationTestSuite) TestFileReadOperation() {
 	err := os.WriteFile(testFilePath, []byte(testContent), 0644)
 	s.Require().NoError(err, "Failed to create test file")
 
-	readTool := builtin.NewReadFileTool()
+	readTool := builtin.NewReadFileTool([]string{s.tmpDir})
 	ctx := context.Background()
 
 	// When: Reading the file
@@ -183,7 +182,7 @@ func (s *ToolsIntegrationTestSuite) TestFileReadOperation() {
 // TestFileWriteOperation tests writing files.
 func (s *ToolsIntegrationTestSuite) TestFileWriteOperation() {
 	// Given: A write file tool
-	writeTool := builtin.NewWriteFileTool()
+	writeTool := builtin.NewWriteFileTool([]string{s.tmpDir})
 	ctx := context.Background()
 
 	testFilePath := filepath.Join(s.tmpDir, "test_write.txt")
@@ -216,7 +215,7 @@ func (s *ToolsIntegrationTestSuite) TestFileOverwriteOperation() {
 	err := os.WriteFile(testFilePath, []byte(originalContent), 0644)
 	s.Require().NoError(err)
 
-	writeTool := builtin.NewWriteFileTool()
+	writeTool := builtin.NewWriteFileTool([]string{s.tmpDir})
 	ctx := context.Background()
 
 	// When: Overwriting the file
@@ -275,7 +274,7 @@ func (s *ToolsIntegrationTestSuite) TestToolResultCapture() {
 // TestToolErrorHandling tests tool error handling.
 func (s *ToolsIntegrationTestSuite) TestToolErrorHandling() {
 	// Given: A read file tool
-	readTool := builtin.NewReadFileTool()
+	readTool := builtin.NewReadFileTool([]string{s.tmpDir})
 	ctx := context.Background()
 
 	// When: Attempting to read non-existent file
@@ -347,8 +346,8 @@ func (s *ToolsIntegrationTestSuite) TestToolRegistry() {
 
 	// When: Registering tools
 	execTool := builtin.NewExecCommandTool([]string{"echo"}, s.tmpDir)
-	readTool := builtin.NewReadFileTool()
-	writeTool := builtin.NewWriteFileTool()
+	readTool := builtin.NewReadFileTool([]string{s.tmpDir})
+	writeTool := builtin.NewWriteFileTool([]string{s.tmpDir})
 
 	err := registry.Register(execTool)
 	s.Require().NoError(err, "Should register exec tool")
@@ -475,8 +474,8 @@ func (s *ToolsIntegrationTestSuite) TestInvalidToolInput() {
 func (s *ToolsIntegrationTestSuite) TestToolSchemaValidation() {
 	// Given: Various tools
 	execTool := builtin.NewExecCommandTool([]string{"echo"}, s.tmpDir)
-	readTool := builtin.NewReadFileTool()
-	writeTool := builtin.NewWriteFileTool()
+	readTool := builtin.NewReadFileTool([]string{s.tmpDir})
+	writeTool := builtin.NewWriteFileTool([]string{s.tmpDir})
 
 	// When: Getting tool schemas
 	execSchema := execTool.Schema()

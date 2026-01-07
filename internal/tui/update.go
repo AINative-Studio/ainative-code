@@ -291,18 +291,26 @@ func (m *Model) renderMessages() string {
 		}
 
 		// Format based on role
+		var content string
+		if m.syntaxEnabled && m.syntaxHighlighter != nil {
+			// Apply syntax highlighting to the content
+			content = m.syntaxHighlighter.HighlightMarkdown(msg.Content)
+		} else {
+			content = msg.Content
+		}
+
 		switch msg.Role {
 		case "user":
 			sb.WriteString("You: ")
-			sb.WriteString(msg.Content)
+			sb.WriteString(content)
 		case "assistant":
 			sb.WriteString("Assistant: ")
-			sb.WriteString(msg.Content)
+			sb.WriteString(content)
 		case "system":
 			sb.WriteString("System: ")
-			sb.WriteString(msg.Content)
+			sb.WriteString(content)
 		default:
-			sb.WriteString(msg.Content)
+			sb.WriteString(content)
 		}
 	}
 

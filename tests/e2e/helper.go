@@ -255,8 +255,8 @@ func buildBinary(t *testing.T) string {
 	// Binary output path
 	binaryPath := filepath.Join(projectRoot, "build", "ainative-code-e2e-test")
 
-	// Build the binary
-	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/ainative-code")
+	// Build the binary with sqlite_fts5 tag
+	cmd := exec.Command("go", "build", "-tags", "sqlite_fts5", "-o", binaryPath, "./cmd/ainative-code")
 	cmd.Dir = projectRoot
 
 	var stderr bytes.Buffer

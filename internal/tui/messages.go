@@ -121,3 +121,47 @@ func SendExpandAllThinking() tea.Cmd {
 		return expandAllThinkingMsg{}
 	}
 }
+
+// RLHF-related messages (TASK-064)
+
+// feedbackPromptMsg signals to show the feedback prompt
+type feedbackPromptMsg struct {
+	interactionID string
+}
+
+// feedbackSubmittedMsg signals that feedback was submitted
+type feedbackSubmittedMsg struct {
+	interactionID string
+	rating        int
+	comment       string
+}
+
+// implicitFeedbackMsg records an implicit feedback action
+type implicitFeedbackMsg struct {
+	action string
+}
+
+// SendFeedbackPrompt creates a command to show feedback prompt
+func SendFeedbackPrompt(interactionID string) tea.Cmd {
+	return func() tea.Msg {
+		return feedbackPromptMsg{interactionID: interactionID}
+	}
+}
+
+// SendFeedbackSubmitted creates a command for submitted feedback
+func SendFeedbackSubmitted(interactionID string, rating int, comment string) tea.Cmd {
+	return func() tea.Msg {
+		return feedbackSubmittedMsg{
+			interactionID: interactionID,
+			rating:        rating,
+			comment:       comment,
+		}
+	}
+}
+
+// SendImplicitFeedback creates a command to record implicit feedback
+func SendImplicitFeedback(action string) tea.Cmd {
+	return func() tea.Msg {
+		return implicitFeedbackMsg{action: action}
+	}
+}

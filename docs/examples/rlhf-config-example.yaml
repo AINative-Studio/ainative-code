@@ -1,0 +1,127 @@
+# RLHF Auto-Collection Configuration Example
+# This file demonstrates all available RLHF auto-collection options
+
+services:
+  rlhf:
+    # Basic RLHF service settings
+    enabled: true
+    endpoint: https://api.ainative.studio/v1/rlhf
+    api_key: ${AINATIVE_API_KEY}  # Use environment variable
+    timeout: 30s
+    retry_attempts: 3
+    model_id: claude-3-5-sonnet-20241022
+
+    # ==========================================
+    # Auto-Collection Settings
+    # ==========================================
+
+    # Enable automatic collection of interactions
+    # Default: false (opt-in)
+    auto_collect: true
+
+    # Completely opt out of RLHF features
+    # When true, no data is collected or submitted
+    # Default: false
+    opt_out: false
+
+    # Prompt user to review data before submission
+    # Useful for privacy-conscious users
+    # Default: false
+    review_before_submit: false
+
+    # Number of interactions to collect before submitting a batch
+    # Range: 1-100
+    # Default: 10
+    batch_size: 10
+
+    # Maximum time between batch submissions
+    # Format: duration (e.g., 1m, 5m, 1h)
+    # Default: 5m
+    batch_interval: 5m
+
+    # Prompt user for explicit feedback after N interactions
+    # Set to 0 to disable prompts
+    # Default: 5
+    prompt_interval: 5
+
+    # ==========================================
+    # Implicit Feedback Configuration
+    # ==========================================
+    implicit_feedback:
+      # Enable implicit feedback tracking
+      # Default: true
+      enabled: true
+
+      # Score when user requests to regenerate response
+      # Negative signal (poor quality)
+      # Range: 0.0-1.0
+      # Default: 0.2
+      regenerate_score: 0.2
+
+      # Score when user edits the AI response
+      # Negative signal (needs improvement)
+      # Range: 0.0-1.0
+      # Default: 0.3
+      edit_response_score: 0.3
+
+      # Score when user copies the response
+      # Positive signal (useful content)
+      # Range: 0.0-1.0
+      # Default: 0.8
+      copy_response_score: 0.8
+
+      # Score when user continues the conversation
+      # Positive signal (satisfactory)
+      # Range: 0.0-1.0
+      # Default: 0.7
+      continue_score: 0.7
+
+# ==========================================
+# Example Configurations for Different Use Cases
+# ==========================================
+
+# PRIVACY-FOCUSED CONFIGURATION
+# Uncomment to use this configuration instead
+# services:
+#   rlhf:
+#     auto_collect: true
+#     opt_out: false
+#     review_before_submit: true  # Review before sending
+#     batch_size: 50              # Larger batches, less frequent
+#     batch_interval: 30m         # Submit less often
+#     prompt_interval: 10         # Ask for feedback less often
+
+# HIGH-ENGAGEMENT CONFIGURATION
+# For teams that want to provide frequent feedback
+# services:
+#   rlhf:
+#     auto_collect: true
+#     opt_out: false
+#     review_before_submit: false
+#     batch_size: 5               # Smaller batches
+#     batch_interval: 2m          # Submit more frequently
+#     prompt_interval: 3          # Prompt more often
+
+# MINIMAL CONFIGURATION
+# Bare minimum to enable auto-collection
+# services:
+#   rlhf:
+#     enabled: true
+#     auto_collect: true
+#     endpoint: https://api.ainative.studio/v1/rlhf
+#     api_key: ${AINATIVE_API_KEY}
+
+# OPT-OUT CONFIGURATION
+# Completely disable RLHF features
+# services:
+#   rlhf:
+#     opt_out: true
+
+# IMPLICIT-ONLY CONFIGURATION
+# Collect only implicit signals, no prompts
+# services:
+#   rlhf:
+#     auto_collect: true
+#     prompt_interval: 0          # Disable prompts
+#     implicit_feedback:
+#       enabled: true

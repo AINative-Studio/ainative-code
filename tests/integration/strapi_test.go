@@ -5,7 +5,6 @@ package integration
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/AINative-studio/ainative-code/internal/client"
 	"github.com/AINative-studio/ainative-code/internal/client/strapi"
@@ -29,7 +28,6 @@ func (s *StrapiIntegrationTestSuite) SetupTest() {
 	// Create HTTP API client
 	apiClient := client.New(
 		client.WithBaseURL(mockServer.URL),
-		client.WithBearerToken("test_token"),
 	)
 
 	// Create Strapi client
@@ -474,8 +472,6 @@ func (s *StrapiIntegrationTestSuite) TestErrorHandling() {
 
 	// When: Attempting to get non-existent post
 	// Note: Mock server returns valid responses, so we test the client's behavior
-	_, err := s.strapiClient.GetBlogPost(ctx, 99999)
-
 	// Then: Should handle gracefully (mock returns data, but in real scenario would error)
 	// Since mock always returns data, we just verify no panic occurs
 	s.NotPanics(func() {

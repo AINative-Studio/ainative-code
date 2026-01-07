@@ -252,6 +252,24 @@ type RLHFConfig struct {
 	Timeout       time.Duration `mapstructure:"timeout" yaml:"timeout"`
 	RetryAttempts int           `mapstructure:"retry_attempts" yaml:"retry_attempts"`
 	ModelID       string        `mapstructure:"model_id,omitempty" yaml:"model_id,omitempty"`
+
+	// Auto-collection settings (TASK-064)
+	AutoCollect        bool                 `mapstructure:"auto_collect" yaml:"auto_collect"`
+	OptOut             bool                 `mapstructure:"opt_out" yaml:"opt_out"`
+	ReviewBeforeSubmit bool                 `mapstructure:"review_before_submit" yaml:"review_before_submit"`
+	BatchSize          int                  `mapstructure:"batch_size" yaml:"batch_size"`
+	BatchInterval      time.Duration        `mapstructure:"batch_interval" yaml:"batch_interval"`
+	PromptInterval     int                  `mapstructure:"prompt_interval" yaml:"prompt_interval"` // Prompt after N interactions
+	ImplicitFeedback   *ImplicitFeedbackConfig `mapstructure:"implicit_feedback,omitempty" yaml:"implicit_feedback,omitempty"`
+}
+
+// ImplicitFeedbackConfig contains settings for implicit feedback signals
+type ImplicitFeedbackConfig struct {
+	Enabled            bool    `mapstructure:"enabled" yaml:"enabled"`
+	RegenerateScore    float64 `mapstructure:"regenerate_score" yaml:"regenerate_score"`    // Negative signal
+	EditResponseScore  float64 `mapstructure:"edit_response_score" yaml:"edit_response_score"` // Negative signal
+	CopyResponseScore  float64 `mapstructure:"copy_response_score" yaml:"copy_response_score"` // Positive signal
+	ContinueScore      float64 `mapstructure:"continue_score" yaml:"continue_score"`      // Positive signal
 }
 
 // ToolsConfig contains tool-specific configurations

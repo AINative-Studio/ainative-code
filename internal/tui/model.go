@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"github.com/AINative-studio/ainative-code/internal/rlhf"
+	"github.com/AINative-studio/ainative-code/internal/tui/syntax"
 	"github.com/AINative-studio/ainative-code/pkg/lsp"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -29,6 +31,17 @@ type Model struct {
 	showHover        bool
 	navigationResult []lsp.Location
 	showNavigation   bool
+
+	// RLHF auto-collection (TASK-064)
+	rlhfCollector       *rlhf.Collector
+	rlhfEnabled         bool
+	lastInteractionID   string
+	showFeedbackPrompt  bool
+	feedbackPromptModel *rlhf.FeedbackPromptModel
+
+	// Syntax highlighting (TASK-022)
+	syntaxHighlighter *syntax.Highlighter
+	syntaxEnabled     bool
 }
 
 // Message represents a chat message
@@ -45,23 +58,28 @@ func NewModel() Model {
 	ti.CharLimit = 0
 	ti.Width = 50
 
+	// Initialize syntax highlighter with AINative branding
+	highlighter := syntax.NewHighlighter(syntax.AINativeConfig())
+
 	return Model{
-		textInput:        ti,
-		messages:         []Message{},
-		thinkingState:    NewThinkingState(),
-		thinkingConfig:   DefaultThinkingConfig(),
-		ready:            false,
-		quitting:         false,
-		streaming:        false,
-		lspClient:        nil,
-		lspEnabled:       false,
-		completionItems:  []lsp.CompletionItem{},
-		showCompletion:   false,
-		completionIndex:  0,
-		hoverInfo:        nil,
-		showHover:        false,
-		navigationResult: []lsp.Location{},
-		showNavigation:   false,
+		textInput:         ti,
+		messages:          []Message{},
+		thinkingState:     NewThinkingState(),
+		thinkingConfig:    DefaultThinkingConfig(),
+		ready:             false,
+		quitting:          false,
+		streaming:         false,
+		lspClient:         nil,
+		lspEnabled:        false,
+		completionItems:   []lsp.CompletionItem{},
+		showCompletion:    false,
+		completionIndex:   0,
+		hoverInfo:         nil,
+		showHover:         false,
+		navigationResult:  []lsp.Location{},
+		showNavigation:    false,
+		syntaxHighlighter: highlighter,
+		syntaxEnabled:     true,
 	}
 }
 
@@ -319,4 +337,85 @@ func (m *Model) GetNavigationResult() []lsp.Location {
 // SetValue sets the input value (for testing)
 func (m *Model) SetValue(value string) {
 	m.textInput.SetValue(value)
+}
+
+// Syntax highlighting methods
+
+// EnableSyntaxHighlighting enables syntax highlighting
+func (m *Model) EnableSyntaxHighlighting() {
+	m.syntaxEnabled = true
+}
+
+// DisableSyntaxHighlighting disables syntax highlighting
+func (m *Model) DisableSyntaxHighlighting() {
+	m.syntaxEnabled = false
+}
+
+// IsSyntaxHighlightingEnabled returns whether syntax highlighting is enabled
+func (m *Model) IsSyntaxHighlightingEnabled() bool {
+	return m.syntaxEnabled
+}
+
+// GetSyntaxHighlighter returns the syntax highlighter
+func (m *Model) GetSyntaxHighlighter() *syntax.Highlighter {
+	return m.syntaxHighlighter
+}
+
+// RLHF-related methods (TASK-064)
+
+// SetRLHFCollector sets the RLHF collector
+func (m *Model) SetRLHFCollector(collector *rlhf.Collector) {
+	m.rlhfCollector = collector
+	m.rlhfEnabled = collector != nil
+}
+
+// CaptureInteraction captures an interaction for RLHF
+func (m *Model) CaptureInteraction(prompt, response, modelID string) {
+	if m.rlhfCollector == nil || !m.rlhfEnabled {
+		return
+	}
+
+	interactionID := m.rlhfCollector.CaptureInteraction(prompt, response, modelID)
+	m.lastInteractionID = interactionID
+
+	// Check if we should prompt for feedback
+	if m.rlhfCollector.ShouldPromptForFeedback() {
+		m.showFeedbackPrompt = true
+		model := rlhf.NewFeedbackPromptModel(interactionID)
+		m.feedbackPromptModel = &model
+	}
+}
+
+// RecordImplicitFeedback records an implicit feedback signal
+func (m *Model) RecordImplicitFeedback(action rlhf.FeedbackAction) {
+	if m.rlhfCollector == nil || !m.rlhfEnabled || m.lastInteractionID == "" {
+		return
+	}
+
+	m.rlhfCollector.RecordImplicitFeedback(m.lastInteractionID, action)
+}
+
+// RecordExplicitFeedback records explicit user feedback
+func (m *Model) RecordExplicitFeedback(interactionID string, score float64, feedback string) {
+	if m.rlhfCollector == nil || !m.rlhfEnabled {
+		return
+	}
+
+	m.rlhfCollector.RecordExplicitFeedback(interactionID, score, feedback)
+}
+
+// GetShowFeedbackPrompt returns whether the feedback prompt should be shown
+func (m *Model) GetShowFeedbackPrompt() bool {
+	return m.showFeedbackPrompt
+}
+
+// DismissFeedbackPrompt dismisses the feedback prompt
+func (m *Model) DismissFeedbackPrompt() {
+	m.showFeedbackPrompt = false
+	m.feedbackPromptModel = nil
+}
+
+// GetFeedbackPromptModel returns the feedback prompt model
+func (m *Model) GetFeedbackPromptModel() *rlhf.FeedbackPromptModel {
+	return m.feedbackPromptModel
 }

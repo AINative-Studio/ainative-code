@@ -67,7 +67,7 @@ func (s *DesignIntegrationTestSuite) TestJSONGeneration() {
 	tokenCollection := fixtures.TestDesignTokens()
 
 	// When: Generating JSON
-	generator := generators.NewJSONGenerator()
+	generator := generators.NewJSONGenerator(true)
 	jsonData, err := generator.Generate(tokenCollection.Tokens)
 
 	// Then: JSON should be generated
@@ -110,7 +110,7 @@ func (s *DesignIntegrationTestSuite) TestTypeScriptGeneration() {
 
 	// When: Generating TypeScript
 	generator := generators.NewTypeScriptGenerator()
-	ts, err := generator.Generate(tokenCollection.Tokens)
+	ts, err := generator.Generate(tokenCollection.Tokens, "esm")
 
 	// Then: TypeScript should be generated
 	s.Require().NoError(err, "TypeScript generation should succeed")
@@ -136,7 +136,7 @@ func (s *DesignIntegrationTestSuite) TestTokenFormatting() {
 	tokenCollection := fixtures.TestDesignTokens()
 
 	// When: Generating JSON (which is a form of formatting)
-	generator := generators.NewJSONGenerator()
+	generator := generators.NewJSONGenerator(true)
 	formatted, err := generator.Generate(tokenCollection.Tokens)
 
 	// Then: Formatting should succeed
@@ -150,28 +150,40 @@ func (s *DesignIntegrationTestSuite) TestMultiFormatGeneration() {
 	tokenCollection := fixtures.TestDesignTokens()
 
 	// When: Generating multiple formats
-	type Generator interface {
-		Generate([]design.Token) (string, error)
-	}
-
-	gens := map[string]Generator{
-		"css":        generators.NewCSSGenerator(),
-		"scss":       generators.NewSCSSGenerator(),
-		"json":       generators.NewJSONGenerator(),
-		"tailwind":   generators.NewTailwindGenerator(),
-		"typescript": generators.NewTypeScriptGenerator(),
-	}
-
 	outputs := make(map[string]string)
 
-	for format, gen := range gens {
-		output, err := gen.Generate(tokenCollection.Tokens)
-		s.Require().NoError(err, "Generation should succeed for %s", format)
-		outputs[format] = output
-	}
+	// CSS
+	cssGen := generators.NewCSSGenerator()
+	css, err := cssGen.Generate(tokenCollection.Tokens)
+	s.Require().NoError(err, "CSS generation should succeed")
+	outputs["css"] = css
+
+	// SCSS
+	scssGen := generators.NewSCSSGenerator()
+	scss, err := scssGen.Generate(tokenCollection.Tokens)
+	s.Require().NoError(err, "SCSS generation should succeed")
+	outputs["scss"] = scss
+
+	// JSON
+	jsonGen := generators.NewJSONGenerator(true)
+	jsonData, err := jsonGen.Generate(tokenCollection.Tokens)
+	s.Require().NoError(err, "JSON generation should succeed")
+	outputs["json"] = jsonData
+
+	// Tailwind
+	tailwindGen := generators.NewTailwindGenerator()
+	tailwind, err := tailwindGen.Generate(tokenCollection.Tokens)
+	s.Require().NoError(err, "Tailwind generation should succeed")
+	outputs["tailwind"] = tailwind
+
+	// TypeScript
+	tsGen := generators.NewTypeScriptGenerator()
+	ts, err := tsGen.Generate(tokenCollection.Tokens, "esm")
+	s.Require().NoError(err, "TypeScript generation should succeed")
+	outputs["typescript"] = ts
 
 	// Then: All formats should be generated
-	s.Len(outputs, len(gens), "All formats should be generated")
+	s.Len(outputs, 5, "All formats should be generated")
 	for format, output := range outputs {
 		s.NotEmpty(output, "Output for %s should not be empty", format)
 	}

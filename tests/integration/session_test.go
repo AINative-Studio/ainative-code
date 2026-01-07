@@ -10,7 +10,6 @@ import (
 	"github.com/AINative-studio/ainative-code/internal/session"
 	"github.com/AINative-studio/ainative-code/tests/integration/fixtures"
 	"github.com/AINative-studio/ainative-code/tests/integration/helpers"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 )
 

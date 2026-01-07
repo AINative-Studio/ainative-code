@@ -225,7 +225,6 @@ func (s *RLHFIntegrationTestSuite) SetupTest() {
 	// Create HTTP API client
 	apiClient := client.New(
 		client.WithBaseURL(s.mockServer.URL),
-		client.WithBearerToken("test_token"),
 	)
 
 	// Create RLHF client

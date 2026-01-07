@@ -15,9 +15,8 @@ import (
 // ZeroDBIntegrationTestSuite tests ZeroDB operations.
 type ZeroDBIntegrationTestSuite struct {
 	suite.Suite
-	client     *zerodb.Client
-	mockServer *helpers.MockZeroDBServer
-	cleanup    func()
+	client  *zerodb.Client
+	cleanup func()
 }
 
 // SetupTest runs before each test in the suite.
