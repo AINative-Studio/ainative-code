@@ -131,6 +131,11 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		Str("value", value).
 		Msg("Setting configuration value")
 
+	// Validate the configuration value before setting
+	if err := validateConfigValue(key, value); err != nil {
+		return fmt.Errorf("invalid configuration value: %w", err)
+	}
+
 	viper.Set(key, value)
 
 	// Determine config file path
@@ -212,6 +217,82 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 	fmt.Println("  verbose: false")
 
 	return nil
+}
+
+// validateConfigValue validates a configuration key-value pair
+func validateConfigValue(key, value string) error {
+	// Maximum length for any config value
+	const maxValueLength = 1000
+
+	// Check value length
+	if len(value) > maxValueLength {
+		return fmt.Errorf("value exceeds maximum length of %d characters", maxValueLength)
+	}
+
+	// Validate specific keys
+	switch key {
+	case "provider":
+		validProviders := []string{"openai", "anthropic", "ollama", "azure", "google", "bedrock"}
+		if !isValidEnumValue(value, validProviders) {
+			return fmt.Errorf("invalid provider '%s'. Valid providers: %v", value, validProviders)
+		}
+
+	case "model":
+		// Basic model name validation - no empty, reasonable length
+		if value == "" {
+			return fmt.Errorf("model name cannot be empty")
+		}
+		if len(value) > 100 {
+			return fmt.Errorf("model name exceeds maximum length of 100 characters")
+		}
+
+	case "temperature":
+		// Temperature should be a number between 0 and 2
+		// Note: This is a string at this point, but we can validate format
+		if value == "" {
+			return fmt.Errorf("temperature cannot be empty")
+		}
+
+	case "max_tokens":
+		// Max tokens should be a positive number
+		if value == "" {
+			return fmt.Errorf("max_tokens cannot be empty")
+		}
+
+	case "api_key":
+		// API keys should not be empty and have minimum length
+		if value == "" {
+			return fmt.Errorf("api_key cannot be empty")
+		}
+		if len(value) < 10 {
+			return fmt.Errorf("api_key appears to be too short (minimum 10 characters)")
+		}
+
+	case "endpoint", "base_url":
+		// URLs should not be empty
+		if value == "" {
+			return fmt.Errorf("%s cannot be empty", key)
+		}
+
+	case "verbose":
+		// Boolean values
+		validBools := []string{"true", "false", "1", "0", "yes", "no"}
+		if !isValidEnumValue(value, validBools) {
+			return fmt.Errorf("invalid boolean value '%s'. Valid values: %v", value, validBools)
+		}
+	}
+
+	return nil
+}
+
+// isValidEnumValue checks if a value is in a list of valid values
+func isValidEnumValue(value string, validValues []string) bool {
+	for _, valid := range validValues {
+		if value == valid {
+			return true
+		}
+	}
+	return false
 }
 
 func runConfigValidate(cmd *cobra.Command, args []string) error {
