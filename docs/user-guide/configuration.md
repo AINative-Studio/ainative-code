@@ -43,7 +43,7 @@ The application searches for `config.yaml` in these locations (in order):
 Initialize a default configuration file:
 
 ```bash
-ainative-code init
+ainative-code setup
 ```
 
 This creates `~/.config/ainative-code/config.yaml` with sensible defaults.
@@ -852,7 +852,7 @@ ainative-code config import -i my-config.yaml
 ainative-code --verbose config show
 
 # Re-initialize configuration
-ainative-code init --force
+ainative-code setup --force
 ```
 
 ### Environment Variables Not Working

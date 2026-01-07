@@ -282,7 +282,7 @@ Run the migration helper:
 ainative-code config migrate --from ~/.config/ainative-code/config.yaml.backup
 
 # Or initialize fresh config
-ainative-code init
+ainative-code setup
 ```
 
 ### Environment Variables

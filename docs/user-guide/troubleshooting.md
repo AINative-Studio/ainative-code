@@ -115,7 +115,7 @@ cat ~/.config/ainative-code/config.yaml | yq eval
 
 # Re-initialize if corrupted
 mv ~/.config/ainative-code/config.yaml ~/.config/ainative-code/config.yaml.bak
-ainative-code init
+ainative-code setup
 
 # Validate configuration
 ainative-code config validate
@@ -886,7 +886,7 @@ cp ~/.config/ainative-code/config.yaml ~/.config/ainative-code/config.yaml.bak
 
 # Reset to defaults
 rm ~/.config/ainative-code/config.yaml
-ainative-code init
+ainative-code setup
 
 # Restore API keys
 export ANTHROPIC_API_KEY="..."
@@ -909,7 +909,7 @@ mv ~/.config/ainative-code ~/.config/ainative-code.bak
 brew install ainative-studio/tap/ainative-code
 
 # 5. Reconfigure
-ainative-code init
+ainative-code setup
 export ANTHROPIC_API_KEY="..."
 
 # 6. Restore sessions
@@ -930,7 +930,7 @@ rm -rf ~/.cache/ainative-code
 rm -rf ~/.local/share/ainative-code
 
 # 3. Start fresh
-ainative-code init
+ainative-code setup
 ```
 
 ## Preventive Measures

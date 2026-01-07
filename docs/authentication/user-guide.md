@@ -10,7 +10,7 @@ This guide explains how to authenticate with AINative Code CLI and manage your a
 
 1. **Initialize configuration**:
    ```bash
-   ainative-code init
+   ainative-code setup
    ```
 
 2. **Log in to AINative platform**:
@@ -435,7 +435,7 @@ For more troubleshooting, see [Troubleshooting Guide](troubleshooting.md).
 
 ```bash
 # 1. Initialize configuration
-ainative-code init
+ainative-code setup
 
 # 2. Authenticate
 ainative-code auth login

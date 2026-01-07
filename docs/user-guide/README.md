@@ -71,7 +71,7 @@ ainative-code --version
 
 ```bash
 # Initialize configuration
-ainative-code init
+ainative-code setup
 
 # Set up your LLM provider
 export ANTHROPIC_API_KEY="your-api-key"

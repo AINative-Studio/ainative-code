@@ -531,7 +531,7 @@ ainative-code --verbose config show
 
 # Re-initialize
 mv ~/.config/ainative-code/config.yaml ~/.config/ainative-code/config.yaml.bak
-ainative-code init
+ainative-code setup
 ```
 
 ## Best Practices

@@ -46,7 +46,7 @@ ainative-code version 0.1.0
 Create your configuration file:
 
 ```bash
-ainative-code init
+ainative-code setup
 ```
 
 This creates `~/.config/ainative-code/config.yaml` with default settings.
@@ -562,7 +562,7 @@ ainative-code session show <session-id>
 ainative-code config show
 
 # Re-initialize if needed
-ainative-code init --force
+ainative-code setup --force
 ```
 
 ## Getting Help

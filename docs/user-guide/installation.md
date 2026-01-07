@@ -363,7 +363,7 @@ New-Item -Path "$env:APPDATA\ainative-code" -ItemType Directory -Force
 Run the initialization command to create a default configuration file:
 
 ```bash
-ainative-code init
+ainative-code setup
 ```
 
 This will create `~/.config/ainative-code/config.yaml` with default settings.

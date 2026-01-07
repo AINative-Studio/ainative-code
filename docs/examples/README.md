@@ -29,7 +29,7 @@ ainative-code chat --provider openai "Generate a REST API in Go"
 
 **Initialize**:
 ```bash
-ainative-code init
+ainative-code setup
 ```
 
 **Set Provider**:

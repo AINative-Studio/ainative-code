@@ -21,7 +21,7 @@ ainative-code chat --resume
 
 ```bash
 # Initialize configuration
-ainative-code init
+ainative-code setup
 
 # Set default provider
 ainative-code config set llm.default_provider anthropic
