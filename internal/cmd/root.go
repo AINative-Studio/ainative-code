@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -84,6 +85,30 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		if verbose {
 			logger.DebugEvent().Str("file", viper.ConfigFileUsed()).Msg("Using config file")
+		}
+	} else {
+		// Handle different error types appropriately
+		switch err.(type) {
+		case viper.ConfigFileNotFoundError:
+			// Config file not found is acceptable - we'll use defaults
+			if verbose {
+				logger.DebugEvent().Msg("No config file found, using defaults")
+			}
+		case *os.PathError:
+			// Permission or file access errors
+			logger.WarnEvent().
+				Err(err).
+				Str("file", cfgFile).
+				Msg("Cannot read config file due to permission or access error")
+			fmt.Fprintf(os.Stderr, "Warning: Cannot read config file: %v\n", err)
+		default:
+			// YAML parse errors or other config errors
+			logger.WarnEvent().
+				Err(err).
+				Str("file", viper.ConfigFileUsed()).
+				Msg("Error parsing config file")
+			fmt.Fprintf(os.Stderr, "Warning: Error reading config file: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Using default configuration instead.\n")
 		}
 	}
 }
