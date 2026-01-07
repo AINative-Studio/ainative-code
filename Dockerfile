@@ -25,8 +25,13 @@ ARG BUILD_DATE
 ARG CGO_ENABLED=0
 
 # Build the application
-RUN CGO_ENABLED=${CGO_ENABLED} GOOS=linux go build \
-    -ldflags="-s -w -X main.version=${VERSION} -X main.buildDate=${BUILD_DATE}" \
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -tags "sqlite_fts5" \
+    -ldflags="-s -w \
+      -X github.com/AINative-studio/ainative-code/internal/cmd.version=${VERSION} \
+      -X github.com/AINative-studio/ainative-code/internal/cmd.commit=${VERSION} \
+      -X github.com/AINative-studio/ainative-code/internal/cmd.buildDate=${BUILD_DATE} \
+      -X github.com/AINative-studio/ainative-code/internal/cmd.builtBy=docker" \
     -o ainative-code \
     ./cmd/ainative-code
 
