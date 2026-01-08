@@ -37,9 +37,7 @@ jobs:
             gcc-aarch64-linux-gnu \
             g++-aarch64-linux-gnu \
             gcc-mingw-w64-x86-64 \
-            g++-mingw-w64-x86-64 \
-            gcc-mingw-w64-aarch64 \
-            g++-mingw-w64-aarch64
+            g++-mingw-w64-x86-64
 
       - name: Install OSXCross for macOS builds
         run: |

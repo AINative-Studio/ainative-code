@@ -33,6 +33,11 @@ builds:
       - amd64
       - arm64
 
+    # Exclude Windows ARM64 (mingw toolchain not available)
+    ignore:
+      - goos: windows
+        goarch: arm64
+
     # Platform-specific CGO configuration
     # Note: Cross-compilation requires appropriate toolchains
     # GitHub Actions workflow installs these automatically
@@ -72,13 +77,6 @@ builds:
         env:
           - CC=x86_64-w64-mingw32-gcc
           - CXX=x86_64-w64-mingw32-g++
-
-      # Windows ARM64 (requires mingw-w64)
-      - goos: windows
-        goarch: arm64
-        env:
-          - CC=aarch64-w64-mingw32-gcc
-          - CXX=aarch64-w64-mingw32-g++
 
 # Universal binaries for macOS
 universal_binaries:
