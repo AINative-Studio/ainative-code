@@ -27,16 +27,10 @@ builds:
     goos:
       - linux
       - darwin
-      - windows
 
     goarch:
       - amd64
       - arm64
-
-    # Exclude Windows ARM64 (mingw toolchain not available)
-    ignore:
-      - goos: windows
-        goarch: arm64
 
     # Platform-specific CGO configuration
     # Note: Cross-compilation requires appropriate toolchains
@@ -64,19 +58,12 @@ builds:
           - CC=o64-clang
           - CXX=o64-clang++
 
-      # macOS ARM64 (native on Apple Silicon)
+      # macOS ARM64 (requires osxcross on Linux CI)
       - goos: darwin
         goarch: arm64
         env:
-          - CC=clang
-          - CXX=clang++
-
-      # Windows AMD64 (requires mingw-w64)
-      - goos: windows
-        goarch: amd64
-        env:
-          - CC=x86_64-w64-mingw32-gcc
-          - CXX=x86_64-w64-mingw32-g++
+          - CC=oa64-clang
+          - CXX=oa64-clang++
 
 # Universal binaries for macOS
 universal_binaries:
