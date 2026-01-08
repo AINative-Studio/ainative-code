@@ -8,8 +8,10 @@ Welcome to the AINative Code release documentation. This directory contains comp
 
 | Document | Description | Audience |
 |----------|-------------|----------|
-| [v1.0 Release Notes](v1.0-release-notes.md) | Complete release notes for v1.0 | All users |
+| [v0.1.0 Release Notes](v0.1.0-release-notes.md) | Complete release notes for v0.1.0 | All users |
+| [v1.0 Release Notes](v1.0-release-notes.md) | Complete release notes for v1.0 (upcoming) | All users |
 | [CHANGELOG](../../CHANGELOG.md) | Detailed changelog for all versions | Developers, users |
+| [Versioning Policy](versioning-policy.md) | Semantic versioning guidelines and release process | Maintainers, contributors |
 | [Migration Guide](migration-guide.md) | Upgrade instructions from beta/dev | Upgrading users |
 | [Known Issues](known-issues.md) | Current limitations and workarounds | All users |
 | [Roadmap](roadmap.md) | Future plans and timeline | All users, contributors |
@@ -19,20 +21,21 @@ Welcome to the AINative Code release documentation. This directory contains comp
 
 ## Current Release
 
-**Latest Version**: v1.0.0
-**Release Date**: January 4, 2026
-**Status**: Production
+**Latest Version**: v0.1.0
+**Release Date**: January 7, 2024
+**Status**: Initial Production Release
 
-### What's New in v1.0
+### What's New in v0.1.0
 
 - **6 LLM Providers**: Anthropic, OpenAI, Google, AWS, Azure, Ollama
 - **Hybrid Authentication**: JWT, OAuth 2.0, OS Keychain
 - **ZeroDB Integration**: Complete NoSQL, Vector, Quantum operations
-- **MCP Support**: Model Context Protocol implementation
 - **Beautiful TUI**: Bubble Tea-based terminal interface
 - **Production Infrastructure**: CI/CD, logging, caching, monitoring
+- **LSP Integration**: Code intelligence in terminal
+- **Session Management**: Persistent conversations with full history
 
-See [v1.0 Release Notes](v1.0-release-notes.md) for details.
+See [v0.1.0 Release Notes](v0.1.0-release-notes.md) for details.
 
 ---
 
@@ -150,8 +153,8 @@ AINative Code follows [Semantic Versioning](https://semver.org/):
 
 | Version | Release Date | Status | Notes |
 |---------|-------------|--------|-------|
-| **v1.0.0** | Jan 4, 2026 | Current | First production release |
-| v0.1.0 | Dec 27, 2025 | Deprecated | Beta/development version |
+| **v0.1.0** | Jan 7, 2024 | Current | Initial production release |
+| v1.0.0 | TBD | Planned | Major feature expansion |
 
 ---
 

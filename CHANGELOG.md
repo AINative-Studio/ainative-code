@@ -5,7 +5,7 @@ All notable changes to AINative Code will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-01-04
+## [Unreleased] - v1.0.0
 
 ### Added
 
@@ -178,7 +178,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **JWT v5.3.0** - JWT token handling
 - **SQLite v1.14.32** - Local database
 
-## [0.1.0] - 2025-12-27
+## [0.1.0] - 2024-01-07
 
 ### Added
 - Initial project setup
@@ -188,6 +188,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI/CD pipeline (TASK-003)
 - Branding system (TASK-002)
 - Logging infrastructure (TASK-009)
+- Multi-provider LLM support (Anthropic, OpenAI, Gemini, Bedrock, Azure, Ollama)
+- Comprehensive authentication system with JWT/OAuth 2.0
+- Session management and persistence
+- Beautiful Bubble Tea TUI with syntax highlighting
+- ZeroDB platform integration (vectors, NoSQL, files, events)
+- LSP client integration for code intelligence
+- Full-text conversation search and export
+- Production-ready structured logging with rotation
+- Complete documentation suite (user guide, API reference, architecture)
+- Multi-platform CI/CD pipeline with automated releases
+- Security audit and CVE vulnerability fixes
 
 ---
 
