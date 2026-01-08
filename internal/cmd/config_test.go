@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
@@ -46,7 +47,7 @@ func TestConfigCommand(t *testing.T) {
 func TestConfigSubcommands(t *testing.T) {
 	tests := []struct {
 		name            string
-		subcommand      *Command
+		subcommand      *cobra.Command
 		expectedUse     string
 		expectedAliases []string
 	}{

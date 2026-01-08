@@ -180,7 +180,7 @@ func displayAnalytics(analytics *rlhf.Analytics) {
 
 	fmt.Printf("  Average Feedback Score: %s\n", scoreColor(fmt.Sprintf("%.2f / 1.00", analytics.AverageFeedbackScore)))
 	fmt.Printf("  Total Interactions: %s\n", green(analytics.TotalInteractions))
-	fmt.Printf("  Total Corrections: %s\n", analytics.TotalCorrections)
+	fmt.Printf("  Total Corrections: %d\n", analytics.TotalCorrections)
 
 	corrRateColor := green
 	if analytics.CorrectionRate > 10.0 {

@@ -133,9 +133,24 @@ logging:
     max_age: 30    # days
     max_backups: 10
 
-# Environment Variable Prefix
-# All environment variables should use AINATIVE_CODE_* prefix
+# Environment Variable Support
+# =============================================================================
+# All configuration keys can be set via environment variables using the
+# AINATIVE_CODE_* prefix. Dots and dashes are replaced with underscores.
+#
 # Examples:
-# - AINATIVE_CODE_CONFIG_PATH
-# - AINATIVE_CODE_LOG_LEVEL
-# - AINATIVE_CODE_DEFAULT_PROVIDER
+#   provider: openai           -> AINATIVE_CODE_PROVIDER=openai
+#   llm.openai.api_key: ...    -> AINATIVE_CODE_LLM_OPENAI_API_KEY=...
+#   max-tokens: 4096           -> AINATIVE_CODE_MAX_TOKENS=4096
+#
+# Configuration Precedence (highest to lowest):
+#   1. Command-line flags (--provider openai)
+#   2. Environment variables (AINATIVE_CODE_PROVIDER=openai)
+#   3. Config file values (this file)
+#   4. Default values
+#
+# Variable Substitution:
+#   ${VAR_NAME}  - Resolves environment variable
+#   $(command)   - Executes command and uses output
+#
+# See docs/configuration/environment-variables.md for full documentation

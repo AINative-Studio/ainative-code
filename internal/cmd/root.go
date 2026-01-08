@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -57,10 +58,35 @@ func init() {
 	viper.BindPFlag("provider", rootCmd.PersistentFlags().Lookup("provider"))
 	viper.BindPFlag("model", rootCmd.PersistentFlags().Lookup("model"))
 	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
+
+	// Bind environment variables
+	bindEnvironmentVariables()
+}
+
+// bindEnvironmentVariables binds all supported environment variables
+func bindEnvironmentVariables() {
+	// Basic configuration
+	viper.BindEnv("provider")
+	viper.BindEnv("model")
+	viper.BindEnv("verbose")
+	viper.BindEnv("api_key")
+
+	// Note: Viper will automatically look for AINATIVE_CODE_PROVIDER,
+	// AINATIVE_CODE_MODEL, etc. after SetEnvPrefix is called in initConfig
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	// Set environment variable prefix for AINATIVE_CODE_*
+	viper.SetEnvPrefix("AINATIVE_CODE")
+
+	// Replace dots and dashes with underscores for environment variables
+	// e.g., AINATIVE_CODE_API_KEY for "api_key" config
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+
+	// Enable automatic environment variable binding
+	viper.AutomaticEnv()
+
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
@@ -78,8 +104,6 @@ func initConfig() {
 		viper.SetConfigType("yaml")
 		viper.SetConfigName(".ainative-code")
 	}
-
-	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {

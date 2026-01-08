@@ -30,7 +30,7 @@ func NewLoader(opts ...LoaderOption) *Loader {
 		configPaths: []string{".", "./configs", "$HOME/.ainative", "/etc/ainative"},
 		configName:  "config",
 		configType:  "yaml",
-		envPrefix:   "AINATIVE",
+		envPrefix:   "AINATIVE_CODE",
 		resolver:    NewResolver(), // Initialize with default resolver
 	}
 
