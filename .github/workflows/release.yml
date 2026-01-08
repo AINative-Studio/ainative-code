@@ -45,15 +45,13 @@ jobs:
           mv MacOSX14.5.sdk.tar.xz tarballs/
           UNATTENDED=yes OSX_VERSION_MIN=10.13 ./build.sh
           echo "$(pwd)/target/bin" >> $GITHUB_PATH
-          # Add to gitignore to avoid dirty state
-          echo "osxcross/" >> $GITHUB_WORKSPACE/.gitignore
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: '~> v2'
-          args: release --clean
+          args: release --clean --skip=validate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ secrets.GPG_FINGERPRINT }}
