@@ -23,6 +23,7 @@ go.work.sum
 /build/
 /dist/
 ainative-code
+main
 
 # IDE - VSCode
 .vscode/*
@@ -66,6 +67,9 @@ Thumbs.db
 config.local.yaml
 secrets.yaml
 .ainative/settings.local.json
+
+# Claude Code user-specific config
+.claude/settings.local.json
 
 # Test coverage
 coverage.out
