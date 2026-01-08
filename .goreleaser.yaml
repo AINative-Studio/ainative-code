@@ -1,0 +1,287 @@
+# GoReleaser configuration for AINative Code
+# Documentation: https://goreleaser.com
+
+version: 2
+
+# Project information
+project_name: ainative-code
+
+# Build configuration
+builds:
+  - id: ainative-code
+    main: ./cmd/ainative-code
+    binary: ainative-code
+
+    # Version information via ldflags
+    ldflags:
+      - -s -w
+      - -X github.com/AINative-studio/ainative-code/internal/cmd.version={{.Version}}
+      - -X github.com/AINative-studio/ainative-code/internal/cmd.commit={{.FullCommit}}
+      - -X github.com/AINative-studio/ainative-code/internal/cmd.buildDate={{.Date}}
+      - -X github.com/AINative-studio/ainative-code/internal/cmd.builtBy=goreleaser
+
+    # Target platforms
+    env:
+      - CGO_ENABLED=1
+
+    goos:
+      - linux
+      - darwin
+      - windows
+
+    goarch:
+      - amd64
+      - arm64
+
+    # Platform-specific CGO configuration
+    # Note: Cross-compilation requires appropriate toolchains
+    # GitHub Actions workflow installs these automatically
+    # For local builds, use: goreleaser build --snapshot --single-target
+    overrides:
+      # Linux AMD64
+      - goos: linux
+        goarch: amd64
+        env:
+          - CC=gcc
+          - CXX=g++
+
+      # Linux ARM64 (requires aarch64-linux-gnu-gcc)
+      - goos: linux
+        goarch: arm64
+        env:
+          - CC=aarch64-linux-gnu-gcc
+          - CXX=aarch64-linux-gnu-g++
+
+      # macOS AMD64 (requires osxcross)
+      - goos: darwin
+        goarch: amd64
+        env:
+          - CC=o64-clang
+          - CXX=o64-clang++
+
+      # macOS ARM64 (native on Apple Silicon)
+      - goos: darwin
+        goarch: arm64
+        env:
+          - CC=clang
+          - CXX=clang++
+
+      # Windows AMD64 (requires mingw-w64)
+      - goos: windows
+        goarch: amd64
+        env:
+          - CC=x86_64-w64-mingw32-gcc
+          - CXX=x86_64-w64-mingw32-g++
+
+      # Windows ARM64 (requires mingw-w64)
+      - goos: windows
+        goarch: arm64
+        env:
+          - CC=aarch64-w64-mingw32-gcc
+          - CXX=aarch64-w64-mingw32-g++
+
+# Universal binaries for macOS
+universal_binaries:
+  - id: ainative-code
+    ids:
+      - ainative-code
+    replace: true
+    name_template: ainative-code
+
+# Archive configuration
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+
+    # Files to include in archive
+    files:
+      - LICENSE
+      - README.md
+      - docs/**/*
+
+# Checksum generation
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+# Snapshot configuration (for testing)
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+# Changelog generation
+changelog:
+  use: github
+  sort: asc
+  abbrev: 7
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Security
+      regexp: '^.*?sec(urity)?(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Performance
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: Documentation
+      regexp: '^.*?docs?(\([[:word:]]+\))??!?:.+$'
+      order: 4
+    - title: Others
+      order: 999
+  filters:
+    exclude:
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+
+# GitHub Release configuration
+release:
+  github:
+    owner: AINative-Studio
+    name: ainative-code
+
+  # Release notes
+  header: |
+    ## AINative Code {{ .Tag }}
+
+    Welcome to this new release of AINative Code!
+
+  footer: |
+    ## Installation
+
+    ### Quick Install (Linux/macOS)
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/AINative-Studio/ainative-code/main/install.sh | bash
+    ```
+
+    ### Quick Install (Windows PowerShell)
+    ```powershell
+    irm https://raw.githubusercontent.com/AINative-Studio/ainative-code/main/install.ps1 | iex
+    ```
+
+    ### Homebrew (macOS/Linux)
+    ```bash
+    brew tap ainative-studio/tap
+    brew install ainative-code
+    ```
+
+    ### Manual Installation
+    1. Download the appropriate archive for your platform from the assets below
+    2. Extract the archive
+    3. Move the binary to a directory in your PATH
+    4. Verify the installation: `ainative-code version`
+
+    **Full Changelog**: https://github.com/AINative-Studio/ainative-code/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+  # Draft release for manual review
+  draft: false
+
+  # Mark as prerelease if version contains alpha, beta, or rc
+  prerelease: auto
+
+  # Release name
+  name_template: "{{.ProjectName}} v{{.Version}}"
+
+  # Disable release creation if tag is a snapshot
+  disable: '{{ if .IsSnapshot }}true{{ else }}false{{ end }}'
+
+# Homebrew tap configuration (optional - can be enabled when tap is created)
+# Uncomment and configure when homebrew-tap repository is ready
+# brews:
+#   - name: ainative-code
+#     repository:
+#       owner: AINative-Studio
+#       name: homebrew-tap
+#       branch: main
+#       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+#     commit_author:
+#       name: goreleaserbot
+#       email: bot@goreleaser.com
+#     homepage: https://github.com/AINative-Studio/ainative-code
+#     description: "AI-native code assistance tool for developers"
+#     license: "MIT"
+#     dependencies:
+#       - name: git
+#         type: optional
+#     install: |
+#       bin.install "ainative-code"
+#     test: |
+#       system "#{bin}/ainative-code", "version"
+
+# Docker images (optional - can be enabled when ready)
+# Uncomment and configure when Docker Hub repository is ready
+# dockers:
+#   - image_templates:
+#       - "ainativestudio/ainative-code:{{ .Version }}-amd64"
+#       - "ainativestudio/ainative-code:latest-amd64"
+#     use: buildx
+#     dockerfile: Dockerfile
+#     build_flag_templates:
+#       - "--platform=linux/amd64"
+#       - "--label=org.opencontainers.image.created={{.Date}}"
+#       - "--label=org.opencontainers.image.title={{.ProjectName}}"
+#       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+#       - "--label=org.opencontainers.image.version={{.Version}}"
+#
+#   - image_templates:
+#       - "ainativestudio/ainative-code:{{ .Version }}-arm64"
+#       - "ainativestudio/ainative-code:latest-arm64"
+#     use: buildx
+#     dockerfile: Dockerfile
+#     build_flag_templates:
+#       - "--platform=linux/arm64"
+#       - "--label=org.opencontainers.image.created={{.Date}}"
+#       - "--label=org.opencontainers.image.title={{.ProjectName}}"
+#       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+#       - "--label=org.opencontainers.image.version={{.Version}}"
+#
+# # Docker manifests
+# docker_manifests:
+#   - name_template: "ainativestudio/ainative-code:{{ .Version }}"
+#     image_templates:
+#       - "ainativestudio/ainative-code:{{ .Version }}-amd64"
+#       - "ainativestudio/ainative-code:{{ .Version }}-arm64"
+#
+#   - name_template: "ainativestudio/ainative-code:latest"
+#     image_templates:
+#       - "ainativestudio/ainative-code:latest-amd64"
+#       - "ainativestudio/ainative-code:latest-arm64"
+
+# Announce (optional - can be enabled when ready)
+# announce:
+#   twitter:
+#     enabled: true
+#     message_template: "AINative Code {{ .Tag }} is out! Check it out: {{ .ReleaseURL }}"
+
+# SBOMs (Software Bill of Materials)
+sboms:
+  - id: archive
+    artifacts: archive
+  - id: source
+    artifacts: source
+
+# Signs the checksums file
+signs:
+  - cmd: gpg
+    args:
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+    artifacts: checksum
+    output: true

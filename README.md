@@ -43,55 +43,81 @@ A next-generation terminal-based AI coding assistant that combines the best feat
 
 ## Installation
 
-### macOS
+### Quick Install
 
-#### Homebrew (Recommended)
-```bash
-brew install ainative-studio/tap/ainative-code
-```
+#### Linux and macOS
 
-#### Direct Download
-```bash
-# Intel
-curl -LO https://github.com/AINative-studio/ainative-code/releases/latest/download/ainative-code-darwin-amd64
-chmod +x ainative-code-darwin-amd64
-sudo mv ainative-code-darwin-amd64 /usr/local/bin/ainative-code
-
-# Apple Silicon
-curl -LO https://github.com/AINative-studio/ainative-code/releases/latest/download/ainative-code-darwin-arm64
-chmod +x ainative-code-darwin-arm64
-sudo mv ainative-code-darwin-arm64 /usr/local/bin/ainative-code
-```
-
-### Linux
+Download and run the installation script:
 
 ```bash
-# AMD64
-curl -LO https://github.com/AINative-studio/ainative-code/releases/latest/download/ainative-code-linux-amd64
-chmod +x ainative-code-linux-amd64
-sudo mv ainative-code-linux-amd64 /usr/local/bin/ainative-code
-
-# ARM64
-curl -LO https://github.com/AINative-studio/ainative-code/releases/latest/download/ainative-code-linux-arm64
-chmod +x ainative-code-linux-arm64
-sudo mv ainative-code-linux-arm64 /usr/local/bin/ainative-code
+curl -fsSL https://raw.githubusercontent.com/AINative-Studio/ainative-code/main/install.sh | bash
 ```
 
-### Windows
+This script will:
+- Detect your platform and architecture automatically
+- Download the latest release
+- Verify checksums for security
+- Install the binary to `/usr/local/bin`
+
+#### Windows
+
+Download and run the PowerShell installation script:
 
 ```powershell
-# Download the latest release
-Invoke-WebRequest -Uri "https://github.com/AINative-studio/ainative-code/releases/latest/download/ainative-code-windows-amd64.exe" -OutFile "ainative-code.exe"
-
-# Add to PATH or move to a directory in your PATH
-Move-Item ainative-code.exe C:\Windows\System32\
+irm https://raw.githubusercontent.com/AINative-Studio/ainative-code/main/install.ps1 | iex
 ```
+
+This script will:
+- Detect your architecture
+- Download the latest release
+- Verify checksums for security
+- Install to `%LOCALAPPDATA%\Programs\AINativeCode`
+- Add to your PATH automatically
+
+### Package Managers
+
+#### Homebrew (macOS and Linux)
+
+```bash
+# Add the AINative Studio tap
+brew tap ainative-studio/tap
+
+# Install AINative Code
+brew install ainative-code
+
+# Verify installation
+ainative-code version
+```
+
+#### Coming Soon
+- Scoop (Windows)
+- Chocolatey (Windows)
+- APT/YUM repositories (Linux)
+
+### Manual Installation
+
+For manual installation or to download specific versions, visit the [releases page](https://github.com/AINative-Studio/ainative-code/releases) and download the appropriate archive for your platform:
+
+**Supported Platforms:**
+- Linux (AMD64, ARM64)
+- macOS (Intel, Apple Silicon)
+- Windows (AMD64, ARM64)
+
+See the [Installation Guide](docs/installation.md) for detailed manual installation instructions.
 
 ### Docker
 
 ```bash
-docker pull ghcr.io/ainative-studio/ainative-code:latest
-docker run -it --rm ghcr.io/ainative-studio/ainative-code:latest
+docker pull ainativestudio/ainative-code:latest
+docker run -it --rm ainativestudio/ainative-code:latest
+```
+
+### Verify Installation
+
+After installation, verify that AINative Code is working:
+
+```bash
+ainative-code version
 ```
 
 ## Quick Start
@@ -121,7 +147,32 @@ docker run -it --rm ghcr.io/ainative-studio/ainative-code:latest
 
 Configuration file location: `~/.config/ainative-code/config.yaml`
 
-Example configuration:
+### Environment Variables
+
+All configuration options can be set via environment variables with the `AINATIVE_CODE_` prefix:
+
+```bash
+# Basic configuration
+export AINATIVE_CODE_PROVIDER=openai
+export AINATIVE_CODE_MODEL=gpt-4
+
+# API keys (recommended for security)
+export AINATIVE_CODE_LLM_OPENAI_API_KEY=sk-...
+export AINATIVE_CODE_LLM_ANTHROPIC_API_KEY=sk-ant-...
+
+# Run the CLI
+ainative-code chat
+```
+
+Configuration precedence (highest to lowest):
+1. Command-line flags (`--provider openai`)
+2. Environment variables (`AINATIVE_CODE_PROVIDER=openai`)
+3. Config file (`~/.config/ainative-code/config.yaml`)
+4. Default values
+
+For a complete list of supported environment variables, see [Environment Variables Documentation](docs/configuration/environment-variables.md).
+
+### Example Configuration File
 
 ```yaml
 # LLM Provider Configuration

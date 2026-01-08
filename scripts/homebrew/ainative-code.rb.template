@@ -1,0 +1,71 @@
+# Homebrew Formula Template for AINative Code
+# This file serves as a template. The actual formula will be auto-generated
+# by the release workflow and published to homebrew-tap repository.
+
+class AinativeCode < Formula
+  desc "AI-native code assistance tool for developers"
+  homepage "https://github.com/AINative-Studio/ainative-code"
+  version "{{VERSION}}"
+  license "MIT"
+
+  # Platform-specific binaries
+  if OS.mac? && Hardware::CPU.intel?
+    url "https://github.com/AINative-Studio/ainative-code/releases/download/v{{VERSION}}/ainative-code_{{VERSION}}_Darwin_x86_64.tar.gz"
+    sha256 "{{SHA256_DARWIN_AMD64}}"
+  elsif OS.mac? && Hardware::CPU.arm?
+    url "https://github.com/AINative-Studio/ainative-code/releases/download/v{{VERSION}}/ainative-code_{{VERSION}}_Darwin_arm64.tar.gz"
+    sha256 "{{SHA256_DARWIN_ARM64}}"
+  elsif OS.linux? && Hardware::CPU.intel?
+    url "https://github.com/AINative-Studio/ainative-code/releases/download/v{{VERSION}}/ainative-code_{{VERSION}}_Linux_x86_64.tar.gz"
+    sha256 "{{SHA256_LINUX_AMD64}}"
+  elsif OS.linux? && Hardware::CPU.arm?
+    url "https://github.com/AINative-Studio/ainative-code/releases/download/v{{VERSION}}/ainative-code_{{VERSION}}_Linux_arm64.tar.gz"
+    sha256 "{{SHA256_LINUX_ARM64}}"
+  end
+
+  # Optional dependencies
+  depends_on "git" => :optional
+
+  def install
+    bin.install "ainative-code"
+
+    # Generate shell completions if possible
+    if (bin/"ainative-code").exist?
+      # Bash
+      output = Utils.safe_popen_read("#{bin}/ainative-code", "completion", "bash")
+      (bash_completion/"ainative-code").write output unless output.empty?
+
+      # Zsh
+      output = Utils.safe_popen_read("#{bin}/ainative-code", "completion", "zsh")
+      (zsh_completion/"_ainative-code").write output unless output.empty?
+
+      # Fish
+      output = Utils.safe_popen_read("#{bin}/ainative-code", "completion", "fish")
+      (fish_completion/"ainative-code.fish").write output unless output.empty?
+    end
+  end
+
+  test do
+    system "#{bin}/ainative-code", "version"
+    assert_match version.to_s, shell_output("#{bin}/ainative-code version --short")
+  end
+
+  def caveats
+    <<~EOS
+      To get started with AINative Code:
+
+      1. Configure your API credentials:
+         ainative-code config set provider anthropic
+         ainative-code config set api_key YOUR_API_KEY
+
+      2. Start a chat session:
+         ainative-code chat
+
+      For more information and documentation:
+      https://github.com/AINative-Studio/ainative-code
+
+      Configuration file location:
+      ~/.ainative-code/config.yaml
+    EOS
+  end
+end
