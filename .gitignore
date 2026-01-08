@@ -22,8 +22,8 @@ go.work.sum
 /bin/
 /build/
 /dist/
-ainative-code
-main
+/ainative-code
+/main
 
 # IDE - VSCode
 .vscode/*
