@@ -56,12 +56,12 @@ func (m *SQLiteManager) searchBasic(ctx context.Context, opts *SearchOptions) ([
 			m.id, m.session_id, m.role, m.content, m.timestamp, m.parent_id,
 			m.tokens_used, m.model, m.finish_reason, m.metadata,
 			s.name as session_name, s.status as session_status,
-			snippet(fts, 3, '<mark>', '</mark>', '...', 32) as snippet,
-			bm25(fts) as relevance_score
+			snippet(messages_fts, 3, '<mark>', '</mark>', '...', 32) as snippet,
+			bm25(messages_fts) as relevance_score
 		FROM messages_fts fts
 		JOIN messages m ON fts.message_id = m.id
 		JOIN sessions s ON m.session_id = s.id
-		WHERE fts MATCH ?
+		WHERE messages_fts MATCH ?
 		ORDER BY relevance_score
 		LIMIT ? OFFSET ?
 	`
@@ -93,12 +93,12 @@ func (m *SQLiteManager) searchWithDateRange(ctx context.Context, opts *SearchOpt
 			m.id, m.session_id, m.role, m.content, m.timestamp, m.parent_id,
 			m.tokens_used, m.model, m.finish_reason, m.metadata,
 			s.name as session_name, s.status as session_status,
-			snippet(fts, 3, '<mark>', '</mark>', '...', 32) as snippet,
-			bm25(fts) as relevance_score
+			snippet(messages_fts, 3, '<mark>', '</mark>', '...', 32) as snippet,
+			bm25(messages_fts) as relevance_score
 		FROM messages_fts fts
 		JOIN messages m ON fts.message_id = m.id
 		JOIN sessions s ON m.session_id = s.id
-		WHERE fts MATCH ?
+		WHERE messages_fts MATCH ?
 			AND m.timestamp >= ?
 			AND m.timestamp <= ?
 		ORDER BY relevance_score
@@ -135,12 +135,12 @@ func (m *SQLiteManager) searchWithProvider(ctx context.Context, opts *SearchOpti
 			m.id, m.session_id, m.role, m.content, m.timestamp, m.parent_id,
 			m.tokens_used, m.model, m.finish_reason, m.metadata,
 			s.name as session_name, s.status as session_status,
-			snippet(fts, 3, '<mark>', '</mark>', '...', 32) as snippet,
-			bm25(fts) as relevance_score
+			snippet(messages_fts, 3, '<mark>', '</mark>', '...', 32) as snippet,
+			bm25(messages_fts) as relevance_score
 		FROM messages_fts fts
 		JOIN messages m ON fts.message_id = m.id
 		JOIN sessions s ON m.session_id = s.id
-		WHERE fts MATCH ?
+		WHERE messages_fts MATCH ?
 			AND m.model LIKE ?
 		ORDER BY relevance_score
 		LIMIT ? OFFSET ?
@@ -175,12 +175,12 @@ func (m *SQLiteManager) searchWithAllFilters(ctx context.Context, opts *SearchOp
 			m.id, m.session_id, m.role, m.content, m.timestamp, m.parent_id,
 			m.tokens_used, m.model, m.finish_reason, m.metadata,
 			s.name as session_name, s.status as session_status,
-			snippet(fts, 3, '<mark>', '</mark>', '...', 32) as snippet,
-			bm25(fts) as relevance_score
+			snippet(messages_fts, 3, '<mark>', '</mark>', '...', 32) as snippet,
+			bm25(messages_fts) as relevance_score
 		FROM messages_fts fts
 		JOIN messages m ON fts.message_id = m.id
 		JOIN sessions s ON m.session_id = s.id
-		WHERE fts MATCH ?
+		WHERE messages_fts MATCH ?
 			AND m.timestamp >= ?
 			AND m.timestamp <= ?
 			AND m.model LIKE ?
@@ -286,7 +286,7 @@ func (m *SQLiteManager) searchCount(ctx context.Context, query string) (int64, e
 		SELECT COUNT(*)
 		FROM messages_fts fts
 		JOIN messages m ON fts.message_id = m.id
-		WHERE fts MATCH ?
+		WHERE messages_fts MATCH ?
 	`
 
 	var count int64
@@ -304,7 +304,7 @@ func (m *SQLiteManager) searchCountWithDateRange(ctx context.Context, query, dat
 		SELECT COUNT(*)
 		FROM messages_fts fts
 		JOIN messages m ON fts.message_id = m.id
-		WHERE fts MATCH ?
+		WHERE messages_fts MATCH ?
 			AND m.timestamp >= ?
 			AND m.timestamp <= ?
 	`
@@ -324,7 +324,7 @@ func (m *SQLiteManager) searchCountWithProvider(ctx context.Context, query, prov
 		SELECT COUNT(*)
 		FROM messages_fts fts
 		JOIN messages m ON fts.message_id = m.id
-		WHERE fts MATCH ?
+		WHERE messages_fts MATCH ?
 			AND m.model LIKE ?
 	`
 
@@ -343,7 +343,7 @@ func (m *SQLiteManager) searchCountWithAllFilters(ctx context.Context, query, da
 		SELECT COUNT(*)
 		FROM messages_fts fts
 		JOIN messages m ON fts.message_id = m.id
-		WHERE fts MATCH ?
+		WHERE messages_fts MATCH ?
 			AND m.timestamp >= ?
 			AND m.timestamp <= ?
 			AND m.model LIKE ?
