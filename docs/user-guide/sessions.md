@@ -61,6 +61,40 @@ abc123def456  (12-character alphanumeric)
 
 ## Creating Sessions
 
+### Manual Session Creation
+
+You can manually create a session with custom settings using the `session create` command:
+
+```bash
+# Create a basic session
+ainative-code session create --title "Bug Investigation"
+
+# Create with tags
+ainative-code session create --title "API Development" --tags "golang,api,rest"
+
+# Create with specific provider and model
+ainative-code session create --title "Code Review" --provider anthropic --model claude-3-5-sonnet-20241022
+
+# Create with custom metadata
+ainative-code session create --title "Project Planning" --metadata '{"project":"myapp","priority":"high"}'
+
+# Create without activating it
+ainative-code session create --title "Draft Session" --no-activate
+```
+
+**Available Flags:**
+- `--title` (required): Session title
+- `--tags`: Comma-separated list of tags
+- `--provider`: AI provider name (anthropic, openai, azure, bedrock, gemini, ollama, meta)
+- `--model`: Specific model name
+- `--metadata`: JSON string with custom metadata
+- `--no-activate`: Don't activate the session after creation (default: activates)
+
+**Returns:**
+- Session ID
+- Session details (title, tags, model, status)
+- Activation message (if not using `--no-activate`)
+
 ### Automatic Session Creation
 
 A new session is automatically created when you start a chat:

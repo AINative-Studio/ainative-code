@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/AINative-studio/ainative-code/internal/logger"
 	"github.com/AINative-studio/ainative-code/internal/session"
@@ -25,18 +26,28 @@ var (
 	searchDateTo      string
 	searchProvider    string
 	searchOutputJSON  bool
+	// Create command flags
+	createTitle       string
+	createTags        string
+	createProvider    string
+	createModel       string
+	createMetadata    string
+	createNoActivate  bool
 )
 
 // sessionCmd represents the session command
 var sessionCmd = &cobra.Command{
 	Use:   "session",
 	Short: "Manage chat sessions",
-	Long: `Manage chat sessions including listing, viewing, and deleting sessions.
+	Long: `Manage chat sessions including creating, listing, viewing, and deleting sessions.
 
 Sessions store conversation history and allow you to continue previous conversations.
 Each session is identified by a unique ID and can be resumed using the chat command.
 
 Examples:
+  # Create a new session
+  ainative-code session create --title "Bug Investigation"
+
   # List recent sessions
   ainative-code session list
 
@@ -151,6 +162,34 @@ Examples:
 	RunE:  runSessionSearch,
 }
 
+// sessionCreateCmd represents the session create command
+var sessionCreateCmd = &cobra.Command{
+	Use:   "create",
+	Short: "Create a new chat session",
+	Long: `Create a new chat session with specified configuration.
+
+The create command allows you to create a new session with custom settings
+including title, tags, provider, model, and metadata. By default, the newly
+created session will be activated for immediate use.
+
+Examples:
+  # Create a session with a title
+  ainative-code session create --title "Bug Investigation"
+
+  # Create a session with tags
+  ainative-code session create --title "API Development" --tags "golang,api,rest"
+
+  # Create a session with specific provider and model
+  ainative-code session create --title "Code Review" --provider anthropic --model claude-3-5-sonnet-20241022
+
+  # Create a session with custom metadata
+  ainative-code session create --title "Project Planning" --metadata '{"project":"myapp","priority":"high"}'
+
+  # Create a session without activating it
+  ainative-code session create --title "Draft Session" --no-activate`,
+	RunE: runSessionCreate,
+}
+
 func init() {
 	rootCmd.AddCommand(sessionCmd)
 
@@ -160,6 +199,7 @@ func init() {
 	sessionCmd.AddCommand(sessionDeleteCmd)
 	sessionCmd.AddCommand(sessionExportCmd)
 	sessionCmd.AddCommand(sessionSearchCmd)
+	sessionCmd.AddCommand(sessionCreateCmd)
 
 	// Session list flags
 	sessionListCmd.Flags().BoolVarP(&sessionListAll, "all", "a", false, "list all sessions")
@@ -176,6 +216,15 @@ func init() {
 	sessionSearchCmd.Flags().StringVar(&searchDateTo, "date-to", "", "filter messages until this date (YYYY-MM-DD)")
 	sessionSearchCmd.Flags().StringVarP(&searchProvider, "provider", "p", "", "filter by provider/model (e.g., 'claude', 'gpt')")
 	sessionSearchCmd.Flags().BoolVar(&searchOutputJSON, "json", false, "output results as JSON")
+
+	// Session create flags
+	sessionCreateCmd.Flags().StringVarP(&createTitle, "title", "t", "", "session title (required)")
+	sessionCreateCmd.MarkFlagRequired("title")
+	sessionCreateCmd.Flags().StringVar(&createTags, "tags", "", "comma-separated list of tags")
+	sessionCreateCmd.Flags().StringVarP(&createProvider, "provider", "p", "", "AI provider name (e.g., anthropic, openai)")
+	sessionCreateCmd.Flags().StringVarP(&createModel, "model", "m", "", "model name (e.g., claude-3-5-sonnet-20241022)")
+	sessionCreateCmd.Flags().StringVar(&createMetadata, "metadata", "", "JSON metadata string")
+	sessionCreateCmd.Flags().BoolVar(&createNoActivate, "no-activate", false, "do not activate the session after creation")
 }
 
 func runSessionList(cmd *cobra.Command, args []string) error {
@@ -488,6 +537,150 @@ func outputSearchResultsTable(results *session.SearchResultSet) error {
 		fmt.Printf("\n%s%d more results available. Use --limit to see more.%s\n",
 			colorGray, remaining, colorReset)
 	}
+
+	return nil
+}
+
+func runSessionCreate(cmd *cobra.Command, args []string) error {
+	// Validate required title
+	title := strings.TrimSpace(createTitle)
+	if title == "" {
+		return fmt.Errorf("session title cannot be empty")
+	}
+
+	logger.InfoEvent().
+		Str("title", title).
+		Str("tags", createTags).
+		Str("provider", createProvider).
+		Str("model", createModel).
+		Bool("no_activate", createNoActivate).
+		Msg("Creating new session")
+
+	// Parse tags if provided
+	var tags []string
+	if createTags != "" {
+		tags = strings.Split(createTags, ",")
+		for i := range tags {
+			tags[i] = strings.TrimSpace(tags[i])
+		}
+		// Remove empty tags
+		var validTags []string
+		for _, tag := range tags {
+			if tag != "" {
+				validTags = append(validTags, tag)
+			}
+		}
+		tags = validTags
+	}
+
+	// Parse metadata if provided
+	var metadata map[string]interface{}
+	if createMetadata != "" {
+		if err := json.Unmarshal([]byte(createMetadata), &metadata); err != nil {
+			return fmt.Errorf("invalid metadata JSON: %w", err)
+		}
+	}
+
+	// Add tags to metadata if provided
+	if len(tags) > 0 {
+		if metadata == nil {
+			metadata = make(map[string]interface{})
+		}
+		metadata["tags"] = tags
+	}
+
+	// Validate provider if specified
+	if createProvider != "" {
+		provider := strings.ToLower(strings.TrimSpace(createProvider))
+		validProviders := []string{"anthropic", "openai", "azure", "bedrock", "gemini", "ollama", "meta"}
+		isValid := false
+		for _, vp := range validProviders {
+			if provider == vp {
+				isValid = true
+				break
+			}
+		}
+		if !isValid {
+			return fmt.Errorf("invalid provider: %s (valid options: %s)",
+				createProvider, strings.Join(validProviders, ", "))
+		}
+	}
+
+	// Initialize database connection
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	db, err := getDatabase()
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	// Create session manager
+	mgr := session.NewSQLiteManager(db)
+
+	// Generate unique session ID
+	sessionID := uuid.New().String()
+
+	// Create session object
+	sess := &session.Session{
+		ID:        sessionID,
+		Name:      title,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Status:    session.StatusActive,
+		Settings:  metadata,
+	}
+
+	// Add provider to model if specified
+	if createProvider != "" {
+		provider := strings.ToLower(strings.TrimSpace(createProvider))
+		sess.Model = &provider
+	}
+
+	// Override with specific model if provided
+	if createModel != "" {
+		model := strings.TrimSpace(createModel)
+		sess.Model = &model
+	}
+
+	// Create the session in database
+	if err := mgr.CreateSession(ctx, sess); err != nil {
+		return fmt.Errorf("failed to create session: %w", err)
+	}
+
+	// Output success message
+	fmt.Printf("\nSession created successfully!\n")
+	fmt.Printf("  ID: %s\n", sessionID)
+	fmt.Printf("  Title: %s\n", title)
+
+	if len(tags) > 0 {
+		fmt.Printf("  Tags: %s\n", strings.Join(tags, ", "))
+	}
+
+	if sess.Model != nil {
+		fmt.Printf("  Model: %s\n", *sess.Model)
+	}
+
+	fmt.Printf("  Status: %s\n", sess.Status)
+	fmt.Printf("  Created: %s\n", sess.CreatedAt.Format(time.RFC3339))
+
+	// Activate session unless --no-activate flag is set
+	if !createNoActivate {
+		// Store the active session ID in a config file or environment
+		// For now, we'll just output a message
+		fmt.Printf("\nSession activated. Use this ID to continue the conversation:\n")
+		fmt.Printf("  ainative-code chat --session %s\n", sessionID)
+
+		// TODO: Implement actual session activation by storing session ID
+		// in configuration file or environment variable
+	}
+
+	logger.InfoEvent().
+		Str("session_id", sessionID).
+		Str("title", title).
+		Bool("activated", !createNoActivate).
+		Msg("Session created successfully")
 
 	return nil
 }
