@@ -251,22 +251,24 @@ release:
 #     message_template: "AINative Code {{ .Tag }} is out! Check it out: {{ .ReleaseURL }}"
 
 # SBOMs (Software Bill of Materials)
-sboms:
-  - id: archive
-    artifacts: archive
-  - id: source
-    artifacts: source
+# Disabled: syft not available in CI
+# sboms:
+#   - id: archive
+#     artifacts: archive
+#   - id: source
+#     artifacts: source
 
 # Signs the checksums file
-signs:
-  - cmd: gpg
-    args:
-      - "--batch"
-      - "--local-user"
-      - "{{ .Env.GPG_FINGERPRINT }}"
-      - "--output"
-      - "${signature}"
-      - "--detach-sign"
-      - "${artifact}"
-    artifacts: checksum
-    output: true
+# Disabled: GPG keys not configured in CI
+# signs:
+#   - cmd: gpg
+#     args:
+#       - "--batch"
+#       - "--local-user"
+#       - "{{ .Env.GPG_FINGERPRINT }}"
+#       - "--output"
+#       - "${signature}"
+#       - "--detach-sign"
+#       - "${artifact}"
+#     artifacts: checksum
+#     output: true
