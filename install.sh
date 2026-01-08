@@ -189,7 +189,15 @@ main() {
 
     # Construct download URLs
     local version_without_v="${version#v}"
-    local archive_name="ainative-code_${version_without_v}_${platform}.tar.gz"
+
+    # Special handling for macOS universal binary
+    local archive_name
+    if [[ "$platform" == Darwin_* ]]; then
+        archive_name="ainative-code_${version_without_v}_Darwin_all.tar.gz"
+    else
+        archive_name="ainative-code_${version_without_v}_${platform}.tar.gz"
+    fi
+
     local download_url="https://github.com/${REPO}/releases/download/${version}/${archive_name}"
     local checksums_url="https://github.com/${REPO}/releases/download/${version}/checksums.txt"
 

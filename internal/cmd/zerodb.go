@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/AINative-studio/ainative-code/internal/logger"
@@ -149,21 +150,97 @@ func runZerodbMigrate(cmd *cobra.Command, args []string) error {
 func runZerodbStatus(cmd *cobra.Command, args []string) error {
 	logger.Debug("Checking database status")
 
-	fmt.Println("Database Status:")
+	// Initialize database connection
+	db, err := getDatabase()
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	fmt.Println("\nDatabase Status:")
 	fmt.Println("================")
 
-	// TODO: Implement status check
-	// - Show database path
-	// - Show database size
-	// - List tables
-	// - Show migration version
-	// - Show record counts
+	// Get database path
+	dbPath := getDatabasePath()
+	fmt.Printf("Path: %s\n", dbPath)
 
-	fmt.Println("Path: ~/.ainative-code/data.db")
-	fmt.Println("Size: Coming soon")
-	fmt.Println("Version: Coming soon")
-	fmt.Println("Tables: Coming soon")
+	// Get database file size
+	if fileInfo, err := os.Stat(dbPath); err == nil {
+		sizeKB := float64(fileInfo.Size()) / 1024
+		sizeMB := sizeKB / 1024
+		if sizeMB >= 1 {
+			fmt.Printf("Size: %.2f MB (%.0f KB)\n", sizeMB, sizeKB)
+		} else {
+			fmt.Printf("Size: %.2f KB (%d bytes)\n", sizeKB, fileInfo.Size())
+		}
+	} else {
+		fmt.Printf("Size: Unable to read (error: %v)\n", err)
+	}
 
+	// Get the underlying sql.DB
+	sqlDB := db.DB()
+
+	// Get schema version from migrations table
+	var version int
+	err = sqlDB.QueryRow("SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1").Scan(&version)
+	if err != nil {
+		fmt.Printf("Schema Version: Unable to read (error: %v)\n", err)
+	} else {
+		fmt.Printf("Schema Version: %d\n", version)
+	}
+
+	// List all tables
+	rows, err := sqlDB.Query(`
+		SELECT name
+		FROM sqlite_master
+		WHERE type='table'
+		AND name NOT LIKE 'sqlite_%'
+		ORDER BY name
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to query tables: %w", err)
+	}
+	defer rows.Close()
+
+	var tables []string
+	for rows.Next() {
+		var tableName string
+		if err := rows.Scan(&tableName); err != nil {
+			continue
+		}
+		tables = append(tables, tableName)
+	}
+
+	fmt.Printf("\nTables (%d):\n", len(tables))
+	fmt.Println("============")
+
+	// Get row counts for each table
+	for _, table := range tables {
+		var count int
+		err := sqlDB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", table)).Scan(&count)
+		if err != nil {
+			fmt.Printf("  - %s: error counting rows\n", table)
+		} else {
+			fmt.Printf("  - %s: %d rows\n", table, count)
+		}
+	}
+
+	// Check FTS5 support
+	var ftsSupported bool
+	err = sqlDB.QueryRow("SELECT 1 FROM pragma_compile_options WHERE compile_options = 'ENABLE_FTS5'").Scan(&ftsSupported)
+	if err == nil && ftsSupported {
+		fmt.Println("\nFTS5 Support: ✓ Enabled")
+	} else {
+		// Try another way to check FTS5
+		_, err = sqlDB.Query("SELECT * FROM messages_fts LIMIT 0")
+		if err == nil {
+			fmt.Println("\nFTS5 Support: ✓ Enabled")
+		} else {
+			fmt.Println("\nFTS5 Support: ✗ Disabled")
+		}
+	}
+
+	fmt.Println()
 	return nil
 }
 

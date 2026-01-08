@@ -12,6 +12,10 @@ builds:
     main: ./cmd/ainative-code
     binary: ainative-code
 
+    # Build tags for SQLite FTS5 support
+    tags:
+      - sqlite_fts5
+
     # Version information via ldflags
     ldflags:
       - -s -w

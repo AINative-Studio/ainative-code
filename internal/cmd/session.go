@@ -233,10 +233,77 @@ func runSessionList(cmd *cobra.Command, args []string) error {
 		Int("limit", sessionLimit).
 		Msg("Listing sessions")
 
-	fmt.Println("Session List - Coming soon!")
-	fmt.Printf("All: %v, Limit: %d\n", sessionListAll, sessionLimit)
+	// Initialize database connection
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	// TODO: Implement session listing from ZeroDB
+	db, err := getDatabase()
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	// Create session manager
+	mgr := session.NewSQLiteManager(db)
+
+	// Build list options
+	var opts []session.ListOption
+	if !sessionListAll {
+		opts = append(opts, session.WithLimit(int64(sessionLimit)))
+	}
+
+	sessions, err := mgr.ListSessions(ctx, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to list sessions: %w", err)
+	}
+
+	if len(sessions) == 0 {
+		fmt.Println("No sessions found.")
+		fmt.Println("\nCreate a new session with:")
+		fmt.Println("  ainative-code session create --title \"My Session\"")
+		return nil
+	}
+
+	// Display sessions in a table format
+	fmt.Printf("\nFound %d session(s):\n\n", len(sessions))
+
+	// Use color codes for better readability
+	const (
+		colorReset  = "\033[0m"
+		colorCyan   = "\033[36m"
+		colorYellow = "\033[33m"
+		colorGreen  = "\033[32m"
+		colorGray   = "\033[90m"
+		colorBold   = "\033[1m"
+	)
+
+	for i, sess := range sessions {
+		fmt.Printf("%s%d.%s %s%s%s\n",
+			colorBold, i+1, colorReset,
+			colorCyan, sess.Name, colorReset)
+
+		fmt.Printf("   %sID:%s %s\n",
+			colorGray, colorReset, sess.ID)
+
+		if sess.Model != nil && *sess.Model != "" {
+			fmt.Printf("   %sModel:%s %s\n",
+				colorGray, colorReset, *sess.Model)
+		}
+
+		fmt.Printf("   %sCreated:%s %s | %sStatus:%s %s\n",
+			colorGray, colorReset, sess.CreatedAt.Format("2006-01-02 15:04"),
+			colorGray, colorReset, sess.Status)
+
+		if i < len(sessions)-1 {
+			fmt.Println()
+		}
+	}
+
+	if !sessionListAll && len(sessions) == sessionLimit {
+		fmt.Printf("\n%sShowing %d sessions. Use --all to see all sessions.%s\n",
+			colorGray, sessionLimit, colorReset)
+	}
+
 	return nil
 }
 

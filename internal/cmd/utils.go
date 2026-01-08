@@ -29,16 +29,7 @@ func truncateString(s string, maxLen int) string {
 
 // getDatabase returns a database connection with default configuration
 func getDatabase() (*database.DB, error) {
-	// Get database path from environment or use default
-	dbPath := os.Getenv("AINATIVE_DB_PATH")
-	if dbPath == "" {
-		// Use default path in user's home directory
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get home directory: %w", err)
-		}
-		dbPath = filepath.Join(homeDir, ".ainative", "ainative.db")
-	}
+	dbPath := getDatabasePath()
 
 	// Initialize database with default config
 	config := database.DefaultConfig(dbPath)
@@ -48,4 +39,16 @@ func getDatabase() (*database.DB, error) {
 	}
 
 	return db, nil
+}
+
+// getDatabasePath returns the database file path
+func getDatabasePath() string {
+	// Get database path from environment or use default
+	dbPath := os.Getenv("AINATIVE_DB_PATH")
+	if dbPath == "" {
+		// Use default path in user's home directory
+		homeDir, _ := os.UserHomeDir()
+		dbPath = filepath.Join(homeDir, ".ainative", "ainative.db")
+	}
+	return dbPath
 }
