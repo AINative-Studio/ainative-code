@@ -58,7 +58,12 @@ func NewPromptModel() PromptModel {
 
 // Init initializes the model
 func (m PromptModel) Init() tea.Cmd {
-	return textinput.Blink
+	// Focus textinput if we're starting on a text input step
+	if m.isTextInputStep() {
+		m.textInput.Focus()
+		return textinput.Blink
+	}
+	return nil
 }
 
 // Update handles messages
@@ -316,7 +321,7 @@ func (m PromptModel) renderChoices(choices []string) string {
 }
 
 func (m PromptModel) renderTextInput() string {
-	m.textInput.Focus()
+	// Don't focus here - focusing should happen in Init() or when transitioning steps
 	return m.textInput.View()
 }
 
@@ -469,6 +474,15 @@ func (m PromptModel) nextStep() (tea.Model, tea.Cmd) {
 	default:
 		return m, tea.Quit
 	}
+
+	// Focus textinput if transitioning to a text input step
+	if m.isTextInputStep() {
+		m.textInput.Focus()
+		return m, textinput.Blink
+	}
+
+	// Blur textinput if transitioning away from a text input step
+	m.textInput.Blur()
 
 	return m, nil
 }

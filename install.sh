@@ -167,6 +167,82 @@ check_dependencies() {
     fi
 }
 
+check_path() {
+    # Check if INSTALL_DIR is in PATH
+    case ":$PATH:" in
+        *":$INSTALL_DIR:"*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+detect_shell_rc() {
+    # Detect which shell rc file to use
+    if [ -n "$BASH_VERSION" ]; then
+        if [ -f "$HOME/.bashrc" ]; then
+            echo "$HOME/.bashrc"
+        elif [ -f "$HOME/.bash_profile" ]; then
+            echo "$HOME/.bash_profile"
+        else
+            echo "$HOME/.profile"
+        fi
+    elif [ -n "$ZSH_VERSION" ]; then
+        echo "$HOME/.zshrc"
+    else
+        # Try to detect from SHELL environment variable
+        case "$SHELL" in
+            */zsh)
+                echo "$HOME/.zshrc"
+                ;;
+            */bash)
+                if [ -f "$HOME/.bashrc" ]; then
+                    echo "$HOME/.bashrc"
+                elif [ -f "$HOME/.bash_profile" ]; then
+                    echo "$HOME/.bash_profile"
+                else
+                    echo "$HOME/.profile"
+                fi
+                ;;
+            *)
+                echo "$HOME/.profile"
+                ;;
+        esac
+    fi
+}
+
+setup_path() {
+    # Only set up PATH if INSTALL_DIR is not /usr/local/bin (which is usually in PATH)
+    if [ "$INSTALL_DIR" = "/usr/local/bin" ]; then
+        return 0
+    fi
+
+    # Check if already in PATH
+    if check_path; then
+        print_info "Installation directory is already in PATH"
+        return 0
+    fi
+
+    # Detect shell rc file
+    local shell_rc
+    shell_rc=$(detect_shell_rc)
+
+    echo ""
+    print_warning "Installation directory $INSTALL_DIR is not in your PATH"
+    echo ""
+    echo "To add it to your PATH automatically, run:"
+    echo ""
+    echo "  echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> $shell_rc"
+    echo "  source $shell_rc"
+    echo ""
+    echo "Or add this line to your $shell_rc manually:"
+    echo ""
+    echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
+    echo ""
+}
+
 main() {
     echo ""
     echo "╔════════════════════════════════════════════╗"
@@ -238,23 +314,37 @@ main() {
         local installed_version
         installed_version=$(ainative-code version --short 2>/dev/null || echo "unknown")
         print_success "AINative Code $installed_version installed successfully!"
-    else
-        print_warning "Installation complete, but ainative-code is not in PATH"
-        print_warning "You may need to add $INSTALL_DIR to your PATH"
-    fi
 
-    echo ""
-    echo "╔════════════════════════════════════════════╗"
-    echo "║           Installation Complete!           ║"
-    echo "╚════════════════════════════════════════════╝"
-    echo ""
-    echo "Get started with:"
-    echo "  ainative-code version    # Show version"
-    echo "  ainative-code chat       # Start a chat session"
-    echo ""
-    echo "For more information, visit:"
-    echo "  https://github.com/${REPO}"
-    echo ""
+        echo ""
+        echo "╔════════════════════════════════════════════╗"
+        echo "║           Installation Complete!           ║"
+        echo "╚════════════════════════════════════════════╝"
+        echo ""
+        echo "Get started with:"
+        echo "  ainative-code version    # Show version"
+        echo "  ainative-code chat       # Start a chat session"
+        echo ""
+        echo "For more information, visit:"
+        echo "  https://github.com/${REPO}"
+        echo ""
+    else
+        echo ""
+        echo "╔════════════════════════════════════════════╗"
+        echo "║           Installation Complete!           ║"
+        echo "╚════════════════════════════════════════════╝"
+        echo ""
+
+        # Set up PATH instructions
+        setup_path
+
+        echo "After setting up your PATH, get started with:"
+        echo "  ainative-code version    # Show version"
+        echo "  ainative-code chat       # Start a chat session"
+        echo ""
+        echo "For more information, visit:"
+        echo "  https://github.com/${REPO}"
+        echo ""
+    fi
 }
 
 # Run main function
