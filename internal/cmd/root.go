@@ -30,7 +30,7 @@ var rootCmd = &cobra.Command{
 - Design token management for UI consistency
 - Strapi CMS integration for content management
 - RLHF feedback collection for model improvement`,
-	Version: "0.1.0",
+	Version: "0.1.7",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Configure logger based on verbose flag
 		if verbose {
