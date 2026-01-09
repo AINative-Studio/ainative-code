@@ -101,26 +101,104 @@ func TestConfigSubcommands(t *testing.T) {
 // TestRunConfigShow tests the config show command
 func TestRunConfigShow(t *testing.T) {
 	tests := []struct {
-		name       string
-		setupViper func()
-		wantErr    bool
+		name         string
+		setupViper   func()
+		showSecrets  bool
+		wantErr      bool
+		checkOutput  func(t *testing.T, output string)
 	}{
 		{
 			name: "shows empty configuration",
 			setupViper: func() {
 				viper.Reset()
 			},
-			wantErr: false,
+			showSecrets: false,
+			wantErr:     false,
+			checkOutput: func(t *testing.T, output string) {
+				if !strings.Contains(output, "Current Configuration") {
+					t.Error("expected output to contain 'Current Configuration'")
+				}
+				if !strings.Contains(output, "No configuration values set") {
+					t.Error("expected output to contain 'No configuration values set'")
+				}
+			},
 		},
 		{
-			name: "shows configuration with values",
+			name: "shows configuration with values (masked)",
 			setupViper: func() {
 				viper.Reset()
 				viper.Set("provider", "openai")
 				viper.Set("model", "gpt-4")
 				viper.Set("verbose", true)
 			},
-			wantErr: false,
+			showSecrets: false,
+			wantErr:     false,
+			checkOutput: func(t *testing.T, output string) {
+				if !strings.Contains(output, "Current Configuration") {
+					t.Error("expected output to contain 'Current Configuration'")
+				}
+				if !strings.Contains(output, "openai") {
+					t.Error("expected output to contain 'openai'")
+				}
+			},
+		},
+		{
+			name: "masks API key by default",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("provider", "openai")
+				viper.Set("api_key", "sk-1234567890abcdefghijklmnopqrstuvwxyz123456")
+			},
+			showSecrets: false,
+			wantErr:     false,
+			checkOutput: func(t *testing.T, output string) {
+				if strings.Contains(output, "sk-1234567890abcdefghijklmnopqrstuvwxyz123456") {
+					t.Error("API key should be masked")
+				}
+				if !strings.Contains(output, "Sensitive values are masked") {
+					t.Error("expected masking notice")
+				}
+			},
+		},
+		{
+			name: "shows API key with --show-secrets flag",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("provider", "openai")
+				viper.Set("api_key", "sk-test123456")
+			},
+			showSecrets: true,
+			wantErr:     false,
+			checkOutput: func(t *testing.T, output string) {
+				if !strings.Contains(output, "sk-test123456") {
+					t.Error("API key should be visible with --show-secrets")
+				}
+				if !strings.Contains(output, "WARNING") {
+					t.Error("expected security warning")
+				}
+			},
+		},
+		{
+			name: "masks nested sensitive values",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("llm.openai.api_key", "sk-openai123456789")
+				viper.Set("llm.openai.model", "gpt-4")
+				viper.Set("platform.authentication.client_secret", "secret123")
+			},
+			showSecrets: false,
+			wantErr:     false,
+			checkOutput: func(t *testing.T, output string) {
+				if strings.Contains(output, "sk-openai123456789") {
+					t.Error("OpenAI API key should be masked")
+				}
+				if strings.Contains(output, "secret123") {
+					t.Error("client_secret should be masked")
+				}
+				if !strings.Contains(output, "gpt-4") {
+					t.Error("non-sensitive model value should be visible")
+				}
+			},
 		},
 	}
 
@@ -128,18 +206,33 @@ func TestRunConfigShow(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupViper()
 
-			var buf bytes.Buffer
-			configShowCmd.SetOut(&buf)
+			// Capture stdout since the implementation uses fmt.Println
+			oldStdout := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+
+			// Set the flag
+			if tt.showSecrets {
+				configShowCmd.Flags().Set("show-secrets", "true")
+			} else {
+				configShowCmd.Flags().Set("show-secrets", "false")
+			}
 
 			err := runConfigShow(configShowCmd, []string{})
+
+			// Restore stdout and read captured output
+			w.Close()
+			os.Stdout = oldStdout
+			var buf bytes.Buffer
+			buf.ReadFrom(r)
+			output := buf.String()
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("runConfigShow() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			output := buf.String()
-			if !strings.Contains(output, "Current Configuration") {
-				t.Error("expected output to contain 'Current Configuration'")
+			if tt.checkOutput != nil {
+				tt.checkOutput(t, output)
 			}
 		})
 	}
@@ -210,6 +303,7 @@ func TestRunConfigGet(t *testing.T) {
 		setupViper func()
 		args       []string
 		wantErr    bool
+		wantOutput string
 	}{
 		{
 			name: "gets existing key",
@@ -217,8 +311,9 @@ func TestRunConfigGet(t *testing.T) {
 				viper.Reset()
 				viper.Set("provider", "openai")
 			},
-			args:    []string{"provider"},
-			wantErr: false,
+			args:       []string{"provider"},
+			wantErr:    false,
+			wantOutput: "provider: openai",
 		},
 		{
 			name: "gets missing key",
@@ -234,8 +329,29 @@ func TestRunConfigGet(t *testing.T) {
 				viper.Reset()
 				viper.Set("database.path", "/path/to/db")
 			},
-			args:    []string{"database.path"},
-			wantErr: false,
+			args:       []string{"database.path"},
+			wantErr:    false,
+			wantOutput: "database.path: /path/to/db",
+		},
+		{
+			name: "gets empty string value - Issue #101",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("provider", "")
+			},
+			args:       []string{"provider"},
+			wantErr:    false,
+			wantOutput: "provider: (empty)",
+		},
+		{
+			name: "gets nil value - Issue #101",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("model", nil)
+			},
+			args:       []string{"model"},
+			wantErr:    true,
+			wantOutput: "",
 		},
 	}
 
@@ -243,13 +359,28 @@ func TestRunConfigGet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupViper()
 
-			var buf bytes.Buffer
-			configGetCmd.SetOut(&buf)
+			// Capture stdout since the implementation uses fmt.Printf
+			oldStdout := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
 
 			err := runConfigGet(configGetCmd, tt.args)
 
+			// Restore stdout and read captured output
+			w.Close()
+			os.Stdout = oldStdout
+			var buf bytes.Buffer
+			buf.ReadFrom(r)
+			output := strings.TrimSpace(buf.String())
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("runConfigGet() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr && tt.wantOutput != "" {
+				if !strings.Contains(output, tt.wantOutput) {
+					t.Errorf("runConfigGet() output = %q, want to contain %q", output, tt.wantOutput)
+				}
 			}
 		})
 	}

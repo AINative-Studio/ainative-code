@@ -122,8 +122,32 @@ func runRlhfSubmit(cmd *cobra.Command, args []string) error {
 
 	if interactive {
 		logger.Info("Starting interactive feedback mode")
-		fmt.Println("Interactive RLHF feedback - Coming soon!")
-		// TODO: Implement interactive feedback UI using bubbletea
+		fmt.Println()
+		fmt.Println("Interactive RLHF Feedback Mode")
+		fmt.Println("===============================")
+		fmt.Println()
+		fmt.Println("Interactive mode is planned for a future release.")
+		fmt.Println()
+		fmt.Println("This will provide a terminal UI for:")
+		fmt.Println("  • Browsing recent interactions")
+		fmt.Println("  • Rating responses with keyboard shortcuts")
+		fmt.Println("  • Adding comments and tags")
+		fmt.Println("  • Submitting corrections")
+		fmt.Println()
+		fmt.Println("For now, use the command-line flags:")
+		fmt.Println()
+		fmt.Println("  # Submit feedback")
+		fmt.Println("  ainative-code rlhf submit \\")
+		fmt.Println("    --message-id MESSAGE_ID \\")
+		fmt.Println("    --rating 5 \\")
+		fmt.Println("    --comment \"Great response!\"")
+		fmt.Println()
+		fmt.Println("Or use the 'rlhf interaction' command for detailed feedback:")
+		fmt.Println()
+		fmt.Println("  ainative-code rlhf interaction \\")
+		fmt.Println("    --prompt \"Your question\" \\")
+		fmt.Println("    --response \"AI response\" \\")
+		fmt.Println("    --score 0.95")
 		return nil
 	}
 
@@ -170,15 +194,23 @@ func runRlhfList(cmd *cobra.Command, args []string) error {
 		Str("filter", filter).
 		Msg("Listing RLHF feedback")
 
-	fmt.Println("RLHF Feedback Entries:")
+	fmt.Println("RLHF Feedback Entries")
 	fmt.Println("======================")
+	fmt.Println()
 
-	// TODO: Implement feedback listing
-	// - Query feedback from database
-	// - Apply filters
-	// - Display in table format
-
-	fmt.Println("Coming soon!")
+	fmt.Println("This command requires RLHF database schema to be implemented.")
+	fmt.Println()
+	fmt.Println("Current Status:")
+	fmt.Println("  • RLHF interaction submission is implemented (use 'rlhf interaction')")
+	fmt.Println("  • RLHF correction submission is implemented (use 'rlhf correction')")
+	fmt.Println("  • RLHF analytics is implemented (use 'rlhf analytics')")
+	fmt.Println("  • Local feedback storage requires database schema (planned)")
+	fmt.Println()
+	fmt.Println("These commands currently interact with the AINative API.")
+	fmt.Println("To list feedback entries stored in the API, use:")
+	fmt.Println("  ainative-code rlhf analytics --start-date YYYY-MM-DD --end-date YYYY-MM-DD")
+	fmt.Println()
+	fmt.Println("For local feedback storage, this feature is planned for a future release.")
 
 	return nil
 }
@@ -216,24 +248,42 @@ func runRlhfExport(cmd *cobra.Command, args []string) error {
 func runRlhfStats(cmd *cobra.Command, args []string) error {
 	logger.Debug("Generating RLHF statistics")
 
-	fmt.Println("RLHF Feedback Statistics:")
+	fmt.Println("RLHF Feedback Statistics")
 	fmt.Println("=========================")
+	fmt.Println()
 
-	// TODO: Implement statistics generation
-	// - Count total feedback entries
-	// - Calculate average rating
-	// - Group by rating distribution
-	// - Show common tags
-	// - Display trends over time
-
-	fmt.Println("Total entries: Coming soon")
-	fmt.Println("Average rating: Coming soon")
-	fmt.Println("Rating distribution:")
-	fmt.Println("  5 stars: Coming soon")
-	fmt.Println("  4 stars: Coming soon")
-	fmt.Println("  3 stars: Coming soon")
-	fmt.Println("  2 stars: Coming soon")
-	fmt.Println("  1 star:  Coming soon")
+	fmt.Println("This command requires RLHF database schema to be implemented.")
+	fmt.Println()
+	fmt.Println("Current Status:")
+	fmt.Println("  • Local statistics require database schema (planned)")
+	fmt.Println("  • API-based analytics are available via 'rlhf analytics'")
+	fmt.Println()
+	fmt.Println("To view detailed analytics from the AINative API:")
+	fmt.Println()
+	fmt.Println("  # View analytics for the last 7 days")
+	fmt.Println("  ainative-code rlhf analytics \\")
+	fmt.Println("    --start-date 2026-01-01 \\")
+	fmt.Println("    --end-date 2026-01-08")
+	fmt.Println()
+	fmt.Println("  # Filter by model")
+	fmt.Println("  ainative-code rlhf analytics \\")
+	fmt.Println("    --model claude-3-5-sonnet-20241022 \\")
+	fmt.Println("    --start-date 2026-01-01 \\")
+	fmt.Println("    --end-date 2026-01-08")
+	fmt.Println()
+	fmt.Println("  # Export to file")
+	fmt.Println("  ainative-code rlhf analytics \\")
+	fmt.Println("    --start-date 2026-01-01 \\")
+	fmt.Println("    --end-date 2026-01-08 \\")
+	fmt.Println("    --export analytics.json")
+	fmt.Println()
+	fmt.Println("The analytics command provides:")
+	fmt.Println("  • Average feedback scores")
+	fmt.Println("  • Total interactions and corrections")
+	fmt.Println("  • Correction rate")
+	fmt.Println("  • Score distribution")
+	fmt.Println("  • Top correction reasons")
+	fmt.Println("  • Trending data over time")
 
 	return nil
 }

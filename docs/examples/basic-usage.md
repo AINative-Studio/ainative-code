@@ -393,7 +393,7 @@ ainative-code session list --limit 5
 
 ```bash
 # Resume specific session
-ainative-code chat --session abc123
+ainative-code chat --session-id abc123
 
 # Resume last session
 ainative-code chat --resume

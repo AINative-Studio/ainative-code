@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/AINative-studio/ainative-code/internal/auth/keychain"
@@ -11,9 +13,11 @@ import (
 
 var (
 	// OAuth configuration (should be loaded from config file)
+	// NOTE: auth.ainative.studio is currently unreachable (Issue #98)
+	// Using localhost mock server as fallback for development/testing
 	defaultOAuthConfig = oauth.Config{
-		AuthURL:     "https://auth.ainative.studio/authorize",
-		TokenURL:    "https://auth.ainative.studio/token",
+		AuthURL:     getAuthURL(),
+		TokenURL:    getTokenURL(),
 		ClientID:    "ainative-code-cli",
 		RedirectURL: "http://localhost:8080/callback",
 		Scopes:      []string{"read", "write", "offline_access"},
@@ -88,6 +92,62 @@ var tokenStatusCmd = &cobra.Command{
 	RunE:  runTokenStatus,
 }
 
+// getAuthURL returns the authorization endpoint URL with fallback logic
+func getAuthURL() string {
+	// Check environment variable override first
+	if url := os.Getenv("AINATIVE_AUTH_URL"); url != "" {
+		return url
+	}
+
+	// Production endpoint (currently unreachable - Issue #98)
+	prodURL := "https://auth.ainative.studio/oauth/authorize"
+
+	// Try to verify if production endpoint is reachable
+	if isEndpointReachable(prodURL) {
+		return prodURL
+	}
+
+	// Fallback to localhost mock server for development
+	// Users should set AINATIVE_AUTH_URL to use alternative auth server
+	return "http://localhost:9090/oauth/authorize"
+}
+
+// getTokenURL returns the token endpoint URL with fallback logic
+func getTokenURL() string {
+	// Check environment variable override first
+	if url := os.Getenv("AINATIVE_TOKEN_URL"); url != "" {
+		return url
+	}
+
+	// Production endpoint (currently unreachable - Issue #98)
+	prodURL := "https://auth.ainative.studio/oauth/token"
+
+	// Try to verify if production endpoint is reachable
+	if isEndpointReachable(prodURL) {
+		return prodURL
+	}
+
+	// Fallback to localhost mock server for development
+	return "http://localhost:9090/oauth/token"
+}
+
+// isEndpointReachable checks if an endpoint is reachable with a quick HEAD request
+func isEndpointReachable(url string) bool {
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+	}
+
+	resp, err := client.Head(url)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	// Consider 2xx, 3xx, 4xx as "reachable" (server exists)
+	// Only 5xx or network errors mean unreachable
+	return resp.StatusCode < 500
+}
+
 func init() {
 	// Register auth command to root
 	rootCmd.AddCommand(authCmd)
@@ -129,10 +189,35 @@ func runLogin(cmd *cobra.Command, args []string) error {
 
 	oauthClient := oauth.NewClient(oauthConfig)
 
+	// Show warning if using fallback endpoints
+	if authURL == "http://localhost:9090/oauth/authorize" {
+		cmd.Println("⚠️  WARNING: Using localhost mock auth server (production server unreachable)")
+		cmd.Println("   To use a different auth server, set environment variables:")
+		cmd.Println("   export AINATIVE_AUTH_URL=<your-auth-url>")
+		cmd.Println("   export AINATIVE_TOKEN_URL=<your-token-url>")
+		cmd.Println()
+		cmd.Println("   Or use command flags:")
+		cmd.Println("   --auth-url <url> --token-url <url>")
+		cmd.Println()
+	}
+
 	// Start authentication flow
 	cmd.Println("Initiating authentication flow...")
+	cmd.Printf("Auth URL: %s\n", authURL)
+	cmd.Printf("Token URL: %s\n", tokenURL)
+	cmd.Println()
+
 	tokens, err := oauthClient.Authenticate(ctx)
 	if err != nil {
+		// Provide helpful error message
+		cmd.Println()
+		cmd.Println("❌ Authentication failed")
+		cmd.Println()
+		cmd.Println("Troubleshooting:")
+		cmd.Println("1. Check if the auth server is running and reachable")
+		cmd.Println("2. For development, you can run a local mock OAuth server on port 9090")
+		cmd.Println("3. Set custom auth endpoints using environment variables or flags")
+		cmd.Println()
 		return fmt.Errorf("authentication failed: %w", err)
 	}
 

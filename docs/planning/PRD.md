@@ -256,7 +256,7 @@ features:
 **Commands**:
 ```bash
 ainative-code chat                    # Start new session
-ainative-code chat --session xyz      # Resume session by ID
+ainative-code chat --session-id xyz   # Resume session by ID
 ainative-code sessions list           # List all sessions
 ainative-code sessions export xyz     # Export session to file
 ainative-code sessions delete xyz     # Delete session

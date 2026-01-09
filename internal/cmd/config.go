@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/AINative-studio/ainative-code/internal/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/AINative-studio/ainative-code/internal/logger"
 )
 
 // configCmd represents the config command
@@ -44,9 +44,19 @@ Examples:
 var configShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show current configuration",
-	Long:  `Display all current configuration values.`,
+	Long: `Display all current configuration values.
+
+By default, sensitive values (API keys, tokens, passwords, secrets) are masked
+for security. Use the --show-secrets flag to display full values when needed.
+
+Examples:
+  # Show configuration with masked secrets
+  ainative-code config show
+
+  # Show configuration with full secrets (use with caution)
+  ainative-code config show --show-secrets`,
 	Aliases: []string{"list", "ls"},
-	RunE:  runConfigShow,
+	RunE:    runConfigShow,
 }
 
 // configSetCmd represents the config set command
@@ -93,12 +103,18 @@ func init() {
 	configCmd.AddCommand(configInitCmd)
 	configCmd.AddCommand(configValidateCmd)
 
+	// Config show flags
+	configShowCmd.Flags().BoolP("show-secrets", "s", false, "show sensitive values (API keys, tokens, passwords) in plain text")
+
 	// Config init flags
 	configInitCmd.Flags().BoolP("force", "f", false, "overwrite existing config file")
 }
 
 func runConfigShow(cmd *cobra.Command, args []string) error {
 	logger.Debug("Showing configuration")
+
+	// Check if user wants to show secrets
+	showSecrets, _ := cmd.Flags().GetBool("show-secrets")
 
 	fmt.Println("Current Configuration:")
 	fmt.Println("======================")
@@ -109,14 +125,28 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	for key, value := range allSettings {
-		fmt.Printf("%s: %v\n", key, value)
+	// Mask sensitive data unless --show-secrets flag is set
+	displaySettings := allSettings
+	if !showSecrets {
+		displaySettings = maskSensitiveData(allSettings).(map[string]interface{})
+		fmt.Println("(Sensitive values are masked. Use --show-secrets to display full values)")
+		fmt.Println()
 	}
+
+	// Format and display the configuration
+	output := formatConfigOutput(displaySettings, 0)
+	fmt.Print(output)
 
 	if viper.ConfigFileUsed() != "" {
 		fmt.Printf("\nConfig file: %s\n", viper.ConfigFileUsed())
 	} else {
 		fmt.Println("\nNo config file in use")
+	}
+
+	// Show security warning if secrets are displayed
+	if showSecrets {
+		fmt.Println("\nWARNING: Sensitive values are displayed in plain text!")
+		fmt.Println("Ensure this output is not shared or logged in insecure locations.")
 	}
 
 	return nil
@@ -171,11 +201,28 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 
 	logger.DebugEvent().Str("key", key).Msg("Getting configuration value")
 
-	if !viper.IsSet(key) {
+	// Check if key exists in configuration
+	// viper.IsSet returns false for keys with empty string values (Issue #101)
+	// So we need to check both IsSet and if the value is explicitly an empty string
+	value := viper.Get(key)
+
+	// If viper.Get returns nil, the key truly doesn't exist
+	if !viper.IsSet(key) && value == nil {
 		return fmt.Errorf("configuration key '%s' not found", key)
 	}
 
-	value := viper.Get(key)
+	// Handle empty string values explicitly
+	if strValue, ok := value.(string); ok && strValue == "" {
+		fmt.Printf("%s: (empty)\n", key)
+		return nil
+	}
+
+	// For nil values from empty config entries
+	if value == nil {
+		fmt.Printf("%s: (not set)\n", key)
+		return nil
+	}
+
 	fmt.Printf("%s: %v\n", key, value)
 
 	return nil

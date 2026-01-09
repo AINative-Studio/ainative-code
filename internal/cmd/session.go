@@ -9,30 +9,30 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/spf13/cobra"
 	"github.com/AINative-studio/ainative-code/internal/logger"
 	"github.com/AINative-studio/ainative-code/internal/session"
+	"github.com/google/uuid"
+	"github.com/spf13/cobra"
 )
 
 var (
-	sessionListAll    bool
-	sessionLimit      int
-	exportFormat      string
-	exportOutput      string
-	exportTemplate    string
-	searchLimit       int
-	searchDateFrom    string
-	searchDateTo      string
-	searchProvider    string
-	searchOutputJSON  bool
+	sessionListAll   bool
+	sessionLimit     int
+	exportFormat     string
+	exportOutput     string
+	exportTemplate   string
+	searchLimit      int
+	searchDateFrom   string
+	searchDateTo     string
+	searchProvider   string
+	searchOutputJSON bool
 	// Create command flags
-	createTitle       string
-	createTags        string
-	createProvider    string
-	createModel       string
-	createMetadata    string
-	createNoActivate  bool
+	createTitle      string
+	createTags       string
+	createProvider   string
+	createModel      string
+	createMetadata   string
+	createNoActivate bool
 )
 
 // sessionCmd represents the session command
@@ -67,31 +67,31 @@ Examples:
 
 // sessionListCmd represents the session list command
 var sessionListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List chat sessions",
-	Long:  `List all chat sessions or recent sessions.`,
+	Use:     "list",
+	Short:   "List chat sessions",
+	Long:    `List all chat sessions or recent sessions.`,
 	Aliases: []string{"ls", "l"},
-	RunE:  runSessionList,
+	RunE:    runSessionList,
 }
 
 // sessionShowCmd represents the session show command
 var sessionShowCmd = &cobra.Command{
-	Use:   "show [session-id]",
-	Short: "Show session details",
-	Long:  `Display detailed information about a specific session including messages.`,
+	Use:     "show [session-id]",
+	Short:   "Show session details",
+	Long:    `Display detailed information about a specific session including messages.`,
 	Aliases: []string{"view", "get"},
-	Args:  cobra.ExactArgs(1),
-	RunE:  runSessionShow,
+	Args:    cobra.ExactArgs(1),
+	RunE:    runSessionShow,
 }
 
 // sessionDeleteCmd represents the session delete command
 var sessionDeleteCmd = &cobra.Command{
-	Use:   "delete [session-id]",
-	Short: "Delete a session",
-	Long:  `Delete a session and all associated messages.`,
+	Use:     "delete [session-id]",
+	Short:   "Delete a session",
+	Long:    `Delete a session and all associated messages.`,
 	Aliases: []string{"rm", "remove"},
-	Args:  cobra.ExactArgs(1),
-	RunE:  runSessionDelete,
+	Args:    cobra.ExactArgs(1),
+	RunE:    runSessionDelete,
 }
 
 // sessionExportCmd represents the session export command
@@ -158,8 +158,8 @@ Examples:
 
   # Output results as JSON
   ainative-code session search "database" --json`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runSessionSearch,
+	Args: cobra.ExactArgs(1),
+	RunE: runSessionSearch,
 }
 
 // sessionCreateCmd represents the session create command
@@ -311,19 +311,222 @@ func runSessionShow(cmd *cobra.Command, args []string) error {
 	sessionID := args[0]
 	logger.DebugEvent().Str("session_id", sessionID).Msg("Showing session")
 
-	fmt.Printf("Session Details for: %s - Coming soon!\n", sessionID)
+	// Initialize database connection
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	// TODO: Implement session detail retrieval from ZeroDB
+	db, err := getDatabase()
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	// Create session manager
+	mgr := session.NewSQLiteManager(db)
+
+	// Get session
+	sess, err := mgr.GetSession(ctx, sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get session: %w", err)
+	}
+
+	// Get messages
+	messages, err := mgr.GetMessages(ctx, sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get messages: %w", err)
+	}
+
+	// Display session details
+	displaySessionDetails(sess, messages)
+
 	return nil
+}
+
+func displaySessionDetails(sess *session.Session, messages []*session.Message) {
+	// Color codes for better readability
+	const (
+		colorReset  = "\033[0m"
+		colorCyan   = "\033[36m"
+		colorYellow = "\033[33m"
+		colorGreen  = "\033[32m"
+		colorGray   = "\033[90m"
+		colorBold   = "\033[1m"
+		colorBlue   = "\033[34m"
+	)
+
+	fmt.Printf("\n%s=== Session Details ===%s\n\n", colorBold, colorReset)
+
+	// Session metadata
+	fmt.Printf("%sSession ID:%s %s\n", colorGray, colorReset, sess.ID)
+	fmt.Printf("%sTitle:%s %s%s%s\n", colorGray, colorReset, colorCyan, sess.Name, colorReset)
+	fmt.Printf("%sStatus:%s %s\n", colorGray, colorReset, sess.Status)
+	fmt.Printf("%sCreated:%s %s\n", colorGray, colorReset, sess.CreatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Printf("%sUpdated:%s %s\n", colorGray, colorReset, sess.UpdatedAt.Format("2006-01-02 15:04:05"))
+
+	if sess.Model != nil && *sess.Model != "" {
+		fmt.Printf("%sModel:%s %s\n", colorGray, colorReset, *sess.Model)
+	}
+
+	if sess.Temperature != nil {
+		fmt.Printf("%sTemperature:%s %.2f\n", colorGray, colorReset, *sess.Temperature)
+	}
+
+	if sess.MaxTokens != nil {
+		fmt.Printf("%sMax Tokens:%s %d\n", colorGray, colorReset, *sess.MaxTokens)
+	}
+
+	// Statistics
+	fmt.Printf("\n%s=== Statistics ===%s\n\n", colorBold, colorReset)
+	fmt.Printf("%sTotal Messages:%s %d\n", colorGray, colorReset, len(messages))
+
+	// Count messages by role
+	roleCounts := make(map[string]int)
+	var totalTokens int64
+	for _, msg := range messages {
+		roleCounts[string(msg.Role)]++
+		if msg.TokensUsed != nil {
+			totalTokens += *msg.TokensUsed
+		}
+	}
+
+	if userCount := roleCounts["user"]; userCount > 0 {
+		fmt.Printf("%sUser Messages:%s %d\n", colorGray, colorReset, userCount)
+	}
+	if assistantCount := roleCounts["assistant"]; assistantCount > 0 {
+		fmt.Printf("%sAssistant Messages:%s %d\n", colorGray, colorReset, assistantCount)
+	}
+	if systemCount := roleCounts["system"]; systemCount > 0 {
+		fmt.Printf("%sSystem Messages:%s %d\n", colorGray, colorReset, systemCount)
+	}
+	if toolCount := roleCounts["tool"]; toolCount > 0 {
+		fmt.Printf("%sTool Messages:%s %d\n", colorGray, colorReset, toolCount)
+	}
+
+	if totalTokens > 0 {
+		fmt.Printf("%sTotal Tokens:%s %d\n", colorGray, colorReset, totalTokens)
+	}
+
+	// Messages
+	if len(messages) > 0 {
+		fmt.Printf("\n%s=== Messages ===%s\n\n", colorBold, colorReset)
+
+		for i, msg := range messages {
+			// Role header with color
+			roleColor := colorGreen
+			if msg.Role == "user" {
+				roleColor = colorBlue
+			} else if msg.Role == "system" {
+				roleColor = colorYellow
+			}
+
+			fmt.Printf("%s%d. [%s%s%s] %s%s\n",
+				colorBold, i+1,
+				roleColor, strings.ToUpper(string(msg.Role)), colorReset,
+				colorGray, msg.Timestamp.Format("2006-01-02 15:04:05"))
+
+			// Message metadata
+			if msg.Model != nil && *msg.Model != "" {
+				fmt.Printf("   %sModel:%s %s\n", colorGray, colorReset, *msg.Model)
+			}
+			if msg.TokensUsed != nil {
+				fmt.Printf("   %sTokens:%s %d\n", colorGray, colorReset, *msg.TokensUsed)
+			}
+			if msg.FinishReason != nil && *msg.FinishReason != "" {
+				fmt.Printf("   %sFinish Reason:%s %s\n", colorGray, colorReset, *msg.FinishReason)
+			}
+
+			// Message content
+			fmt.Printf("\n")
+			content := msg.Content
+			// Truncate very long messages
+			maxContentLength := 1000
+			if len(content) > maxContentLength {
+				content = content[:maxContentLength] + fmt.Sprintf("\n\n%s... (truncated, %d more characters)%s",
+					colorGray, len(msg.Content)-maxContentLength, colorReset)
+			}
+
+			// Indent content
+			lines := strings.Split(content, "\n")
+			for _, line := range lines {
+				fmt.Printf("   %s\n", line)
+			}
+
+			if i < len(messages)-1 {
+				fmt.Printf("\n%s%s%s\n\n", colorGray, strings.Repeat("-", 80), colorReset)
+			}
+		}
+	} else {
+		fmt.Printf("\n%sNo messages in this session yet.%s\n", colorGray, colorReset)
+	}
+
+	fmt.Println()
 }
 
 func runSessionDelete(cmd *cobra.Command, args []string) error {
 	sessionID := args[0]
 	logger.DebugEvent().Str("session_id", sessionID).Msg("Deleting session")
 
-	fmt.Printf("Deleting session: %s - Coming soon!\n", sessionID)
+	// Initialize database connection
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	// TODO: Implement session deletion from ZeroDB
+	db, err := getDatabase()
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	// Create session manager
+	mgr := session.NewSQLiteManager(db)
+
+	// Verify session exists before attempting deletion
+	sess, err := mgr.GetSession(ctx, sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get session: %w", err)
+	}
+
+	// Display session info and request confirmation
+	fmt.Printf("\nYou are about to delete the following session:\n")
+	fmt.Printf("  ID: %s\n", sess.ID)
+	fmt.Printf("  Title: %s\n", sess.Name)
+	fmt.Printf("  Status: %s\n", sess.Status)
+	fmt.Printf("  Created: %s\n", sess.CreatedAt.Format("2006-01-02 15:04"))
+
+	// Get message count to show user what will be deleted
+	messageCount, err := mgr.GetSessionMessageCount(ctx, sessionID)
+	if err == nil && messageCount > 0 {
+		fmt.Printf("  Messages: %d\n", messageCount)
+	}
+
+	fmt.Printf("\nThis will permanently delete the session and all its messages.\n")
+	fmt.Printf("Are you sure you want to continue? (y/N): ")
+
+	// Read user confirmation
+	var response string
+	fmt.Scanln(&response)
+
+	// Check for positive confirmation
+	if response != "y" && response != "Y" && response != "yes" && response != "Yes" {
+		fmt.Println("\nDeletion cancelled.")
+		logger.InfoEvent().
+			Str("session_id", sessionID).
+			Msg("Session deletion cancelled by user")
+		return nil
+	}
+
+	// Perform hard delete (permanent deletion)
+	if err := mgr.HardDeleteSession(ctx, sessionID); err != nil {
+		return fmt.Errorf("failed to delete session: %w", err)
+	}
+
+	fmt.Printf("\nSession '%s' deleted successfully.\n", sess.Name)
+
+	logger.InfoEvent().
+		Str("session_id", sessionID).
+		Str("title", sess.Name).
+		Int64("messages_deleted", messageCount).
+		Msg("Session deleted successfully")
+
 	return nil
 }
 
@@ -737,7 +940,7 @@ func runSessionCreate(cmd *cobra.Command, args []string) error {
 		// Store the active session ID in a config file or environment
 		// For now, we'll just output a message
 		fmt.Printf("\nSession activated. Use this ID to continue the conversation:\n")
-		fmt.Printf("  ainative-code chat --session %s\n", sessionID)
+		fmt.Printf("  ainative-code chat --session-id %s\n", sessionID)
 
 		// TODO: Implement actual session activation by storing session ID
 		// in configuration file or environment variable

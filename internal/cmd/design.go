@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/AINative-studio/ainative-code/internal/logger"
@@ -120,15 +121,48 @@ func init() {
 func runDesignList(cmd *cobra.Command, args []string) error {
 	logger.Debug("Listing design tokens")
 
-	fmt.Println("Design Tokens:")
+	fmt.Println("Design Tokens")
 	fmt.Println("==============")
+	fmt.Println()
 
-	// TODO: Implement token listing from database
-	// - Query all tokens
-	// - Group by category (colors, typography, spacing, etc.)
-	// - Display in formatted table
-
-	fmt.Println("Coming soon!")
+	fmt.Println("This command requires design tokens database schema to be implemented.")
+	fmt.Println()
+	fmt.Println("Current Status:")
+	fmt.Println("  • Design token storage requires database schema (planned)")
+	fmt.Println("  • Design token import/export functionality is stubbed out")
+	fmt.Println("  • Strapi sync for design tokens is planned")
+	fmt.Println()
+	fmt.Println("Design tokens are typically managed in:")
+	fmt.Println("  1. Design files (Figma, Sketch, etc.)")
+	fmt.Println("  2. Strapi CMS for centralized management")
+	fmt.Println("  3. JSON/YAML files in your repository")
+	fmt.Println()
+	fmt.Println("Common design token categories:")
+	fmt.Println()
+	fmt.Println("  Colors:")
+	fmt.Println("    • colors.primary")
+	fmt.Println("    • colors.secondary")
+	fmt.Println("    • colors.accent")
+	fmt.Println("    • colors.text.primary")
+	fmt.Println("    • colors.text.secondary")
+	fmt.Println()
+	fmt.Println("  Typography:")
+	fmt.Println("    • typography.font.family")
+	fmt.Println("    • typography.font.size.base")
+	fmt.Println("    • typography.line.height")
+	fmt.Println("    • typography.font.weight.normal")
+	fmt.Println()
+	fmt.Println("  Spacing:")
+	fmt.Println("    • spacing.xs (4px)")
+	fmt.Println("    • spacing.sm (8px)")
+	fmt.Println("    • spacing.md (16px)")
+	fmt.Println("    • spacing.lg (24px)")
+	fmt.Println("    • spacing.xl (32px)")
+	fmt.Println()
+	fmt.Println("To use design tokens now:")
+	fmt.Println("  • Use 'design import --file tokens.json' to import from a file")
+	fmt.Println("  • Use 'design export --file tokens.json' to export to a file")
+	fmt.Println("  • Use 'strapi fetch design-tokens' to sync from Strapi CMS")
 
 	return nil
 }
@@ -138,13 +172,66 @@ func runDesignShow(cmd *cobra.Command, args []string) error {
 
 	logger.DebugEvent().Str("token_name", tokenName).Msg("Showing token details")
 
-	fmt.Printf("Token: %s\n", tokenName)
-	fmt.Println("Details coming soon!")
+	fmt.Printf("\nDesign Token: %s\n", tokenName)
+	fmt.Println(strings.Repeat("=", 50))
+	fmt.Println()
 
-	// TODO: Implement token detail retrieval
-	// - Query specific token
-	// - Display all properties
-	// - Show usage examples
+	fmt.Println("This command requires design tokens database schema to be implemented.")
+	fmt.Println()
+	fmt.Println("Example token structure:")
+	fmt.Println()
+
+	// Show example based on token name pattern
+	if strings.Contains(tokenName, "color") {
+		fmt.Println("  {")
+		fmt.Printf("    \"name\": \"%s\",\n", tokenName)
+		fmt.Println("    \"type\": \"color\",")
+		fmt.Println("    \"value\": \"#3B82F6\",")
+		fmt.Println("    \"description\": \"Primary brand color\",")
+		fmt.Println("    \"category\": \"colors\",")
+		fmt.Println("    \"metadata\": {")
+		fmt.Println("      \"rgb\": \"59, 130, 246\",")
+		fmt.Println("      \"hsl\": \"217, 91%, 60%\"")
+		fmt.Println("    }")
+		fmt.Println("  }")
+	} else if strings.Contains(tokenName, "typography") || strings.Contains(tokenName, "font") {
+		fmt.Println("  {")
+		fmt.Printf("    \"name\": \"%s\",\n", tokenName)
+		fmt.Println("    \"type\": \"typography\",")
+		fmt.Println("    \"value\": \"16px\",")
+		fmt.Println("    \"description\": \"Base font size\",")
+		fmt.Println("    \"category\": \"typography\",")
+		fmt.Println("    \"metadata\": {")
+		fmt.Println("      \"rem\": \"1rem\",")
+		fmt.Println("      \"lineHeight\": \"1.5\"")
+		fmt.Println("    }")
+		fmt.Println("  }")
+	} else if strings.Contains(tokenName, "spacing") {
+		fmt.Println("  {")
+		fmt.Printf("    \"name\": \"%s\",\n", tokenName)
+		fmt.Println("    \"type\": \"spacing\",")
+		fmt.Println("    \"value\": \"16px\",")
+		fmt.Println("    \"description\": \"Medium spacing\",")
+		fmt.Println("    \"category\": \"spacing\",")
+		fmt.Println("    \"metadata\": {")
+		fmt.Println("      \"rem\": \"1rem\",")
+		fmt.Println("      \"scale\": \"4px base\"")
+		fmt.Println("    }")
+		fmt.Println("  }")
+	} else {
+		fmt.Println("  {")
+		fmt.Printf("    \"name\": \"%s\",\n", tokenName)
+		fmt.Println("    \"type\": \"unknown\",")
+		fmt.Println("    \"value\": \"...\",")
+		fmt.Println("    \"description\": \"Token description\",")
+		fmt.Println("    \"category\": \"general\"")
+		fmt.Println("  }")
+	}
+
+	fmt.Println()
+	fmt.Println("To view actual tokens:")
+	fmt.Println("  • Use 'design list' to see all available tokens")
+	fmt.Println("  • Import tokens from a file with 'design import --file tokens.json'")
 
 	return nil
 }

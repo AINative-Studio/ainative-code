@@ -145,7 +145,7 @@ Session created successfully!
   Created: 2026-01-07T17:18:08Z
 
 Session activated. Use this ID to continue the conversation:
-  ainative-code chat --session 12345678-1234-1234-1234-123456789abc
+  ainative-code chat --session-id 12345678-1234-1234-1234-123456789abc
 ```
 
 ### Session with All Options
@@ -276,7 +276,7 @@ $ ainative-code session create --help
 
 1. **Database FTS5 Dependency:** Session creation fails if SQLite is not compiled with FTS5 support. This is an existing database configuration issue, not related to the create command implementation.
 
-2. **Session Activation:** Currently displays a message to use the session with `chat --session`, but actual activation (storing active session ID) is marked as TODO for future implementation.
+2. **Session Activation:** Currently displays a message to use the session with `chat --session-id`, but actual activation (storing active session ID) is marked as TODO for future implementation.
 
 ## API Completeness
 

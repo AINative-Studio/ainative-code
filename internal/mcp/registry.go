@@ -208,6 +208,10 @@ func (r *Registry) GetAllHealthStatus() map[string]*HealthStatus {
 
 // StartHealthChecks starts periodic health checks for all servers.
 func (r *Registry) StartHealthChecks(ctx context.Context) {
+	// If context is nil, use background context to prevent panics
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	r.wg.Add(1)
 	go r.healthCheckLoop(ctx)
 }
@@ -238,6 +242,14 @@ func (r *Registry) healthCheckLoop(ctx context.Context) {
 			r.performHealthChecks(ctx)
 		}
 	}
+}
+
+// SetHealthStatus manually sets the health status for a server.
+// This is primarily used for testing purposes.
+func (r *Registry) SetHealthStatus(name string, status *HealthStatus) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.healthStatus[name] = status
 }
 
 // performHealthChecks checks health of all servers.

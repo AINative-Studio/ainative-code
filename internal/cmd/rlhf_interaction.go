@@ -209,12 +209,31 @@ func runBatchInteraction(ctx context.Context, rlhfClient *rlhf.Client, jsonOutpu
 }
 
 func runAutoCapture(ctx context.Context, rlhfClient *rlhf.Client, jsonOutput bool) error {
-	// TODO: Implement auto-capture from current chat session
-	// This would integrate with session management to automatically
-	// capture interactions from the active session
-
-	fmt.Println("Auto-capture feature coming soon!")
-	fmt.Println("This will automatically capture interactions from your current chat session.")
+	// Auto-capture requires integration with active session management
+	fmt.Println()
+	fmt.Println("Auto-Capture Feature")
+	fmt.Println("====================")
+	fmt.Println()
+	fmt.Println("Auto-capture requires integration with session management.")
+	fmt.Println()
+	fmt.Println("This feature will:")
+	fmt.Println("  • Automatically capture interactions from your active chat session")
+	fmt.Println("  • Extract prompt and response pairs")
+	fmt.Println("  • Prompt you for feedback scores")
+	fmt.Println("  • Submit feedback to the RLHF system")
+	fmt.Println()
+	fmt.Println("Current Status: Planned for future release")
+	fmt.Println()
+	fmt.Println("For now, manually submit feedback using:")
+	fmt.Println()
+	fmt.Println("  ainative-code rlhf interaction \\")
+	fmt.Println("    --prompt \"Your question\" \\")
+	fmt.Println("    --response \"AI response\" \\")
+	fmt.Println("    --score 0.95")
+	fmt.Println()
+	fmt.Println("Or submit batch feedback from a file:")
+	fmt.Println()
+	fmt.Println("  ainative-code rlhf interaction --batch interactions.json")
 
 	return nil
 }

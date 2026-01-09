@@ -3,7 +3,7 @@
 # AINative Code Installation Script
 # This script installs the latest version of AINative Code for Linux and macOS
 
-set -e
+# Note: We don't use 'set -e' to allow graceful error handling and fallback installation
 
 # Colors for output
 RED='\033[0;31m'
@@ -94,13 +94,21 @@ download_file() {
     print_info "Downloading from $url..."
 
     if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$url" -o "$output"
+        if ! curl -fsSL "$url" -o "$output"; then
+            print_error "Failed to download from $url"
+            return 1
+        fi
     elif command -v wget >/dev/null 2>&1; then
-        wget -qO "$output" "$url"
+        if ! wget -qO "$output" "$url"; then
+            print_error "Failed to download from $url"
+            return 1
+        fi
     else
         print_error "Neither curl nor wget is available"
-        exit 1
+        print_error "Please install curl or wget and try again"
+        return 1
     fi
+    return 0
 }
 
 verify_checksum() {
@@ -140,13 +148,77 @@ install_binary() {
     if [ -w "$INSTALL_DIR" ]; then
         cp "$binary_path" "$install_path"
         chmod +x "$install_path"
+        print_success "Installation complete!"
+        return 0
     else
         print_warning "Installing to $INSTALL_DIR requires root privileges"
-        sudo cp "$binary_path" "$install_path"
-        sudo chmod +x "$install_path"
-    fi
 
-    print_success "Installation complete!"
+        # Try sudo installation
+        if sudo -n true 2>/dev/null; then
+            # Passwordless sudo available
+            if sudo cp "$binary_path" "$install_path" && sudo chmod +x "$install_path"; then
+                print_success "Installation complete!"
+                return 0
+            fi
+        else
+            # Need password for sudo
+            print_info "Please enter your password for sudo access..."
+            if sudo cp "$binary_path" "$install_path" 2>/dev/null && sudo chmod +x "$install_path" 2>/dev/null; then
+                print_success "Installation complete!"
+                return 0
+            fi
+        fi
+
+        # Sudo failed or was cancelled - fall back to user directory
+        print_warning "Sudo installation failed or was cancelled"
+        return 1
+    fi
+}
+
+install_to_user_directory() {
+    local binary_path="$1"
+
+    # Try ~/.local/bin first (XDG standard), then ~/bin
+    local user_dirs=("$HOME/.local/bin" "$HOME/bin")
+
+    for user_dir in "${user_dirs[@]}"; do
+        print_info "Attempting fallback installation to $user_dir..."
+
+        # Create directory if it doesn't exist
+        if [ ! -d "$user_dir" ]; then
+            if mkdir -p "$user_dir" 2>/dev/null; then
+                print_info "Created directory $user_dir"
+            else
+                print_warning "Could not create directory $user_dir"
+                continue
+            fi
+        fi
+
+        # Check if directory is writable
+        if [ -w "$user_dir" ]; then
+            local install_path="$user_dir/ainative-code"
+            if cp "$binary_path" "$install_path" && chmod +x "$install_path"; then
+                print_success "Successfully installed to $install_path"
+                INSTALL_DIR="$user_dir"
+                return 0
+            else
+                print_warning "Failed to install to $user_dir"
+            fi
+        else
+            print_warning "Directory $user_dir is not writable"
+        fi
+    done
+
+    # All fallback attempts failed
+    print_error "Could not install to any location"
+    print_error "Tried: /usr/local/bin, ~/.local/bin, ~/bin"
+    print_error ""
+    print_error "You can manually install by running:"
+    print_error "  mkdir -p ~/.local/bin"
+    print_error "  cp $binary_path ~/.local/bin/ainative-code"
+    print_error "  chmod +x ~/.local/bin/ainative-code"
+    print_error "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+    return 1
 }
 
 check_dependencies() {
@@ -232,14 +304,19 @@ setup_path() {
     echo ""
     print_warning "Installation directory $INSTALL_DIR is not in your PATH"
     echo ""
-    echo "To add it to your PATH automatically, run:"
+    print_info "To use ainative-code, you need to add it to your PATH"
+    echo ""
+    echo "Run these commands to add it automatically:"
     echo ""
     echo "  echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> $shell_rc"
     echo "  source $shell_rc"
     echo ""
-    echo "Or add this line to your $shell_rc manually:"
+    echo "Or add this line to your $shell_rc manually and restart your terminal:"
     echo ""
     echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
+    echo ""
+    echo "After updating your PATH, verify the installation with:"
+    echo "  ainative-code version"
     echo ""
 }
 
@@ -279,19 +356,24 @@ main() {
 
     # Download archive
     local archive_path="${TEMP_DIR}/${archive_name}"
-    download_file "$download_url" "$archive_path"
+    if ! download_file "$download_url" "$archive_path"; then
+        print_error "Failed to download AINative Code archive"
+        exit 1
+    fi
 
     # Download and verify checksum
     local checksums_path="${TEMP_DIR}/checksums.txt"
-    download_file "$checksums_url" "$checksums_path"
-
-    local expected_checksum
-    expected_checksum=$(grep "$archive_name" "$checksums_path" | awk '{print $1}')
-
-    if [ -z "$expected_checksum" ]; then
-        print_warning "Could not find checksum for $archive_name. Skipping verification."
+    if ! download_file "$checksums_url" "$checksums_path"; then
+        print_warning "Failed to download checksums file, skipping verification"
     else
-        verify_checksum "$archive_path" "$expected_checksum"
+        local expected_checksum
+        expected_checksum=$(grep "$archive_name" "$checksums_path" 2>/dev/null | awk '{print $1}')
+
+        if [ -z "$expected_checksum" ]; then
+            print_warning "Could not find checksum for $archive_name. Skipping verification."
+        else
+            verify_checksum "$archive_path" "$expected_checksum"
+        fi
     fi
 
     # Extract archive
@@ -306,7 +388,14 @@ main() {
     fi
 
     # Install binary
-    install_binary "$binary_path"
+    if ! install_binary "$binary_path"; then
+        # Primary installation failed, try user directory fallback
+        print_info ""
+        print_info "Falling back to user directory installation..."
+        if ! install_to_user_directory "$binary_path"; then
+            exit 1
+        fi
+    fi
 
     # Verify installation
     print_info "Verifying installation..."

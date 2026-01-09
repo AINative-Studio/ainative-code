@@ -36,7 +36,6 @@ type PromptModel struct {
 	Selections  map[string]interface{}
 	textInput   textinput.Model
 	cursor      int
-	choices     []string
 	err         error
 }
 
@@ -52,7 +51,6 @@ func NewPromptModel() PromptModel {
 		Selections:  make(map[string]interface{}),
 		textInput:   ti,
 		cursor:      0,
-		choices:     []string{},
 	}
 }
 
@@ -78,12 +76,12 @@ func (m PromptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleEnter()
 
 		case "up", "k":
-			if m.cursor > 0 {
+			if !m.isTextInputStep() && m.cursor > 0 {
 				m.cursor--
 			}
 
 		case "down", "j":
-			if len(m.choices) > 0 && m.cursor < len(m.choices)-1 {
+			if !m.isTextInputStep() && m.cursor < m.getChoiceCount()-1 {
 				m.cursor++
 			}
 
@@ -296,7 +294,6 @@ func (m PromptModel) View() string {
 // Helper methods
 
 func (m PromptModel) renderChoices(choices []string) string {
-	m.choices = choices
 	var s strings.Builder
 
 	selectedStyle := lipgloss.NewStyle().
@@ -512,6 +509,23 @@ func (m PromptModel) getStepKey() string {
 		return "prompt_caching"
 	default:
 		return ""
+	}
+}
+
+func (m PromptModel) getChoiceCount() int {
+	switch m.currentStep {
+	case StepProvider:
+		return 4 // Anthropic, OpenAI, Google, Ollama
+	case StepAnthropicModel:
+		return 4 // 4 Claude models
+	case StepOpenAIModel:
+		return 3 // 3 GPT models
+	case StepGoogleModel:
+		return 2 // 2 Gemini models
+	case StepColorScheme:
+		return 3 // Auto, Light, Dark
+	default:
+		return 0
 	}
 }
 

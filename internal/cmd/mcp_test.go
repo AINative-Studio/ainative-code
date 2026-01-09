@@ -21,10 +21,14 @@ func setupMCPTest(t *testing.T) (*cobra.Command, *bytes.Buffer) {
 	// Reset global registry
 	mcpRegistry = mcp.NewRegistry(1 * time.Minute)
 
-	// Create test command
+	// Create test command with context
 	cmd := &cobra.Command{
 		Use: "test",
 	}
+
+	// Set a background context for the command to prevent nil context panics
+	ctx := context.Background()
+	cmd.SetContext(ctx)
 
 	// Create output buffer
 	output := new(bytes.Buffer)
@@ -184,10 +188,13 @@ func TestRunListServers(t *testing.T) {
 	err := mcpRegistry.AddServer(server)
 	require.NoError(t, err)
 
-	// Run health check
+	// Run health check and manually set it in the registry
+	ctx := context.Background()
 	client, _ := mcpRegistry.GetServer("test-server")
-	status := client.CheckHealth(context.Background())
-	mcpRegistry.GetAllHealthStatus()["test-server"] = status
+	status := client.CheckHealth(ctx)
+
+	// Set the health status in the registry so it's available when runListServers is called
+	mcpRegistry.SetHealthStatus("test-server", status)
 
 	err = runListServers(cmd, []string{})
 	assert.NoError(t, err)
