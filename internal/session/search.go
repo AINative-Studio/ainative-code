@@ -4,7 +4,23 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
+
+// sanitizeFTS5Query sanitizes a query string for FTS5 to prevent injection attacks
+func sanitizeFTS5Query(query string) string {
+	// Escape FTS5 special characters: " * ( ) AND OR NOT
+	query = strings.ReplaceAll(query, `"`, `""`)
+	query = strings.ReplaceAll(query, `*`, ``)
+	query = strings.ReplaceAll(query, `(`, ``)
+	query = strings.ReplaceAll(query, `)`, ``)
+	// Remove FTS5 operators to prevent injection
+	query = strings.ReplaceAll(query, " AND ", " ")
+	query = strings.ReplaceAll(query, " OR ", " ")
+	query = strings.ReplaceAll(query, " NOT ", " ")
+	// Wrap in quotes to treat as phrase
+	return `"` + query + `"`
+}
 
 // SearchAllMessages performs full-text search across all conversation messages
 func (m *SQLiteManager) SearchAllMessages(ctx context.Context, opts *SearchOptions) (*SearchResultSet, error) {
@@ -66,7 +82,8 @@ func (m *SQLiteManager) searchBasic(ctx context.Context, opts *SearchOptions) ([
 		LIMIT ? OFFSET ?
 	`
 
-	rows, err := m.db.DB().QueryContext(ctx, query, opts.Query, opts.Limit, opts.Offset)
+	sanitized := sanitizeFTS5Query(opts.Query)
+	rows, err := m.db.DB().QueryContext(ctx, query, sanitized, opts.Limit, opts.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to execute search query: %w", err)
 	}
@@ -78,7 +95,7 @@ func (m *SQLiteManager) searchBasic(ctx context.Context, opts *SearchOptions) ([
 	}
 
 	// Get total count
-	totalCount, err := m.searchCount(ctx, opts.Query)
+	totalCount, err := m.searchCount(ctx, sanitized)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -108,7 +125,8 @@ func (m *SQLiteManager) searchWithDateRange(ctx context.Context, opts *SearchOpt
 	dateFrom := formatTimestamp(*opts.DateFrom)
 	dateTo := formatTimestamp(*opts.DateTo)
 
-	rows, err := m.db.DB().QueryContext(ctx, query, opts.Query, dateFrom, dateTo, opts.Limit, opts.Offset)
+	sanitized := sanitizeFTS5Query(opts.Query)
+	rows, err := m.db.DB().QueryContext(ctx, query, sanitized, dateFrom, dateTo, opts.Limit, opts.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to execute search query with date range: %w", err)
 	}
@@ -120,7 +138,7 @@ func (m *SQLiteManager) searchWithDateRange(ctx context.Context, opts *SearchOpt
 	}
 
 	// Get total count
-	totalCount, err := m.searchCountWithDateRange(ctx, opts.Query, dateFrom, dateTo)
+	totalCount, err := m.searchCountWithDateRange(ctx, sanitized, dateFrom, dateTo)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -148,7 +166,8 @@ func (m *SQLiteManager) searchWithProvider(ctx context.Context, opts *SearchOpti
 
 	providerPattern := "%" + opts.Provider + "%"
 
-	rows, err := m.db.DB().QueryContext(ctx, query, opts.Query, providerPattern, opts.Limit, opts.Offset)
+	sanitized := sanitizeFTS5Query(opts.Query)
+	rows, err := m.db.DB().QueryContext(ctx, query, sanitized, providerPattern, opts.Limit, opts.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to execute search query with provider: %w", err)
 	}
@@ -160,7 +179,7 @@ func (m *SQLiteManager) searchWithProvider(ctx context.Context, opts *SearchOpti
 	}
 
 	// Get total count
-	totalCount, err := m.searchCountWithProvider(ctx, opts.Query, providerPattern)
+	totalCount, err := m.searchCountWithProvider(ctx, sanitized, providerPattern)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -192,7 +211,8 @@ func (m *SQLiteManager) searchWithAllFilters(ctx context.Context, opts *SearchOp
 	dateTo := formatTimestamp(*opts.DateTo)
 	providerPattern := "%" + opts.Provider + "%"
 
-	rows, err := m.db.DB().QueryContext(ctx, query, opts.Query, dateFrom, dateTo, providerPattern, opts.Limit, opts.Offset)
+	sanitized := sanitizeFTS5Query(opts.Query)
+	rows, err := m.db.DB().QueryContext(ctx, query, sanitized, dateFrom, dateTo, providerPattern, opts.Limit, opts.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to execute search query with all filters: %w", err)
 	}
@@ -204,7 +224,7 @@ func (m *SQLiteManager) searchWithAllFilters(ctx context.Context, opts *SearchOp
 	}
 
 	// Get total count
-	totalCount, err := m.searchCountWithAllFilters(ctx, opts.Query, dateFrom, dateTo, providerPattern)
+	totalCount, err := m.searchCountWithAllFilters(ctx, sanitized, dateFrom, dateTo, providerPattern)
 	if err != nil {
 		return nil, 0, err
 	}

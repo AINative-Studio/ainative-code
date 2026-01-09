@@ -674,6 +674,10 @@ func runSessionExport(cmd *cobra.Command, args []string) error {
 }
 
 func runSessionSearch(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
+		return fmt.Errorf("search query cannot be empty. Usage: ainative-code session search <query>")
+	}
+
 	query := args[0]
 
 	logger.InfoEvent().

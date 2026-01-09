@@ -88,7 +88,12 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	if cfgFile != "" {
-		// Use config file from the flag.
+		// Use config file from the flag - validate it exists
+		if _, err := os.Stat(cfgFile); os.IsNotExist(err) {
+			logger.ErrorEvent().Str("file", cfgFile).Msg("Config file not found")
+			fmt.Fprintf(os.Stderr, "Error: config file not found: %s\n", cfgFile)
+			os.Exit(1)
+		}
 		viper.SetConfigFile(cfgFile)
 	} else {
 		// Find home directory.

@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -240,6 +242,11 @@ func runDesignImport(cmd *cobra.Command, args []string) error {
 	file, _ := cmd.Flags().GetString("file")
 	merge, _ := cmd.Flags().GetBool("merge")
 
+	// Validate import file exists
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		return fmt.Errorf("import file not found: %s", file)
+	}
+
 	logger.InfoEvent().
 		Str("file", file).
 		Bool("merge", merge).
@@ -267,6 +274,12 @@ func runDesignImport(cmd *cobra.Command, args []string) error {
 func runDesignExport(cmd *cobra.Command, args []string) error {
 	file, _ := cmd.Flags().GetString("file")
 	format, _ := cmd.Flags().GetString("format")
+
+	// Validate export directory exists
+	dir := filepath.Dir(file)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return fmt.Errorf("export directory does not exist: %s", dir)
+	}
 
 	logger.InfoEvent().
 		Str("file", file).

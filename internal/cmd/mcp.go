@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -54,10 +55,9 @@ The server will be added to the registry and become available for tool operation
 
 // removeServerCmd removes an MCP server
 var removeServerCmd = &cobra.Command{
-	Use:   "remove-server [name]",
+	Use:   "remove-server",
 	Short: "Remove an MCP server",
 	Long:  `Unregister an MCP server from the registry. All tools from this server will become unavailable.`,
-	Args:  cobra.ExactArgs(1),
 	RunE:  runRemoveServer,
 }
 
@@ -110,6 +110,10 @@ func init() {
 	addServerCmd.Flags().StringToStringVar(&mcpServerHeaders, "headers", nil, "Custom headers (key=value)")
 	addServerCmd.MarkFlagRequired("name")
 	addServerCmd.MarkFlagRequired("url")
+
+	// Remove server flags
+	removeServerCmd.Flags().StringVarP(&mcpServerName, "name", "n", "", "Server name (required)")
+	removeServerCmd.MarkFlagRequired("name")
 
 	// Test tool flags
 	testToolCmd.Flags().StringVar(&mcpToolName, "tool", "", "Tool name (fully qualified: server.tool)")
@@ -170,6 +174,12 @@ func runListServers(cmd *cobra.Command, args []string) error {
 }
 
 func runAddServer(cmd *cobra.Command, args []string) error {
+	// Validate URL
+	_, err := url.ParseRequestURI(mcpServerURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %s", mcpServerURL)
+	}
+
 	server := &mcp.Server{
 		Name:        mcpServerName,
 		URL:         mcpServerURL,
@@ -219,7 +229,7 @@ func runAddServer(cmd *cobra.Command, args []string) error {
 }
 
 func runRemoveServer(cmd *cobra.Command, args []string) error {
-	serverName := args[0]
+	serverName, _ := cmd.Flags().GetString("name")
 
 	if err := mcpRegistry.RemoveServer(serverName); err != nil {
 		return fmt.Errorf("failed to remove server: %w", err)

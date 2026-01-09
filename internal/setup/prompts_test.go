@@ -31,9 +31,9 @@ func TestArrowKeyNavigation(t *testing.T) {
 		{
 			name:          "Down arrow on last option should stay at last",
 			currentStep:   StepProvider,
-			initialCursor: 3, // Last provider option (Ollama)
+			initialCursor: 4, // Last provider option (Ollama) - 5 providers total (0-4)
 			keyPress:      "down",
-			expectedCursor: 3,
+			expectedCursor: 4,
 		},
 		{
 			name:          "Up arrow on first option should stay at first",
@@ -77,6 +77,20 @@ func TestArrowKeyNavigation(t *testing.T) {
 			keyPress:      "up",
 			expectedCursor: 0,
 		},
+		{
+			name:          "Navigate through Meta Llama models",
+			currentStep:   StepMetaLlamaModel,
+			initialCursor: 0,
+			keyPress:      "down",
+			expectedCursor: 1,
+		},
+		{
+			name:          "Navigate to last Meta Llama model",
+			currentStep:   StepMetaLlamaModel,
+			initialCursor: 3,
+			keyPress:      "down",
+			expectedCursor: 3,
+		},
 	}
 
 	for _, tt := range tests {
@@ -116,6 +130,7 @@ func TestArrowKeysDoNotWorkOnTextInputSteps(t *testing.T) {
 		StepGoogleAPIKey,
 		StepOllamaURL,
 		StepOllamaModel,
+		StepMetaLlamaAPIKey,
 		StepAINativeAPIKey,
 	}
 
@@ -143,10 +158,11 @@ func TestGetChoiceCount(t *testing.T) {
 		step          Step
 		expectedCount int
 	}{
-		{StepProvider, 4},
+		{StepProvider, 5}, // Anthropic, OpenAI, Google, Meta Llama, Ollama
 		{StepAnthropicModel, 4},
 		{StepOpenAIModel, 3},
 		{StepGoogleModel, 2},
+		{StepMetaLlamaModel, 4}, // Added Meta Llama model step
 		{StepColorScheme, 3},
 		{StepAnthropicAPIKey, 0}, // Text input step
 		{StepExtendedThinking, 0}, // Yes/no step
@@ -204,6 +220,10 @@ func (s Step) String() string {
 		return "StepOllamaURL"
 	case StepOllamaModel:
 		return "StepOllamaModel"
+	case StepMetaLlamaAPIKey:
+		return "StepMetaLlamaAPIKey"
+	case StepMetaLlamaModel:
+		return "StepMetaLlamaModel"
 	case StepAINativeLogin:
 		return "StepAINativeLogin"
 	case StepAINativeAPIKey:

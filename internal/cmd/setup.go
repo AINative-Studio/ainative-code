@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -71,9 +72,21 @@ func runSetup(cmd *cobra.Command, args []string) error {
 
 	logger.InfoEvent().Msg("Starting setup wizard")
 
-	// Check if already initialized
-	if !setupForce && !setup.CheckFirstRun() {
-		return handleAlreadyInitialized(cmd)
+	// Check if already initialized - verify BOTH marker AND config file exist
+	if !setupForce {
+		homeDir, err := os.UserHomeDir()
+		if err == nil {
+			configPath := filepath.Join(homeDir, ".ainative-code.yaml")
+			markerPath := filepath.Join(homeDir, ".ainative-code-initialized")
+
+			// Only skip setup if BOTH marker AND config file exist
+			_, markerErr := os.Stat(markerPath)
+			_, configErr := os.Stat(configPath)
+
+			if markerErr == nil && configErr == nil {
+				return handleAlreadyInitialized(cmd)
+			}
+		}
 	}
 
 	// Configure wizard
