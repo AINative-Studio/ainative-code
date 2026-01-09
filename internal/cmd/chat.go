@@ -7,9 +7,11 @@ import (
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"github.com/AINative-studio/ainative-code/internal/logger"
 	llmprovider "github.com/AINative-studio/ainative-code/internal/provider"
+	"github.com/AINative-studio/ainative-code/internal/tui"
 )
 
 var (
@@ -178,127 +180,263 @@ func streamSingleMessage(ctx context.Context, aiProvider llmprovider.Provider, m
 	return nil
 }
 
-// runInteractiveChat starts an interactive chat session
+// runInteractiveChat starts an interactive chat session with TUI
 func runInteractiveChat(ctx context.Context, aiProvider llmprovider.Provider, modelName string) error {
-	logger.Info("Starting interactive chat mode")
+	logger.Info("Starting interactive chat mode with TUI")
 
-	fmt.Println("Interactive Chat Mode")
-	fmt.Printf("Provider: %s\n", GetProvider())
-	fmt.Printf("Model: %s\n", modelName)
-	fmt.Println("Type 'exit' or 'quit' to end the session")
-	fmt.Println("---")
+	// Initialize TUI model
+	model := tui.NewModel()
 
-	// Conversation history
-	var messages []llmprovider.Message
-
-	// Add system message if provided
+	// Add initial system message if provided
 	if chatSystemMsg != "" {
-		fmt.Printf("System: %s\n---\n", chatSystemMsg)
+		model.AddMessage("system", chatSystemMsg)
 	}
 
-	// Simple interactive loop (basic implementation)
-	// TODO: Replace with bubbletea for better UX
-	for {
-		fmt.Print("\nYou: ")
+	// Create bubbletea program with alt screen
+	p := tea.NewProgram(
+		&interactiveChatModel{
+			tuiModel:   model,
+			provider:   aiProvider,
+			modelName:  modelName,
+			ctx:        ctx,
+			messages:   []llmprovider.Message{},
+			systemMsg:  chatSystemMsg,
+		},
+		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
+	)
 
-		// Read user input
-		var input string
-		_, err := fmt.Scanln(&input)
-		if err != nil {
-			// Handle multi-word input
-			input = readLine()
+	// Run the program
+	finalModel, err := p.Run()
+	if err != nil {
+		return fmt.Errorf("error running TUI: %w", err)
+	}
+
+	// Check if there was an error during execution
+	if chatModel, ok := finalModel.(*interactiveChatModel); ok {
+		if chatModel.err != nil {
+			return chatModel.err
+		}
+	}
+
+	return nil
+}
+
+// interactiveChatModel wraps the TUI model with chat functionality
+type interactiveChatModel struct {
+	tuiModel         tui.Model
+	provider         llmprovider.Provider
+	modelName        string
+	ctx              context.Context
+	messages         []llmprovider.Message
+	systemMsg        string
+	err              error
+	waitingForAI     bool
+	lastUserInput    string
+	streamingContent string
+}
+
+// Init initializes the interactive chat model
+func (m *interactiveChatModel) Init() tea.Cmd {
+	return tea.Batch(
+		tea.EnterAltScreen,
+		tui.SendReady(),
+	)
+}
+
+// Update handles messages and updates the model
+func (m *interactiveChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
+	// Handle custom streaming messages first
+	switch msg := msg.(type) {
+	case streamStartMsg:
+		// Start processing stream events
+		m.tuiModel.SetStreaming(true)
+		m.streamingContent = ""  // Reset streaming content
+		return m, m.handleStreamEvents(msg.eventChan)
+
+	case streamChunkMsg:
+		// Track the streaming content
+		m.streamingContent += msg.content
+
+		// Add chunk to TUI
+		// Send the chunk as a stream chunk message to TUI
+		tuiModel, tuiCmd := m.tuiModel.Update(tui.SendStreamChunk(msg.content)())
+		if tuiModelTyped, ok := tuiModel.(tui.Model); ok {
+			m.tuiModel = tuiModelTyped
+		}
+		// Continue processing stream with the event channel
+		return m, tea.Batch(tuiCmd, m.handleStreamEvents(msg.eventChan))
+
+	case streamCompleteMsg:
+		// Streaming complete
+		m.tuiModel.SetStreaming(false)
+		m.waitingForAI = false
+
+		// Add assistant response to history
+		// Use streaming content if we were streaming, otherwise use msg.content (non-streaming)
+		content := msg.content
+		if content == "" && m.streamingContent != "" {
+			content = m.streamingContent
 		}
 
-		input = strings.TrimSpace(input)
-
-		// Check for exit commands
-		if input == "exit" || input == "quit" {
-			fmt.Println("Goodbye!")
-			return nil
+		if content != "" {
+			m.messages = append(m.messages, llmprovider.Message{
+				Role:    "assistant",
+				Content: content,
+			})
 		}
 
-		if input == "" {
-			continue
-		}
+		// Clear streaming content
+		m.streamingContent = ""
 
-		// Add user message to history
-		messages = append(messages, llmprovider.Message{
+		// Send stream done to TUI
+		tuiModel, tuiCmd := m.tuiModel.Update(tui.SendStreamDone()())
+		if tuiModelTyped, ok := tuiModel.(tui.Model); ok {
+			m.tuiModel = tuiModelTyped
+		}
+		return m, tuiCmd
+
+	case streamErrorMsg:
+		// Handle streaming error
+		m.err = msg.err
+		m.tuiModel.SetError(msg.err)
+		m.tuiModel.SetStreaming(false)
+		m.waitingForAI = false
+
+		// Send error to TUI
+		tuiModel, tuiCmd := m.tuiModel.Update(tui.SendError(msg.err)())
+		if tuiModelTyped, ok := tuiModel.(tui.Model); ok {
+			m.tuiModel = tuiModelTyped
+		}
+		return m, tuiCmd
+	}
+
+	// Capture user input before it's cleared by TUI
+	var userInput string
+	if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.String() == "enter" && !m.tuiModel.IsStreaming() {
+		userInput = strings.TrimSpace(m.tuiModel.GetUserInput())
+	}
+
+	// Let the TUI model handle the message
+	tuiModel, tuiCmd := m.tuiModel.Update(msg)
+	if tuiModelTyped, ok := tuiModel.(tui.Model); ok {
+		m.tuiModel = tuiModelTyped
+	}
+	if tuiCmd != nil {
+		cmds = append(cmds, tuiCmd)
+	}
+
+	// If we captured user input, process it now
+	if userInput != "" && userInput != m.lastUserInput {
+		m.lastUserInput = userInput
+
+		// Add to conversation history
+		m.messages = append(m.messages, llmprovider.Message{
 			Role:    "user",
-			Content: input,
+			Content: userInput,
 		})
 
+		// Start streaming AI response
+		m.waitingForAI = true
+		cmds = append(cmds, m.streamAIResponse())
+	}
+
+	// Check if user wants to quit
+	if m.tuiModel.IsQuitting() {
+		return m, tea.Quit
+	}
+
+	return m, tea.Batch(cmds...)
+}
+
+// View renders the chat interface
+func (m *interactiveChatModel) View() string {
+	return m.tuiModel.View()
+}
+
+// streamAIResponse streams the AI response and sends updates to the TUI
+func (m *interactiveChatModel) streamAIResponse() tea.Cmd {
+	return func() tea.Msg {
 		// Prepare options
 		opts := []llmprovider.ChatOption{
-			llmprovider.WithModel(modelName),
+			llmprovider.WithModel(m.modelName),
 		}
 
-		if chatSystemMsg != "" {
-			opts = append(opts, llmprovider.WithSystemPrompt(chatSystemMsg))
+		if m.systemMsg != "" {
+			opts = append(opts, llmprovider.WithSystemPrompt(m.systemMsg))
 		}
-
-		// Get AI response
-		fmt.Print("\nAssistant: ")
 
 		if chatStream {
-			// Stream response
+			// Convert to stream options
 			streamOpts := make([]llmprovider.StreamOption, len(opts))
 			for i, opt := range opts {
 				streamOpts[i] = llmprovider.StreamOption(opt)
 			}
 
-			eventChan, err := aiProvider.Stream(ctx, messages, streamOpts...)
+			// Start streaming
+			eventChan, err := m.provider.Stream(m.ctx, m.messages, streamOpts...)
 			if err != nil {
-				return fmt.Errorf("failed to start stream: %w", err)
+				return streamErrorMsg{err: err}
 			}
 
-			var fullResponse string
-			for event := range eventChan {
-				switch event.Type {
-				case llmprovider.EventTypeContentDelta:
-					fmt.Print(event.Content)
-					fullResponse += event.Content
-				case llmprovider.EventTypeError:
-					return fmt.Errorf("streaming error: %w", event.Error)
-				case llmprovider.EventTypeContentEnd:
-					fmt.Println()
-				}
-			}
-
-			// Add assistant response to history
-			messages = append(messages, llmprovider.Message{
-				Role:    "assistant",
-				Content: fullResponse,
-			})
-		} else {
-			// Non-streaming response
-			resp, err := aiProvider.Chat(ctx, messages, opts...)
-			if err != nil {
-				return fmt.Errorf("chat request failed: %w", err)
-			}
-
-			fmt.Println(resp.Content)
-
-			// Add assistant response to history
-			messages = append(messages, llmprovider.Message{
-				Role:    "assistant",
-				Content: resp.Content,
-			})
+			// Process streaming events in this goroutine
+			// Send each chunk as a separate message to the TUI
+			return streamStartMsg{eventChan: eventChan}
 		}
+
+		// Non-streaming response
+		resp, err := m.provider.Chat(m.ctx, m.messages, opts...)
+		if err != nil {
+			return streamErrorMsg{err: err}
+		}
+
+		return streamCompleteMsg{content: resp.Content}
 	}
 }
 
-// readLine reads a full line of input including spaces
-func readLine() string {
-	var line strings.Builder
-	var char byte
-	for {
-		_, err := fmt.Scanf("%c", &char)
-		if err != nil || char == '\n' {
-			break
+// Custom message types for streaming
+type streamStartMsg struct {
+	eventChan <-chan llmprovider.Event
+}
+
+type streamChunkMsg struct {
+	content   string
+	eventChan <-chan llmprovider.Event
+}
+
+type streamCompleteMsg struct {
+	content string
+}
+
+type streamErrorMsg struct {
+	err error
+}
+
+// handleStreamEvents creates a command that processes stream events
+func (m *interactiveChatModel) handleStreamEvents(eventChan <-chan llmprovider.Event) tea.Cmd {
+	return func() tea.Msg {
+		// Read the next event from the channel
+		event, ok := <-eventChan
+		if !ok {
+			// Channel closed, streaming is done
+			return streamCompleteMsg{}
 		}
-		line.WriteByte(char)
+
+		switch event.Type {
+		case llmprovider.EventTypeContentDelta:
+			return streamChunkMsg{content: event.Content, eventChan: eventChan}
+		case llmprovider.EventTypeError:
+			return streamErrorMsg{err: event.Error}
+		case llmprovider.EventTypeContentEnd:
+			// Stream is complete, return done message
+			return streamCompleteMsg{}
+		}
+
+		// Continue processing
+		return m.handleStreamEvents(eventChan)()
 	}
-	return line.String()
 }
 
 // getDefaultModel returns the default model for a given provider

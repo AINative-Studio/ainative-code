@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -96,18 +97,30 @@ func initConfig() {
 		}
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Find home directory.
+		// Config priority (like Crush):
+		// 1. ./.ainative-code.yaml (project-local, hidden)
+		// 2. ./ainative-code.yaml (project-local, visible)
+		// 3. ~/.ainative-code.yaml (global)
+
 		home, err := os.UserHomeDir()
 		if err != nil {
 			logger.ErrorEvent().Err(err).Msg("Failed to get home directory")
 			os.Exit(1)
 		}
 
-		// Search config in home directory with name ".ainative-code" (without extension).
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".ainative-code")
+		// Try files in priority order
+		configFiles := []string{
+			"./.ainative-code.yaml",
+			"./ainative-code.yaml",
+			filepath.Join(home, ".ainative-code.yaml"),
+		}
+
+		for _, configPath := range configFiles {
+			if _, err := os.Stat(configPath); err == nil {
+				viper.SetConfigFile(configPath)
+				break
+			}
+		}
 	}
 
 	// If a config file is found, read it in.
