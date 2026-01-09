@@ -48,6 +48,7 @@ type LLMConfig struct {
 	Bedrock         *BedrockConfig      `mapstructure:"bedrock,omitempty" yaml:"bedrock,omitempty"`
 	Azure           *AzureConfig        `mapstructure:"azure,omitempty" yaml:"azure,omitempty"`
 	Ollama          *OllamaConfig       `mapstructure:"ollama,omitempty" yaml:"ollama,omitempty"`
+	MetaLlama       *MetaLlamaConfig    `mapstructure:"meta_llama,omitempty" yaml:"meta_llama,omitempty"`
 	Fallback        *FallbackConfig     `mapstructure:"fallback,omitempty" yaml:"fallback,omitempty"`
 }
 
@@ -163,6 +164,21 @@ type OllamaConfig struct {
 	Timeout         time.Duration `mapstructure:"timeout" yaml:"timeout"`
 	RetryAttempts   int           `mapstructure:"retry_attempts" yaml:"retry_attempts"`
 	KeepAlive       string        `mapstructure:"keep_alive" yaml:"keep_alive"`
+}
+
+// MetaLlamaConfig contains Meta Llama configuration
+type MetaLlamaConfig struct {
+	APIKey           string        `mapstructure:"api_key" yaml:"api_key"`
+	Model            string        `mapstructure:"model" yaml:"model"`
+	MaxTokens        int           `mapstructure:"max_tokens" yaml:"max_tokens"`
+	Temperature      float64       `mapstructure:"temperature" yaml:"temperature"`
+	TopP             float64       `mapstructure:"top_p" yaml:"top_p"`
+	Timeout          time.Duration `mapstructure:"timeout" yaml:"timeout"`
+	RetryAttempts    int           `mapstructure:"retry_attempts" yaml:"retry_attempts"`
+	BaseURL          string        `mapstructure:"base_url" yaml:"base_url"`
+	PresencePenalty  float64       `mapstructure:"presence_penalty" yaml:"presence_penalty"`
+	FrequencyPenalty float64       `mapstructure:"frequency_penalty" yaml:"frequency_penalty"`
+	Retry            *RetryConfig  `mapstructure:"retry,omitempty" yaml:"retry,omitempty"`
 }
 
 // FallbackConfig defines fallback provider configuration

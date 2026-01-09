@@ -23,6 +23,8 @@ const (
 	StepGoogleModel
 	StepOllamaURL
 	StepOllamaModel
+	StepMetaLlamaAPIKey
+	StepMetaLlamaModel
 	StepAINativeLogin
 	StepAINativeAPIKey
 	StepColorScheme
@@ -145,6 +147,7 @@ func (m PromptModel) View() string {
 			"Anthropic (Claude)",
 			"OpenAI (GPT)",
 			"Google (Gemini)",
+			"Meta (Llama)",
 			"Ollama (Local)",
 		}))
 		s.WriteString("\n\n")
@@ -245,6 +248,29 @@ func (m PromptModel) View() string {
 		s.WriteString("\n\n")
 		s.WriteString(m.renderHelpText("Make sure the model is already pulled in Ollama"))
 
+	case StepMetaLlamaAPIKey:
+		s.WriteString(titleStyle.Render("Meta Llama Configuration"))
+		s.WriteString("\n\n")
+		s.WriteString(questionStyle.Render("Enter your Meta Llama API key:"))
+		s.WriteString("\n")
+		s.WriteString(m.renderTextInput())
+		s.WriteString("\n\n")
+		s.WriteString(m.renderHelpText("Get your API key from: https://www.llama.com/docs/getting-started"))
+
+	case StepMetaLlamaModel:
+		s.WriteString(titleStyle.Render("Meta Llama Model Selection"))
+		s.WriteString("\n\n")
+		s.WriteString(questionStyle.Render("Which Meta Llama model would you like to use?"))
+		s.WriteString("\n\n")
+		s.WriteString(m.renderChoices([]string{
+			"Llama-4-Maverick-17B-128E-Instruct-FP8 (Recommended - Most capable)",
+			"Llama-4-Scout-17B-16E (Efficient MoE)",
+			"Llama-3.3-70B-Instruct (Large dense)",
+			"Llama-3.3-8B-Instruct (Fast and efficient)",
+		}))
+		s.WriteString("\n\n")
+		s.WriteString(m.renderHelpText("Llama 4 Maverick offers the best performance with 400B total parameters"))
+
 	case StepAINativeLogin:
 		s.WriteString(titleStyle.Render("AINative Platform"))
 		s.WriteString("\n\n")
@@ -342,7 +368,7 @@ func (m PromptModel) renderHelpText(text string) string {
 func (m PromptModel) handleEnter() (tea.Model, tea.Cmd) {
 	switch m.currentStep {
 	case StepProvider:
-		providers := []string{"anthropic", "openai", "google", "ollama"}
+		providers := []string{"anthropic", "openai", "google", "meta_llama", "ollama"}
 		m.Selections["provider"] = providers[m.cursor]
 
 	case StepAnthropicAPIKey:
@@ -390,6 +416,19 @@ func (m PromptModel) handleEnter() (tea.Model, tea.Cmd) {
 		m.Selections["ollama_model"] = m.textInput.Value()
 		m.textInput.SetValue("")
 
+	case StepMetaLlamaAPIKey:
+		m.Selections["meta_llama_api_key"] = m.textInput.Value()
+		m.textInput.SetValue("")
+
+	case StepMetaLlamaModel:
+		models := []string{
+			"Llama-4-Maverick-17B-128E-Instruct-FP8",
+			"Llama-4-Scout-17B-16E",
+			"Llama-3.3-70B-Instruct",
+			"Llama-3.3-8B-Instruct",
+		}
+		m.Selections["meta_llama_model"] = models[m.cursor]
+
 	case StepAINativeAPIKey:
 		m.Selections["ainative_api_key"] = m.textInput.Value()
 		m.textInput.SetValue("")
@@ -420,6 +459,8 @@ func (m PromptModel) nextStep() (tea.Model, tea.Cmd) {
 			m.currentStep = StepOpenAIAPIKey
 		case "google":
 			m.currentStep = StepGoogleAPIKey
+		case "meta_llama":
+			m.currentStep = StepMetaLlamaAPIKey
 		case "ollama":
 			m.currentStep = StepOllamaURL
 		}
@@ -449,6 +490,12 @@ func (m PromptModel) nextStep() (tea.Model, tea.Cmd) {
 		m.currentStep = StepOllamaModel
 
 	case StepOllamaModel:
+		m.currentStep = StepAINativeLogin
+
+	case StepMetaLlamaAPIKey:
+		m.currentStep = StepMetaLlamaModel
+
+	case StepMetaLlamaModel:
 		m.currentStep = StepAINativeLogin
 
 	case StepAINativeLogin:
@@ -490,6 +537,7 @@ func (m PromptModel) isTextInputStep() bool {
 		m.currentStep == StepGoogleAPIKey ||
 		m.currentStep == StepOllamaURL ||
 		m.currentStep == StepOllamaModel ||
+		m.currentStep == StepMetaLlamaAPIKey ||
 		m.currentStep == StepAINativeAPIKey
 }
 
@@ -515,13 +563,15 @@ func (m PromptModel) getStepKey() string {
 func (m PromptModel) getChoiceCount() int {
 	switch m.currentStep {
 	case StepProvider:
-		return 4 // Anthropic, OpenAI, Google, Ollama
+		return 5 // Anthropic, OpenAI, Google, Meta Llama, Ollama
 	case StepAnthropicModel:
 		return 4 // 4 Claude models
 	case StepOpenAIModel:
 		return 3 // 3 GPT models
 	case StepGoogleModel:
 		return 2 // 2 Gemini models
+	case StepMetaLlamaModel:
+		return 4 // 4 Meta Llama models
 	case StepColorScheme:
 		return 3 // Auto, Light, Dark
 	default:
@@ -625,6 +675,11 @@ func (m SummaryModel) View() string {
 		s.WriteString("\n")
 		s.WriteString(labelStyle.Render("Model: "))
 		s.WriteString(valueStyle.Render(m.Selections["ollama_model"].(string)))
+		s.WriteString("\n")
+
+	case "meta_llama":
+		s.WriteString(labelStyle.Render("Model: "))
+		s.WriteString(valueStyle.Render(m.Selections["meta_llama_model"].(string)))
 		s.WriteString("\n")
 	}
 

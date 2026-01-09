@@ -14,6 +14,7 @@ import (
 	llmprovider "github.com/AINative-studio/ainative-code/internal/provider"
 	"github.com/AINative-studio/ainative-code/internal/provider/anthropic"
 	"github.com/AINative-studio/ainative-code/internal/provider/openai"
+	"github.com/AINative-studio/ainative-code/internal/provider/meta"
 )
 
 // outputAsJSON outputs data as formatted JSON
@@ -74,6 +75,8 @@ func getAPIKey(providerName string) (string, error) {
 		providerEnvKey = "OPENAI_API_KEY"
 	case "anthropic":
 		providerEnvKey = "ANTHROPIC_API_KEY"
+	case "meta_llama", "meta":
+		providerEnvKey = "META_LLAMA_API_KEY"
 	case "ollama":
 		// Ollama typically doesn't require an API key for local instances
 		return "", nil
@@ -138,7 +141,12 @@ func initializeProvider(ctx context.Context, providerName, modelName string) (ll
 			Logger: nil, // Use default logger
 		})
 
+	case "meta_llama", "meta":
+		return meta.NewMetaProvider(&meta.Config{
+			APIKey: apiKey,
+		})
+
 	default:
-		return nil, fmt.Errorf("unsupported provider: %s. Supported providers: openai, anthropic", providerName)
+		return nil, fmt.Errorf("unsupported provider: %s. Supported providers: openai, anthropic, meta_llama", providerName)
 	}
 }

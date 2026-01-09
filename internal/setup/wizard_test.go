@@ -334,3 +334,93 @@ func TestCheckAlreadyInitialized(t *testing.T) {
 	assert.True(t, wizard.result.SkippedSetup)
 	assert.Equal(t, configPath, wizard.result.ConfigPath)
 }
+
+func TestForceFlag_BypassesInitializedCheck(t *testing.T) {
+	// Create temp directory for test
+	tempDir := t.TempDir()
+	originalHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	defer os.Setenv("HOME", originalHome)
+
+	// Create marker and config to simulate already initialized state
+	markerPath := filepath.Join(tempDir, ".ainative-code-initialized")
+	err := os.WriteFile(markerPath, []byte("test"), 0644)
+	require.NoError(t, err)
+
+	configPath := filepath.Join(tempDir, ".ainative-code.yaml")
+	err = os.WriteFile(configPath, []byte("test: config"), 0644)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Test WITHOUT Force flag - should skip setup
+	wizardNoForce := NewWizard(ctx, WizardConfig{
+		InteractiveMode: false,
+		SkipValidation:  true,
+		Force:           false,
+	})
+
+	wizardNoForce.userSelections = map[string]interface{}{
+		"provider":          "anthropic",
+		"anthropic_api_key": "sk-ant-test",
+	}
+
+	// Run should return early when already initialized
+	result, err := wizardNoForce.Run()
+	require.NoError(t, err)
+	assert.True(t, result.SkippedSetup, "Should skip setup when Force=false and already initialized")
+
+	// Test WITH Force flag - should run wizard
+	wizardWithForce := NewWizard(ctx, WizardConfig{
+		InteractiveMode: false,
+		SkipValidation:  true,
+		Force:           true,
+		ConfigPath:      filepath.Join(tempDir, "forced-config.yaml"),
+	})
+
+	wizardWithForce.userSelections = map[string]interface{}{
+		"provider":          "anthropic",
+		"anthropic_api_key": "sk-ant-forced",
+	}
+
+	// Run should complete wizard even when already initialized
+	result, err = wizardWithForce.Run()
+	require.NoError(t, err)
+	assert.False(t, result.SkippedSetup, "Should NOT skip setup when Force=true")
+	assert.True(t, result.MarkerCreated, "Should create marker when Force=true")
+	assert.NotEmpty(t, result.ConfigPath, "Should write config when Force=true")
+
+	// Verify the forced config was actually written
+	assert.FileExists(t, result.ConfigPath)
+}
+
+func TestForceFlag_WorksOnFreshInstall(t *testing.T) {
+	// Create temp directory for test
+	tempDir := t.TempDir()
+	originalHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	defer os.Setenv("HOME", originalHome)
+
+	ctx := context.Background()
+
+	// Test Force flag on fresh install (no existing config)
+	wizard := NewWizard(ctx, WizardConfig{
+		InteractiveMode: false,
+		SkipValidation:  true,
+		Force:           true,
+		ConfigPath:      filepath.Join(tempDir, "fresh-config.yaml"),
+	})
+
+	wizard.userSelections = map[string]interface{}{
+		"provider":          "anthropic",
+		"anthropic_api_key": "sk-ant-fresh",
+	}
+
+	// Run should complete normally
+	result, err := wizard.Run()
+	require.NoError(t, err)
+	assert.False(t, result.SkippedSetup, "Should not skip setup")
+	assert.True(t, result.MarkerCreated, "Should create marker")
+	assert.NotEmpty(t, result.ConfigPath, "Should write config")
+	assert.FileExists(t, result.ConfigPath)
+}

@@ -81,6 +81,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		ConfigPath:      setupConfigPath,
 		SkipValidation:  setupSkipValidation,
 		InteractiveMode: !setupNonInteractive,
+		Force:           setupForce,
 	}
 
 	// Create and run wizard

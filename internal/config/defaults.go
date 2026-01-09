@@ -38,6 +38,7 @@ func DefaultLLMConfig() LLMConfig {
 		Bedrock:         nil,
 		Azure:           nil,
 		Ollama:          nil,
+		MetaLlama:       nil, // Only configure when needed
 		Fallback:        DefaultFallbackConfig(),
 	}
 }
@@ -142,6 +143,23 @@ func DefaultOllamaConfig() *OllamaConfig {
 		Timeout:       120 * time.Second,
 		RetryAttempts: 1,
 		KeepAlive:     "5m",
+	}
+}
+
+// DefaultMetaLlamaConfig returns default Meta Llama configuration
+func DefaultMetaLlamaConfig() *MetaLlamaConfig {
+	return &MetaLlamaConfig{
+		APIKey:           "", // Must be provided by user
+		Model:            "Llama-4-Maverick-17B-128E-Instruct-FP8",
+		MaxTokens:        4096,
+		Temperature:      0.7,
+		TopP:             0.9,
+		Timeout:          60 * time.Second,
+		RetryAttempts:    3,
+		BaseURL:          "https://api.llama.com/compat/v1",
+		PresencePenalty:  0.0,
+		FrequencyPenalty: 0.0,
+		Retry:            DefaultRetryConfig(),
 	}
 }
 

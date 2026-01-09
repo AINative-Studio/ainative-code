@@ -19,6 +19,7 @@ type WizardConfig struct {
 	ConfigPath      string
 	SkipValidation  bool
 	InteractiveMode bool
+	Force           bool
 }
 
 // WizardResult represents the output of the wizard
@@ -52,8 +53,8 @@ func NewWizard(ctx context.Context, cfg WizardConfig) *Wizard {
 
 // Run executes the setup wizard flow
 func (w *Wizard) Run() (*WizardResult, error) {
-	// Check if already initialized
-	if w.checkAlreadyInitialized() {
+	// Check if already initialized (skip if force flag is set)
+	if !w.config.Force && w.checkAlreadyInitialized() {
 		return w.result, nil
 	}
 
@@ -326,6 +327,32 @@ func (w *Wizard) buildConfiguration() error {
 			Timeout:       120000000000, // 120s
 			RetryAttempts: 1,
 			KeepAlive:     "5m",
+		}
+	}
+
+	// Configure Meta Llama
+	if cfg.LLM.DefaultProvider == "meta_llama" {
+		apiKey := ""
+		if key, ok := w.userSelections["meta_llama_api_key"].(string); ok {
+			apiKey = key
+		}
+
+		model := "Llama-4-Maverick-17B-128E-Instruct-FP8"
+		if m, ok := w.userSelections["meta_llama_model"].(string); ok && m != "" {
+			model = m
+		}
+
+		cfg.LLM.MetaLlama = &config.MetaLlamaConfig{
+			APIKey:           apiKey,
+			Model:            model,
+			MaxTokens:        4096,
+			Temperature:      0.7,
+			TopP:             0.9,
+			Timeout:          60000000000, // 60s
+			RetryAttempts:    3,
+			BaseURL:          "https://api.llama.com/compat/v1",
+			PresencePenalty:  0.0,
+			FrequencyPenalty: 0.0,
 		}
 	}
 

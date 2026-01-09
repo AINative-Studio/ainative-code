@@ -109,6 +109,12 @@ func (v *Validator) validateLLM() {
 		} else {
 			v.validateOllama()
 		}
+	case "meta_llama", "meta":
+		if v.config.LLM.MetaLlama == nil {
+			v.addError("llm.meta_llama", "default provider 'meta_llama' is not configured")
+		} else {
+			v.validateMetaLlama()
+		}
 	}
 
 	// Validate fallback configuration if enabled
@@ -363,6 +369,53 @@ func (v *Validator) validateOllama() {
 
 	if cfg.KeepAlive == "" {
 		cfg.KeepAlive = "5m" // default
+	}
+}
+
+// validateMetaLlama validates Meta Llama configuration
+func (v *Validator) validateMetaLlama() {
+	cfg := v.config.LLM.MetaLlama
+
+	if cfg.APIKey == "" {
+		v.addError("llm.meta_llama.api_key", "Meta Llama API key is required")
+	}
+
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = "https://api.llama.com/compat/v1" // default
+	} else if !v.isValidURL(cfg.BaseURL) {
+		v.addError("llm.meta_llama.base_url", "must be a valid URL")
+	}
+
+	if cfg.Model == "" {
+		cfg.Model = "Llama-4-Maverick-17B-128E-Instruct-FP8" // default
+	}
+
+	if cfg.MaxTokens <= 0 {
+		cfg.MaxTokens = 4096 // default
+	}
+
+	if cfg.Temperature < 0 || cfg.Temperature > 2 {
+		v.addError("llm.meta_llama.temperature", "must be between 0 and 2")
+	}
+
+	if cfg.TopP < 0 || cfg.TopP > 1 {
+		v.addError("llm.meta_llama.top_p", "must be between 0 and 1")
+	}
+
+	if cfg.PresencePenalty < -2.0 || cfg.PresencePenalty > 2.0 {
+		v.addError("llm.meta_llama.presence_penalty", "must be between -2 and 2")
+	}
+
+	if cfg.FrequencyPenalty < -2.0 || cfg.FrequencyPenalty > 2.0 {
+		v.addError("llm.meta_llama.frequency_penalty", "must be between -2 and 2")
+	}
+
+	if cfg.Timeout <= 0 {
+		cfg.Timeout = 60000000000 // 60 seconds default
+	}
+
+	if cfg.RetryAttempts < 0 {
+		cfg.RetryAttempts = 3 // default
 	}
 }
 
