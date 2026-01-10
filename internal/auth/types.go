@@ -187,19 +187,19 @@ func (r *CallbackResult) HasError() bool {
 //
 //	client := auth.NewClient(
 //	    auth.WithClientID("ainative-code-cli"),
-//	    auth.WithAuthEndpoint("https://auth.ainative.studio/oauth/authorize"),
-//	    auth.WithTokenEndpoint("https://auth.ainative.studio/oauth/token"),
+//	    auth.WithAuthEndpoint("https://api.ainative.studio/v1/auth/login"),
+//	    auth.WithTokenEndpoint("https://api.ainative.studio/v1/auth/token"),
 //	)
 type ClientOptions struct {
 	// ClientID is the OAuth 2.0 client identifier
 	ClientID string
 
 	// AuthEndpoint is the authorization endpoint URL
-	// Default: https://auth.ainative.studio/oauth/authorize
+	// Default: https://api.ainative.studio/v1/auth/login
 	AuthEndpoint string
 
 	// TokenEndpoint is the token endpoint URL
-	// Default: https://auth.ainative.studio/oauth/token
+	// Default: https://api.ainative.studio/v1/auth/token
 	TokenEndpoint string
 
 	// RedirectURI is the callback URL for OAuth redirect
@@ -227,8 +227,8 @@ type ClientOptions struct {
 func DefaultClientOptions() *ClientOptions {
 	return &ClientOptions{
 		ClientID:      "ainative-code-cli",
-		AuthEndpoint:  "https://auth.ainative.studio/oauth/authorize",
-		TokenEndpoint: "https://auth.ainative.studio/oauth/token",
+		AuthEndpoint:  "https://api.ainative.studio/v1/auth/login",
+		TokenEndpoint: "https://api.ainative.studio/v1/auth/token",
 		RedirectURI:   "http://localhost:8080/callback",
 		Scopes:        []string{"read", "write", "offline_access"},
 		Timeout:       30 * time.Second,

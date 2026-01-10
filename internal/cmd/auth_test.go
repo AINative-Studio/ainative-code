@@ -1,11 +1,8 @@
 package cmd
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
-	"time"
 )
 
 // TestGetAuthURL tests the auth URL resolution logic
@@ -23,10 +20,10 @@ func TestGetAuthURL(t *testing.T) {
 			wantContain: "https://custom.example.com/oauth/authorize",
 		},
 		{
-			name:        "uses fallback when env not set and prod unreachable",
+			name:        "uses production endpoint when env not set (api.ainative.studio)",
 			envVar:      "",
 			envValue:    "",
-			wantContain: "localhost:9090",
+			wantContain: "api.ainative.studio",
 		},
 	}
 
@@ -67,10 +64,10 @@ func TestGetTokenURL(t *testing.T) {
 			wantContain: "https://custom.example.com/oauth/token",
 		},
 		{
-			name:        "uses fallback when env not set and prod unreachable",
+			name:        "uses production endpoint when env not set (api.ainative.studio)",
 			envVar:      "",
 			envValue:    "",
-			wantContain: "localhost:9090",
+			wantContain: "api.ainative.studio",
 		},
 	}
 
@@ -93,91 +90,6 @@ func TestGetTokenURL(t *testing.T) {
 				t.Errorf("getTokenURL() = %q, want to contain %q", url, tt.wantContain)
 			}
 		})
-	}
-}
-
-// TestIsEndpointReachable tests endpoint reachability checking
-func TestIsEndpointReachable(t *testing.T) {
-	tests := []struct {
-		name       string
-		setupMock  func() *httptest.Server
-		wantResult bool
-	}{
-		{
-			name: "returns true for reachable endpoint (200 OK)",
-			setupMock: func() *httptest.Server {
-				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusOK)
-				}))
-			},
-			wantResult: true,
-		},
-		{
-			name: "returns true for reachable endpoint (404 Not Found)",
-			setupMock: func() *httptest.Server {
-				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusNotFound)
-				}))
-			},
-			wantResult: true,
-		},
-		{
-			name: "returns true for reachable endpoint (401 Unauthorized)",
-			setupMock: func() *httptest.Server {
-				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusUnauthorized)
-				}))
-			},
-			wantResult: true,
-		},
-		{
-			name: "returns false for unreachable endpoint (500 Internal Server Error)",
-			setupMock: func() *httptest.Server {
-				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusInternalServerError)
-				}))
-			},
-			wantResult: false,
-		},
-		{
-			name: "returns false for slow endpoint (timeout)",
-			setupMock: func() *httptest.Server {
-				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					// Simulate slow response that exceeds timeout
-					time.Sleep(3 * time.Second)
-					w.WriteHeader(http.StatusOK)
-				}))
-			},
-			wantResult: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			server := tt.setupMock()
-			defer server.Close()
-
-			result := isEndpointReachable(server.URL)
-
-			if result != tt.wantResult {
-				t.Errorf("isEndpointReachable() = %v, want %v", result, tt.wantResult)
-			}
-		})
-	}
-}
-
-// TestIsEndpointReachable_InvalidURL tests handling of invalid URLs
-func TestIsEndpointReachable_InvalidURL(t *testing.T) {
-	// Test with completely unreachable URL
-	result := isEndpointReachable("http://invalid-domain-that-does-not-exist-12345.com")
-	if result {
-		t.Error("isEndpointReachable() should return false for invalid domain")
-	}
-
-	// Test with malformed URL
-	result = isEndpointReachable("not-a-valid-url")
-	if result {
-		t.Error("isEndpointReachable() should return false for malformed URL")
 	}
 }
 
@@ -219,7 +131,7 @@ func TestLoginCommandFlags(t *testing.T) {
 	}
 }
 
-// TestDefaultOAuthConfig tests that default OAuth config uses fallback logic
+// TestDefaultOAuthConfig tests that default OAuth config uses production endpoint
 func TestDefaultOAuthConfig(t *testing.T) {
 	// The default config should be initialized
 	if defaultOAuthConfig.ClientID == "" {
@@ -234,13 +146,22 @@ func TestDefaultOAuthConfig(t *testing.T) {
 		t.Error("defaultOAuthConfig.Scopes should not be empty")
 	}
 
-	// AuthURL and TokenURL should be set (either to prod or fallback)
+	// AuthURL and TokenURL should be set to production endpoints
 	if defaultOAuthConfig.AuthURL == "" {
 		t.Error("defaultOAuthConfig.AuthURL should not be empty")
 	}
 
 	if defaultOAuthConfig.TokenURL == "" {
 		t.Error("defaultOAuthConfig.TokenURL should not be empty")
+	}
+
+	// Verify they contain api.ainative.studio
+	if !containsString(defaultOAuthConfig.AuthURL, "api.ainative.studio") {
+		t.Errorf("AuthURL should contain 'api.ainative.studio', got %s", defaultOAuthConfig.AuthURL)
+	}
+
+	if !containsString(defaultOAuthConfig.TokenURL, "api.ainative.studio") {
+		t.Errorf("TokenURL should contain 'api.ainative.studio', got %s", defaultOAuthConfig.TokenURL)
 	}
 }
 

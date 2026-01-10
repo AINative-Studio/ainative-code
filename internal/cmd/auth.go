@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"time"
 
@@ -13,8 +12,7 @@ import (
 
 var (
 	// OAuth configuration (should be loaded from config file)
-	// NOTE: auth.ainative.studio is currently unreachable (Issue #98)
-	// Using localhost mock server as fallback for development/testing
+	// Uses api.ainative.studio as the production auth endpoint (Issue #115)
 	defaultOAuthConfig = oauth.Config{
 		AuthURL:     getAuthURL(),
 		TokenURL:    getTokenURL(),
@@ -99,17 +97,8 @@ func getAuthURL() string {
 		return url
 	}
 
-	// Production endpoint (currently unreachable - Issue #98)
-	prodURL := "https://auth.ainative.studio/oauth/authorize"
-
-	// Try to verify if production endpoint is reachable
-	if isEndpointReachable(prodURL) {
-		return prodURL
-	}
-
-	// Fallback to localhost mock server for development
-	// Users should set AINATIVE_AUTH_URL to use alternative auth server
-	return "http://localhost:9090/oauth/authorize"
+	// Production endpoint - api.ainative.studio (Issue #115)
+	return "https://api.ainative.studio/v1/auth/login"
 }
 
 // getTokenURL returns the token endpoint URL with fallback logic
@@ -119,33 +108,8 @@ func getTokenURL() string {
 		return url
 	}
 
-	// Production endpoint (currently unreachable - Issue #98)
-	prodURL := "https://auth.ainative.studio/oauth/token"
-
-	// Try to verify if production endpoint is reachable
-	if isEndpointReachable(prodURL) {
-		return prodURL
-	}
-
-	// Fallback to localhost mock server for development
-	return "http://localhost:9090/oauth/token"
-}
-
-// isEndpointReachable checks if an endpoint is reachable with a quick HEAD request
-func isEndpointReachable(url string) bool {
-	client := &http.Client{
-		Timeout: 2 * time.Second,
-	}
-
-	resp, err := client.Head(url)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-
-	// Consider 2xx, 3xx, 4xx as "reachable" (server exists)
-	// Only 5xx or network errors mean unreachable
-	return resp.StatusCode < 500
+	// Production endpoint - api.ainative.studio (Issue #115)
+	return "https://api.ainative.studio/v1/auth/token"
 }
 
 func init() {
@@ -189,22 +153,12 @@ func runLogin(cmd *cobra.Command, args []string) error {
 
 	oauthClient := oauth.NewClient(oauthConfig)
 
-	// Show warning if using fallback endpoints
-	if authURL == "http://localhost:9090/oauth/authorize" {
-		cmd.Println("⚠️  WARNING: Using localhost mock auth server (production server unreachable)")
-		cmd.Println("   To use a different auth server, set environment variables:")
-		cmd.Println("   export AINATIVE_AUTH_URL=<your-auth-url>")
-		cmd.Println("   export AINATIVE_TOKEN_URL=<your-token-url>")
-		cmd.Println()
-		cmd.Println("   Or use command flags:")
-		cmd.Println("   --auth-url <url> --token-url <url>")
-		cmd.Println()
-	}
-
 	// Start authentication flow
 	cmd.Println("Initiating authentication flow...")
 	cmd.Printf("Auth URL: %s\n", authURL)
 	cmd.Printf("Token URL: %s\n", tokenURL)
+	cmd.Println()
+	cmd.Println("Opening browser for authentication...")
 	cmd.Println()
 
 	tokens, err := oauthClient.Authenticate(ctx)

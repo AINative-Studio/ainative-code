@@ -26,8 +26,8 @@
 //
 //	client := auth.NewClient(
 //	    auth.WithClientID("ainative-code-cli"),
-//	    auth.WithAuthEndpoint("https://auth.ainative.studio/oauth/authorize"),
-//	    auth.WithTokenEndpoint("https://auth.ainative.studio/oauth/token"),
+//	    auth.WithAuthEndpoint("https://api.ainative.studio/v1/auth/login"),
+//	    auth.WithTokenEndpoint("https://api.ainative.studio/v1/auth/token"),
 //	)
 //	defer client.Close()
 //

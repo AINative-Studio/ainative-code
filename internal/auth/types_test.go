@@ -429,12 +429,12 @@ func TestDefaultClientOptions(t *testing.T) {
 		t.Errorf("ClientID = %q, want %q", opts.ClientID, "ainative-code-cli")
 	}
 
-	if opts.AuthEndpoint != "https://auth.ainative.studio/oauth/authorize" {
-		t.Errorf("AuthEndpoint = %q, want %q", opts.AuthEndpoint, "https://auth.ainative.studio/oauth/authorize")
+	if opts.AuthEndpoint != "https://api.ainative.studio/v1/auth/login" {
+		t.Errorf("AuthEndpoint = %q, want %q", opts.AuthEndpoint, "https://api.ainative.studio/v1/auth/login")
 	}
 
-	if opts.TokenEndpoint != "https://auth.ainative.studio/oauth/token" {
-		t.Errorf("TokenEndpoint = %q, want %q", opts.TokenEndpoint, "https://auth.ainative.studio/oauth/token")
+	if opts.TokenEndpoint != "https://api.ainative.studio/v1/auth/token" {
+		t.Errorf("TokenEndpoint = %q, want %q", opts.TokenEndpoint, "https://api.ainative.studio/v1/auth/token")
 	}
 
 	if opts.RedirectURI != "http://localhost:8080/callback" {
