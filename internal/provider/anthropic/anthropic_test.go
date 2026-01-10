@@ -632,6 +632,20 @@ func TestAnthropicProvider_ConvertAPIError(t *testing.T) {
 			errorType: "rate_limit",
 		},
 		{
+			name: "not found error - model deprecated/retired",
+			apiErr: &anthropicError{
+				Type: "error",
+				Error: struct {
+					Type    string `json:"type"`
+					Message string `json:"message"`
+				}{
+					Type:    "not_found_error",
+					Message: "model: claude-3-5-sonnet-20241022",
+				},
+			},
+			errorType: "invalid_model",
+		},
+		{
 			name: "context length error - prompt too long",
 			apiErr: &anthropicError{
 				Type: "error",
@@ -701,6 +715,9 @@ func TestAnthropicProvider_ConvertAPIError(t *testing.T) {
 			case "rate_limit":
 				var rateLimitErr *provider.RateLimitError
 				assert.ErrorAs(t, err, &rateLimitErr)
+			case "invalid_model":
+				var invalidModelErr *provider.InvalidModelError
+				assert.ErrorAs(t, err, &invalidModelErr)
 			case "context_length":
 				var contextErr *provider.ContextLengthError
 				assert.ErrorAs(t, err, &contextErr)

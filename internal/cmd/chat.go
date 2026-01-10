@@ -445,7 +445,8 @@ func getDefaultModel(providerName string) string {
 	case "openai":
 		return "gpt-4"
 	case "anthropic":
-		return "claude-3-5-sonnet-20241022"
+		// Updated to Claude 4.5 series (Claude 3.5 retired January 5, 2026)
+		return "claude-sonnet-4-5-20250929"
 	case "ollama":
 		return "llama2"
 	default:

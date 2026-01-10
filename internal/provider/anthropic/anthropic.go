@@ -21,13 +21,25 @@ const (
 	AnthropicAPIVersion = "2023-06-01"
 )
 
-// Supported Claude models
+// Supported Claude models (as of January 2026)
+// Note: Claude 3.5 series was retired on January 5, 2026
 var supportedModels = []string{
-	"claude-3-5-sonnet-20241022",
-	"claude-3-opus-20240229",
-	"claude-3-haiku-20240307",
-	"claude-3-5-haiku-20241022",
-	"claude-3-sonnet-20240229",
+	// Claude 4.5 series (current, recommended)
+	"claude-sonnet-4-5-20250929", // Recommended: Best balance of intelligence, speed, and cost
+	"claude-haiku-4-5-20251001",  // Fast and cost-effective
+	"claude-opus-4-1",            // Premium model for complex tasks
+
+	// Model aliases (auto-update to latest version)
+	"claude-sonnet-4-5",
+	"claude-haiku-4-5",
+
+	// Legacy Claude 3.x models (deprecated/retired - kept for backwards compatibility)
+	// These will likely fail with not_found_error from the API
+	"claude-3-5-sonnet-20241022", // RETIRED: January 5, 2026
+	"claude-3-5-haiku-20241022",  // RETIRED: January 5, 2026
+	"claude-3-opus-20240229",     // DEPRECATED: Use claude-opus-4-1 instead
+	"claude-3-haiku-20240307",    // DEPRECATED: Use claude-haiku-4-5 instead
+	"claude-3-sonnet-20240229",   // DEPRECATED: Use claude-sonnet-4-5 instead
 }
 
 // AnthropicProvider implements the Provider interface for Anthropic's Claude API
@@ -396,6 +408,17 @@ func (a *AnthropicProvider) convertAPIError(apiErr *anthropicError, model string
 
 	case "rate_limit_error":
 		return provider.NewRateLimitError("anthropic", 0)
+
+	case "not_found_error":
+		// Model not found - likely deprecated/retired
+		// Provide helpful message suggesting current models
+		return provider.NewInvalidModelError("anthropic", model, []string{
+			"claude-sonnet-4-5-20250929 (recommended)",
+			"claude-haiku-4-5-20251001",
+			"claude-opus-4-1",
+			"claude-sonnet-4-5",
+			"claude-haiku-4-5",
+		})
 
 	case "invalid_request_error":
 		// Check for context length errors
