@@ -1,6 +1,7 @@
 package session
 
 import (
+	"strings"
 	"time"
 )
 
@@ -117,9 +118,14 @@ func DefaultSearchOptionsWithQuery(query string) *SearchOptions {
 
 // Validate validates search options
 func (opts *SearchOptions) Validate() error {
-	if opts.Query == "" {
+	// Trim whitespace from query before validation
+	trimmedQuery := strings.TrimSpace(opts.Query)
+	if trimmedQuery == "" {
 		return ErrEmptySearchQuery
 	}
+	// Update the query with the trimmed version
+	opts.Query = trimmedQuery
+
 	if opts.Limit <= 0 {
 		opts.Limit = 50 // default limit
 	}
