@@ -675,10 +675,11 @@ func runSessionExport(cmd *cobra.Command, args []string) error {
 
 func runSessionSearch(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
-		return fmt.Errorf("search query cannot be empty. Usage: ainative-code session search <query>")
+		return fmt.Errorf("search query cannot be empty\n\nUsage:\n  ainative-code session search <query>\n\nExamples:\n  ainative-code session search \"authentication\"\n  ainative-code session search \"error handling\" --limit 10\n  ainative-code session search \"golang\" --provider claude")
 	}
 
-	query := args[0]
+	// Trim the query early to provide better error messages
+	query := strings.TrimSpace(args[0])
 
 	logger.InfoEvent().
 		Str("query", query).
