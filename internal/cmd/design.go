@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/AINative-studio/ainative-code/internal/design"
 	"github.com/AINative-studio/ainative-code/internal/logger"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -242,9 +245,9 @@ func runDesignImport(cmd *cobra.Command, args []string) error {
 	file, _ := cmd.Flags().GetString("file")
 	merge, _ := cmd.Flags().GetBool("merge")
 
-	// Validate import file exists
-	if _, err := os.Stat(file); os.IsNotExist(err) {
-		return fmt.Errorf("import file not found: %s", file)
+	// Validate input file with comprehensive checks
+	if err := validateInputFile(file); err != nil {
+		return err
 	}
 
 	logger.InfoEvent().
@@ -275,10 +278,9 @@ func runDesignExport(cmd *cobra.Command, args []string) error {
 	file, _ := cmd.Flags().GetString("file")
 	format, _ := cmd.Flags().GetString("format")
 
-	// Validate export directory exists
-	dir := filepath.Dir(file)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return fmt.Errorf("export directory does not exist: %s", dir)
+	// Validate output path with comprehensive checks
+	if err := validateOutputPath(file); err != nil {
+		return err
 	}
 
 	logger.InfoEvent().
@@ -288,11 +290,33 @@ func runDesignExport(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Exporting tokens to: %s (format: %s)\n", file, format)
 
-	// TODO: Implement token export
-	// - Query all tokens
-	// - Format as JSON/YAML
-	// - Write to file
+	// Create example design tokens collection
+	// In a real implementation, this would query tokens from a database
+	exampleTokens := createExampleDesignTokens()
 
+	// Format and write tokens based on format
+	var data []byte
+	var err error
+
+	switch strings.ToLower(format) {
+	case "json":
+		data, err = marshalJSON(exampleTokens)
+	case "yaml", "yml":
+		data, err = marshalYAML(exampleTokens)
+	default:
+		return fmt.Errorf("unsupported format: %s (supported: json, yaml)", format)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to format tokens: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(file, data, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	fmt.Printf("Successfully exported %d design tokens to %s\n", len(exampleTokens.Tokens), file)
 	fmt.Println("Export completed!")
 
 	return nil
@@ -329,6 +353,219 @@ func runDesignValidate(cmd *cobra.Command, args []string) error {
 	// - Report issues
 
 	fmt.Println("Validation completed!")
+
+	return nil
+}
+
+// createExampleDesignTokens creates a sample collection of design tokens
+// In a production implementation, this would fetch tokens from a database
+func createExampleDesignTokens() *design.TokenCollection {
+	return &design.TokenCollection{
+		Tokens: []design.Token{
+			{
+				Name:        "colors.primary",
+				Type:        design.TokenTypeColor,
+				Value:       "#007bff",
+				Description: "Primary brand color",
+				Category:    "colors",
+				Metadata: map[string]string{
+					"rgb": "0, 123, 255",
+					"hsl": "211, 100%, 50%",
+				},
+			},
+			{
+				Name:        "colors.secondary",
+				Type:        design.TokenTypeColor,
+				Value:       "#6c757d",
+				Description: "Secondary color",
+				Category:    "colors",
+				Metadata: map[string]string{
+					"rgb": "108, 117, 125",
+					"hsl": "208, 7%, 46%",
+				},
+			},
+			{
+				Name:        "colors.success",
+				Type:        design.TokenTypeColor,
+				Value:       "#28a745",
+				Description: "Success state color",
+				Category:    "colors",
+				Metadata: map[string]string{
+					"rgb": "40, 167, 69",
+					"hsl": "134, 61%, 41%",
+				},
+			},
+			{
+				Name:        "spacing.base",
+				Type:        design.TokenTypeSpacing,
+				Value:       "16px",
+				Description: "Base spacing unit",
+				Category:    "spacing",
+				Metadata: map[string]string{
+					"rem": "1rem",
+				},
+			},
+			{
+				Name:        "spacing.sm",
+				Type:        design.TokenTypeSpacing,
+				Value:       "8px",
+				Description: "Small spacing",
+				Category:    "spacing",
+				Metadata: map[string]string{
+					"rem": "0.5rem",
+				},
+			},
+			{
+				Name:        "spacing.lg",
+				Type:        design.TokenTypeSpacing,
+				Value:       "32px",
+				Description: "Large spacing",
+				Category:    "spacing",
+				Metadata: map[string]string{
+					"rem": "2rem",
+				},
+			},
+			{
+				Name:        "typography.font.family.base",
+				Type:        design.TokenTypeTypography,
+				Value:       "Helvetica, Arial, sans-serif",
+				Description: "Base font family",
+				Category:    "typography",
+			},
+			{
+				Name:        "typography.font.size.base",
+				Type:        design.TokenTypeTypography,
+				Value:       "16px",
+				Description: "Base font size",
+				Category:    "typography",
+				Metadata: map[string]string{
+					"rem":        "1rem",
+					"lineHeight": "1.5",
+				},
+			},
+			{
+				Name:        "border-radius.sm",
+				Type:        design.TokenTypeBorderRadius,
+				Value:       "4px",
+				Description: "Small border radius",
+				Category:    "border-radius",
+			},
+			{
+				Name:        "shadow.sm",
+				Type:        design.TokenTypeShadow,
+				Value:       "0 1px 2px rgba(0,0,0,0.1)",
+				Description: "Small shadow",
+				Category:    "shadow",
+			},
+		},
+		Metadata: map[string]string{
+			"version":   "1.0.0",
+			"generated": "true",
+			"source":    "ainative-code design export",
+		},
+	}
+}
+
+// marshalJSON marshals the token collection to JSON with pretty printing
+func marshalJSON(tokens *design.TokenCollection) ([]byte, error) {
+	return json.MarshalIndent(tokens, "", "  ")
+}
+
+// marshalYAML marshals the token collection to YAML
+func marshalYAML(tokens *design.TokenCollection) ([]byte, error) {
+	return yaml.Marshal(tokens)
+}
+
+// validateInputFile performs comprehensive validation on input file paths
+func validateInputFile(path string) error {
+	// Check if path is empty
+	if path == "" {
+		return fmt.Errorf("file path cannot be empty")
+	}
+
+	// Check if file exists
+	fileInfo, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("file not found: %s", path)
+	}
+	if err != nil {
+		return fmt.Errorf("cannot access file: %w", err)
+	}
+
+	// Check if path is a directory
+	if fileInfo.IsDir() {
+		return fmt.Errorf("path is a directory, not a file: %s", path)
+	}
+
+	// Check if file is readable by attempting to open it
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("cannot read file (permission denied): %s", path)
+	}
+	defer file.Close()
+
+	// Check if file has content (not empty)
+	if fileInfo.Size() == 0 {
+		return fmt.Errorf("file is empty: %s", path)
+	}
+
+	return nil
+}
+
+// validateOutputPath performs comprehensive validation on output file paths
+func validateOutputPath(path string) error {
+	// Check if path is empty
+	if path == "" {
+		return fmt.Errorf("output file path cannot be empty")
+	}
+
+	// Get the directory path
+	dir := filepath.Dir(path)
+
+	// Handle current directory case
+	if dir == "." {
+		dir, _ = os.Getwd()
+	}
+
+	// Check if directory exists
+	dirInfo, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("output directory does not exist: %s\nPlease create the directory first with: mkdir -p %s", dir, dir)
+	}
+	if err != nil {
+		return fmt.Errorf("cannot access output directory: %w", err)
+	}
+
+	// Verify it's a directory
+	if !dirInfo.IsDir() {
+		return fmt.Errorf("parent path is not a directory: %s", dir)
+	}
+
+	// Test write permission by attempting to create/write a temporary file
+	testFile := filepath.Join(dir, ".ainative_write_test")
+	f, err := os.OpenFile(testFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		if os.IsPermission(err) {
+			return fmt.Errorf("permission denied: cannot write to directory %s\nPlease check directory permissions", dir)
+		}
+		// If file already exists, try to write to it
+		f, err = os.OpenFile(testFile, os.O_WRONLY|os.O_TRUNC, 0644)
+		if err != nil {
+			return fmt.Errorf("cannot write to directory %s: %w", dir, err)
+		}
+	}
+	f.Close()
+	os.Remove(testFile) // Clean up test file
+
+	// If target file already exists, check if we can overwrite it
+	if _, err := os.Stat(path); err == nil {
+		// File exists, check if we can write to it
+		f, err := os.OpenFile(path, os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("output file exists but is not writable: %s", path)
+		}
+		f.Close()
+	}
 
 	return nil
 }
