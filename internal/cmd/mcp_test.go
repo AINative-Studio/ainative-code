@@ -26,6 +26,9 @@ func setupMCPTest(t *testing.T) (*cobra.Command, *bytes.Buffer) {
 		Use: "test",
 	}
 
+	// Initialize flags for remove-server command (must match mcp.go line 115-116)
+	cmd.Flags().StringP("name", "n", "", "Server name (required)")
+
 	// Set a background context for the command to prevent nil context panics
 	ctx := context.Background()
 	cmd.SetContext(ctx)
@@ -154,8 +157,9 @@ func TestRunRemoveServer(t *testing.T) {
 	err := mcpRegistry.AddServer(server)
 	require.NoError(t, err)
 
-	// Remove it
-	err = runRemoveServer(cmd, []string{"test-server"})
+	// Remove it using --name flag (consistent with add-server)
+	cmd.Flags().Set("name", "test-server")
+	err = runRemoveServer(cmd, []string{})
 	assert.NoError(t, err)
 
 	out := output.String()
@@ -169,7 +173,9 @@ func TestRunRemoveServer(t *testing.T) {
 func TestRunRemoveServer_NotFound(t *testing.T) {
 	cmd, _ := setupMCPTest(t)
 
-	err := runRemoveServer(cmd, []string{"nonexistent"})
+	// Use --name flag consistently
+	cmd.Flags().Set("name", "nonexistent")
+	err := runRemoveServer(cmd, []string{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -365,8 +371,9 @@ func TestMCPCommands_Integration(t *testing.T) {
 	assert.Contains(t, output.String(), "SUCCESS")
 	output.Reset()
 
-	// Step 5: Remove server
-	err = runRemoveServer(cmd, []string{"integration-server"})
+	// Step 5: Remove server using --name flag
+	cmd.Flags().Set("name", "integration-server")
+	err = runRemoveServer(cmd, []string{})
 	assert.NoError(t, err)
 	assert.Contains(t, output.String(), "Successfully removed")
 
