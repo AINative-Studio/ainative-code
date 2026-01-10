@@ -44,7 +44,7 @@ const (
 	RLHFServiceURL   = "https://rlhf.ainative.studio"
 
 	// Version (should be updated with each release)
-	Version = "0.1.0"
+	Version = "0.1.8"
 )
 
 // GetConfigPath returns the full path to the config directory.
