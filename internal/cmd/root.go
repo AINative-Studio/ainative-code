@@ -89,10 +89,24 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	if cfgFile != "" {
-		// Use config file from the flag - validate it exists
-		if _, err := os.Stat(cfgFile); os.IsNotExist(err) {
+		// Use config file from the flag - validate it exists and is a file
+		fileInfo, err := os.Stat(cfgFile)
+		if os.IsNotExist(err) {
 			logger.ErrorEvent().Str("file", cfgFile).Msg("Config file not found")
 			fmt.Fprintf(os.Stderr, "Error: config file not found: %s\n", cfgFile)
+			fmt.Fprintf(os.Stderr, "Please check the path and try again.\n")
+			os.Exit(1)
+		}
+		if err != nil {
+			logger.ErrorEvent().Str("file", cfgFile).Err(err).Msg("Cannot access config file")
+			fmt.Fprintf(os.Stderr, "Error: cannot access config file: %s\n", cfgFile)
+			fmt.Fprintf(os.Stderr, "Error details: %v\n", err)
+			os.Exit(1)
+		}
+		if fileInfo.IsDir() {
+			logger.ErrorEvent().Str("path", cfgFile).Msg("Config path is a directory, not a file")
+			fmt.Fprintf(os.Stderr, "Error: config path is a directory, not a file: %s\n", cfgFile)
+			fmt.Fprintf(os.Stderr, "Please specify a config file, not a directory.\n")
 			os.Exit(1)
 		}
 		viper.SetConfigFile(cfgFile)
@@ -160,6 +174,13 @@ func GetProvider() string {
 	if provider != "" {
 		return provider
 	}
+
+	// Check nested config first (created by setup wizard)
+	if p := viper.GetString("llm.default_provider"); p != "" {
+		return p
+	}
+
+	// Fallback to flat config for backward compatibility
 	return viper.GetString("provider")
 }
 
@@ -168,6 +189,32 @@ func GetModel() string {
 	if model != "" {
 		return model
 	}
+
+	// Try to get model from provider-specific config first
+	providerName := GetProvider()
+	if providerName != "" {
+		var modelKey string
+		switch providerName {
+		case "anthropic":
+			modelKey = "llm.anthropic.model"
+		case "openai":
+			modelKey = "llm.openai.model"
+		case "google", "gemini":
+			modelKey = "llm.google.model"
+		case "ollama":
+			modelKey = "llm.ollama.model"
+		case "meta_llama", "meta":
+			modelKey = "llm.meta_llama.model"
+		}
+
+		if modelKey != "" {
+			if m := viper.GetString(modelKey); m != "" {
+				return m
+			}
+		}
+	}
+
+	// Fallback to flat config for backward compatibility
 	return viper.GetString("model")
 }
 

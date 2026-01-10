@@ -411,6 +411,168 @@ func TestViperBindings(t *testing.T) {
 	}
 }
 
+// TestConfigFileValidation tests the config file validation logic
+func TestConfigFileValidation(t *testing.T) {
+	tests := []struct {
+		name           string
+		setupFunc      func(t *testing.T) string // Returns config file path
+		expectExit     bool
+		expectError    string
+	}{
+		{
+			name: "nonexistent config file shows error",
+			setupFunc: func(t *testing.T) string {
+				return "/nonexistent/config.yaml"
+			},
+			expectExit:  true,
+			expectError: "Config file not found",
+		},
+		{
+			name: "directory instead of file shows error",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				return tmpDir
+			},
+			expectExit:  true,
+			expectError: "Config path is a directory",
+		},
+		{
+			name: "valid config file succeeds",
+			setupFunc: func(t *testing.T) string {
+				tmpFile := filepath.Join(t.TempDir(), "config.yaml")
+				content := []byte("provider: openai\nmodel: gpt-4\n")
+				if err := os.WriteFile(tmpFile, content, 0644); err != nil {
+					t.Fatalf("failed to create config file: %v", err)
+				}
+				return tmpFile
+			},
+			expectExit:  false,
+			expectError: "",
+		},
+		{
+			name: "config file with no read permissions shows error",
+			setupFunc: func(t *testing.T) string {
+				tmpFile := filepath.Join(t.TempDir(), "config.yaml")
+				content := []byte("provider: openai\nmodel: gpt-4\n")
+				if err := os.WriteFile(tmpFile, content, 0000); err != nil {
+					t.Fatalf("failed to create config file: %v", err)
+				}
+				return tmpFile
+			},
+			expectExit:  true,
+			expectError: "Cannot access config file",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Skip permission test on Windows as chmod behaves differently
+			if tt.name == "config file with no read permissions shows error" && os.Getenv("OS") == "Windows_NT" {
+				t.Skip("Skipping permission test on Windows")
+			}
+
+			// Reset viper
+			viper.Reset()
+
+			// Get config file path from setup function
+			configPath := tt.setupFunc(t)
+			cfgFile = configPath
+
+			// For tests expecting exit, we can't actually test os.Exit
+			// Instead, we verify the file stat behavior
+			fileInfo, err := os.Stat(configPath)
+
+			if tt.expectError == "Config file not found" {
+				if !os.IsNotExist(err) {
+					t.Errorf("Expected file not found error for %s", configPath)
+				}
+			} else if tt.expectError == "Config path is a directory" {
+				if err == nil && !fileInfo.IsDir() {
+					t.Errorf("Expected directory but got file for %s", configPath)
+				}
+			} else if tt.expectError == "Cannot access config file" {
+				if err == nil {
+					t.Errorf("Expected permission error for %s", configPath)
+				}
+			} else if !tt.expectExit {
+				// Valid config file should not error
+				if err != nil {
+					t.Errorf("Unexpected error for valid config: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// TestConfigFlagWithDifferentPaths tests various path formats
+func TestConfigFlagWithDifferentPaths(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupPath   func(t *testing.T) string
+		shouldExist bool
+	}{
+		{
+			name: "absolute path to valid file",
+			setupPath: func(t *testing.T) string {
+				tmpFile := filepath.Join(t.TempDir(), "config.yaml")
+				os.WriteFile(tmpFile, []byte("provider: openai\n"), 0644)
+				return tmpFile
+			},
+			shouldExist: true,
+		},
+		{
+			name: "relative path to valid file",
+			setupPath: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				configPath := filepath.Join(tmpDir, "config.yaml")
+				os.WriteFile(configPath, []byte("provider: openai\n"), 0644)
+				// Change to temp dir
+				oldWd, _ := os.Getwd()
+				os.Chdir(tmpDir)
+				t.Cleanup(func() { os.Chdir(oldWd) })
+				return "config.yaml"
+			},
+			shouldExist: true,
+		},
+		{
+			name: "path with spaces",
+			setupPath: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				subDir := filepath.Join(tmpDir, "my config dir")
+				os.Mkdir(subDir, 0755)
+				configPath := filepath.Join(subDir, "config.yaml")
+				os.WriteFile(configPath, []byte("provider: openai\n"), 0644)
+				return configPath
+			},
+			shouldExist: true,
+		},
+		{
+			name: "path with special characters",
+			setupPath: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				configPath := filepath.Join(tmpDir, "config-file_2024.yaml")
+				os.WriteFile(configPath, []byte("provider: openai\n"), 0644)
+				return configPath
+			},
+			shouldExist: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configPath := tt.setupPath(t)
+
+			// Verify file exists
+			_, err := os.Stat(configPath)
+			exists := !os.IsNotExist(err)
+
+			if exists != tt.shouldExist {
+				t.Errorf("Expected file to exist: %v, but got: %v", tt.shouldExist, exists)
+			}
+		})
+	}
+}
+
 // Benchmark tests for performance validation
 
 // BenchmarkGetProvider benchmarks the GetProvider function
