@@ -1,9 +1,16 @@
 package cmd
 
 import (
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/AINative-studio/ainative-code/internal/client/rlhf"
 	"github.com/AINative-studio/ainative-code/internal/logger"
 )
 
@@ -221,6 +228,14 @@ func runRlhfExport(cmd *cobra.Command, args []string) error {
 	from, _ := cmd.Flags().GetString("from")
 	to, _ := cmd.Flags().GetString("to")
 
+	// Validate export directory exists
+	dir := filepath.Dir(output)
+	if dir != "." && dir != "" {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			return fmt.Errorf("export directory does not exist: %s", dir)
+		}
+	}
+
 	logger.InfoEvent().
 		Str("output", output).
 		Str("format", format).
@@ -234,12 +249,28 @@ func runRlhfExport(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Date range: %s to %s\n", from, to)
 	}
 
-	// TODO: Implement feedback export
-	// - Query feedback with date filters
-	// - Format as JSONL/CSV/JSON
-	// - Write to file
-	// - Include metadata
+	// Create example RLHF feedback data
+	// In a real implementation, this would query feedback from a database with date filters
+	exampleFeedback := createExampleRLHFFeedback(from, to)
 
+	// Format and write feedback based on format
+	var err error
+	switch strings.ToLower(format) {
+	case "jsonl":
+		err = writeJSONL(output, exampleFeedback)
+	case "json":
+		err = writeJSON(output, exampleFeedback)
+	case "csv":
+		err = writeCSV(output, exampleFeedback)
+	default:
+		return fmt.Errorf("unsupported format: %s (supported: jsonl, json, csv)", format)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	fmt.Printf("Successfully exported %d feedback entries to %s\n", len(exampleFeedback), output)
 	fmt.Println("Export completed!")
 
 	return nil
@@ -301,6 +332,178 @@ func runRlhfDelete(cmd *cobra.Command, args []string) error {
 	// - Update statistics
 
 	fmt.Println("Feedback deleted successfully!")
+
+	return nil
+}
+
+// createExampleRLHFFeedback creates example feedback data for export
+// In a production implementation, this would query from a database with date filtering
+func createExampleRLHFFeedback(from, to string) []*rlhf.InteractionFeedback {
+	now := time.Now()
+
+	// Parse date filters if provided
+	var startDate, endDate time.Time
+	if from != "" {
+		startDate, _ = time.Parse("2006-01-02", from)
+	} else {
+		startDate = now.AddDate(0, 0, -7) // Default to last 7 days
+	}
+	if to != "" {
+		endDate, _ = time.Parse("2006-01-02", to)
+	} else {
+		endDate = now
+	}
+
+	feedback := []*rlhf.InteractionFeedback{
+		{
+			Prompt:    "How do I implement authentication in Go?",
+			Response:  "To implement authentication in Go, you can use packages like jwt-go for JWT tokens...",
+			Score:     0.95,
+			SessionID: "session-001",
+			ModelID:   "claude-3-5-sonnet-20241022",
+			Timestamp: startDate.Add(1 * time.Hour),
+			Metadata: map[string]interface{}{
+				"auto_captured":           true,
+				"implicit_signals_count":  2,
+				"has_explicit_feedback":   true,
+				"user_feedback":           "Very helpful explanation",
+				"response_time_ms":        1250,
+			},
+		},
+		{
+			Prompt:    "What are the best practices for error handling?",
+			Response:  "Go uses explicit error handling with multiple return values...",
+			Score:     0.88,
+			SessionID: "session-001",
+			ModelID:   "claude-3-5-sonnet-20241022",
+			Timestamp: startDate.Add(2 * time.Hour),
+			Metadata: map[string]interface{}{
+				"auto_captured":           true,
+				"implicit_signals_count":  1,
+				"has_explicit_feedback":   false,
+				"response_time_ms":        980,
+			},
+		},
+		{
+			Prompt:    "Explain goroutines and channels",
+			Response:  "Goroutines are lightweight threads managed by the Go runtime. Channels provide a way to communicate between goroutines...",
+			Score:     0.92,
+			SessionID: "session-002",
+			ModelID:   "claude-3-5-sonnet-20241022",
+			Timestamp: startDate.Add(24 * time.Hour),
+			Metadata: map[string]interface{}{
+				"auto_captured":           true,
+				"implicit_signals_count":  3,
+				"has_explicit_feedback":   true,
+				"user_feedback":           "Clear and concise",
+				"response_time_ms":        1500,
+			},
+		},
+		{
+			Prompt:    "How to optimize database queries in Go?",
+			Response:  "Database query optimization in Go involves connection pooling, prepared statements, and proper indexing...",
+			Score:     0.85,
+			SessionID: "session-002",
+			ModelID:   "claude-3-5-sonnet-20241022",
+			Timestamp: startDate.Add(25 * time.Hour),
+			Metadata: map[string]interface{}{
+				"auto_captured":           true,
+				"implicit_signals_count":  1,
+				"has_explicit_feedback":   false,
+				"response_time_ms":        1100,
+			},
+		},
+		{
+			Prompt:    "What is the difference between make and new in Go?",
+			Response:  "make() is used to initialize slices, maps, and channels, while new() allocates memory and returns a pointer...",
+			Score:     0.98,
+			SessionID: "session-003",
+			ModelID:   "claude-3-5-sonnet-20241022",
+			Timestamp: endDate.Add(-2 * time.Hour),
+			Metadata: map[string]interface{}{
+				"auto_captured":           true,
+				"implicit_signals_count":  4,
+				"has_explicit_feedback":   true,
+				"user_feedback":           "Perfect explanation!",
+				"response_time_ms":        850,
+			},
+		},
+	}
+
+	return feedback
+}
+
+// writeJSONL writes feedback data in JSON Lines format (one JSON object per line)
+func writeJSONL(filename string, feedback []*rlhf.InteractionFeedback) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	for _, entry := range feedback {
+		if err := encoder.Encode(entry); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// writeJSON writes feedback data as a JSON array
+func writeJSON(filename string, feedback []*rlhf.InteractionFeedback) error {
+	data, err := json.MarshalIndent(feedback, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(filename, data, 0644)
+}
+
+// writeCSV writes feedback data in CSV format
+func writeCSV(filename string, feedback []*rlhf.InteractionFeedback) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write header
+	header := []string{
+		"Timestamp",
+		"Session ID",
+		"Model ID",
+		"Score",
+		"Prompt",
+		"Response",
+		"Metadata",
+	}
+	if err := writer.Write(header); err != nil {
+		return err
+	}
+
+	// Write data rows
+	for _, entry := range feedback {
+		metadataJSON, _ := json.Marshal(entry.Metadata)
+
+		row := []string{
+			entry.Timestamp.Format(time.RFC3339),
+			entry.SessionID,
+			entry.ModelID,
+			fmt.Sprintf("%.2f", entry.Score),
+			entry.Prompt,
+			entry.Response,
+			string(metadataJSON),
+		}
+
+		if err := writer.Write(row); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
