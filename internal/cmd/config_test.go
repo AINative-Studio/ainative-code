@@ -642,6 +642,230 @@ func TestConfigInitForceFlag(t *testing.T) {
 	}
 }
 
+// TestValidateConfigKey tests the key validation function
+func TestValidateConfigKey(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     string
+		wantErr bool
+		errMsg  string
+	}{
+		// Valid keys
+		{
+			name:    "valid simple key",
+			key:     "provider",
+			wantErr: false,
+		},
+		{
+			name:    "valid nested key",
+			key:     "database.path",
+			wantErr: false,
+		},
+		{
+			name:    "valid key with underscores",
+			key:     "api_key",
+			wantErr: false,
+		},
+		{
+			name:    "valid key with hyphens",
+			key:     "max-tokens",
+			wantErr: false,
+		},
+		{
+			name:    "valid complex key",
+			key:     "llm.openai.api_key",
+			wantErr: false,
+		},
+		{
+			name:    "valid key with numbers",
+			key:     "timeout_ms_500",
+			wantErr: false,
+		},
+		{
+			name:    "valid mixed case key",
+			key:     "OpenAI.ApiKey",
+			wantErr: false,
+		},
+
+		// Invalid keys - empty and whitespace
+		{
+			name:    "empty key",
+			key:     "",
+			wantErr: true,
+			errMsg:  "key name cannot be empty",
+		},
+		{
+			name:    "whitespace only key - spaces",
+			key:     "   ",
+			wantErr: true,
+			errMsg:  "key name cannot be whitespace only",
+		},
+		{
+			name:    "whitespace only key - tabs",
+			key:     "\t\t",
+			wantErr: true,
+			errMsg:  "key name cannot be whitespace only",
+		},
+		{
+			name:    "whitespace only key - mixed",
+			key:     " \t \n ",
+			wantErr: true,
+			errMsg:  "key name cannot be whitespace only",
+		},
+
+		// Invalid keys - invalid characters
+		{
+			name:    "key with spaces",
+			key:     "api key",
+			wantErr: true,
+			errMsg:  "invalid character",
+		},
+		{
+			name:    "key with slash",
+			key:     "api/key",
+			wantErr: true,
+			errMsg:  "invalid character",
+		},
+		{
+			name:    "key with equals",
+			key:     "api=key",
+			wantErr: true,
+			errMsg:  "invalid character",
+		},
+		{
+			name:    "key with special chars",
+			key:     "api@key",
+			wantErr: true,
+			errMsg:  "invalid character",
+		},
+		{
+			name:    "key with brackets",
+			key:     "api[key]",
+			wantErr: true,
+			errMsg:  "invalid character",
+		},
+
+		// Invalid keys - dot issues
+		{
+			name:    "key starting with dot",
+			key:     ".api_key",
+			wantErr: true,
+			errMsg:  "cannot start with a dot",
+		},
+		{
+			name:    "key ending with dot",
+			key:     "api_key.",
+			wantErr: true,
+			errMsg:  "cannot end with a dot",
+		},
+		{
+			name:    "key with consecutive dots",
+			key:     "api..key",
+			wantErr: true,
+			errMsg:  "cannot contain consecutive dots",
+		},
+
+		// Invalid keys - length
+		{
+			name:    "key too long",
+			key:     strings.Repeat("a", 101),
+			wantErr: true,
+			errMsg:  "exceeds maximum length",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateConfigKey(tt.key)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateConfigKey() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr && tt.errMsg != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("validateConfigKey() error = %v, want error containing %q", err, tt.errMsg)
+				}
+			}
+		})
+	}
+}
+
+// TestRunConfigSetWithInvalidKeys tests config set with invalid keys
+func TestRunConfigSetWithInvalidKeys(t *testing.T) {
+	tests := []struct {
+		name       string
+		key        string
+		value      string
+		wantErr    bool
+		errContains string
+	}{
+		{
+			name:       "empty key rejected",
+			key:        "",
+			value:      "some-value",
+			wantErr:    true,
+			errContains: "key name cannot be empty",
+		},
+		{
+			name:       "whitespace key rejected",
+			key:        "   ",
+			value:      "some-value",
+			wantErr:    true,
+			errContains: "key name cannot be whitespace only",
+		},
+		{
+			name:       "key with spaces rejected",
+			key:        "api key",
+			value:      "some-value",
+			wantErr:    true,
+			errContains: "invalid character",
+		},
+		{
+			name:       "key with special chars rejected",
+			key:        "api@key",
+			value:      "some-value",
+			wantErr:    true,
+			errContains: "invalid character",
+		},
+		{
+			name:       "valid key accepted",
+			key:        "valid_key",
+			value:      "some-value",
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Use temp directory for config file
+			tmpDir := t.TempDir()
+			configFile := filepath.Join(tmpDir, ".ainative-code.yaml")
+
+			// Reset viper
+			viper.Reset()
+			viper.SetConfigFile(configFile)
+
+			var buf bytes.Buffer
+			configSetCmd.SetOut(&buf)
+
+			err := runConfigSet(configSetCmd, []string{tt.key, tt.value})
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("runConfigSet() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr && tt.errContains != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("runConfigSet() error = %v, want error containing %q", err, tt.errContains)
+				}
+			}
+		})
+	}
+}
+
 // Benchmark tests for performance validation
 
 // BenchmarkRunConfigShow benchmarks config show command

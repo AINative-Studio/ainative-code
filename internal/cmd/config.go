@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/AINative-studio/ainative-code/internal/logger"
 	"github.com/spf13/cobra"
@@ -161,6 +162,11 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		Str("value", value).
 		Msg("Setting configuration value")
 
+	// Validate the key name before proceeding
+	if err := validateConfigKey(key); err != nil {
+		return fmt.Errorf("invalid configuration key: %w", err)
+	}
+
 	// Validate the configuration value before setting
 	if err := validateConfigValue(key, value); err != nil {
 		return fmt.Errorf("invalid configuration value: %w", err)
@@ -262,6 +268,53 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 	fmt.Println("  provider: openai")
 	fmt.Println("  model: gpt-4")
 	fmt.Println("  verbose: false")
+
+	return nil
+}
+
+// validateConfigKey validates a configuration key name
+func validateConfigKey(key string) error {
+	// Check for empty key
+	if key == "" {
+		return fmt.Errorf("key name cannot be empty")
+	}
+
+	// Check for whitespace-only key
+	if len(strings.TrimSpace(key)) == 0 {
+		return fmt.Errorf("key name cannot be whitespace only")
+	}
+
+	// Maximum length for key name
+	const maxKeyLength = 100
+
+	// Check key length
+	if len(key) > maxKeyLength {
+		return fmt.Errorf("key name exceeds maximum length of %d characters", maxKeyLength)
+	}
+
+	// Check if key contains only valid characters (alphanumeric, dots, underscores, hyphens)
+	// This prevents issues with config file parsing
+	for i, ch := range key {
+		if !((ch >= 'a' && ch <= 'z') ||
+		     (ch >= 'A' && ch <= 'Z') ||
+		     (ch >= '0' && ch <= '9') ||
+		     ch == '.' || ch == '_' || ch == '-') {
+			return fmt.Errorf("key name contains invalid character '%c' at position %d. Valid characters: a-z, A-Z, 0-9, dot (.), underscore (_), hyphen (-)", ch, i)
+		}
+	}
+
+	// Key must not start or end with a dot (prevents config parsing issues)
+	if strings.HasPrefix(key, ".") {
+		return fmt.Errorf("key name cannot start with a dot")
+	}
+	if strings.HasSuffix(key, ".") {
+		return fmt.Errorf("key name cannot end with a dot")
+	}
+
+	// Key must not contain consecutive dots (prevents config parsing issues)
+	if strings.Contains(key, "..") {
+		return fmt.Errorf("key name cannot contain consecutive dots")
+	}
 
 	return nil
 }
