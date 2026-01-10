@@ -245,6 +245,138 @@ func (v *Validator) ValidateAll(ctx context.Context, selections map[string]inter
 		}
 	}
 
+	// Validate Strapi configuration if enabled
+	if strapiEnabled, ok := selections["strapi_enabled"].(bool); ok && strapiEnabled {
+		strapiURL, ok := selections["strapi_url"].(string)
+		if !ok || strapiURL == "" {
+			return fmt.Errorf("Strapi URL is required when Strapi is enabled")
+		}
+		if err := v.ValidateStrapiURL(ctx, strapiURL); err != nil {
+			return fmt.Errorf("Strapi URL validation failed: %w", err)
+		}
+
+		// API key is optional, but validate if provided
+		if strapiAPIKey, ok := selections["strapi_api_key"].(string); ok && strapiAPIKey != "" {
+			if err := v.ValidateStrapiConnection(ctx, strapiURL, strapiAPIKey); err != nil {
+				return fmt.Errorf("Strapi connection validation failed: %w", err)
+			}
+		}
+	}
+
+	// Validate ZeroDB configuration if enabled
+	if zeroDBEnabled, ok := selections["zerodb_enabled"].(bool); ok && zeroDBEnabled {
+		projectID, ok := selections["zerodb_project_id"].(string)
+		if !ok || projectID == "" {
+			return fmt.Errorf("ZeroDB Project ID is required when ZeroDB is enabled")
+		}
+		if err := v.ValidateZeroDBProjectID(projectID); err != nil {
+			return fmt.Errorf("ZeroDB Project ID validation failed: %w", err)
+		}
+
+		// Endpoint is optional
+		if endpoint, ok := selections["zerodb_endpoint"].(string); ok && endpoint != "" {
+			if err := v.ValidateZeroDBEndpoint(endpoint); err != nil {
+				return fmt.Errorf("ZeroDB endpoint validation failed: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// ValidateStrapiURL validates a Strapi instance URL
+func (v *Validator) ValidateStrapiURL(ctx context.Context, strapiURL string) error {
+	if strapiURL == "" {
+		return fmt.Errorf("Strapi URL cannot be empty")
+	}
+
+	// Validate URL format
+	parsedURL, err := url.Parse(strapiURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL format: %w", err)
+	}
+
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("URL must use http or https scheme")
+	}
+
+	return nil
+}
+
+// ValidateStrapiConnection makes a REAL API call to validate Strapi connection
+func (v *Validator) ValidateStrapiConnection(ctx context.Context, baseURL, apiKey string) error {
+	// Test the /api endpoint
+	testURL := strings.TrimRight(baseURL, "/") + "/api"
+
+	req, err := http.NewRequestWithContext(ctx, "GET", testURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	resp, err := v.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Strapi: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("Strapi authentication failed: invalid API key")
+	}
+
+	if resp.StatusCode >= 500 {
+		return fmt.Errorf("Strapi server error: status %d", resp.StatusCode)
+	}
+
+	// Status 200-399 are considered successful
+	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+		return nil
+	}
+
+	return fmt.Errorf("unexpected Strapi response: status %d", resp.StatusCode)
+}
+
+// ValidateZeroDBProjectID validates a ZeroDB project ID format
+func (v *Validator) ValidateZeroDBProjectID(projectID string) error {
+	if projectID == "" {
+		return fmt.Errorf("ZeroDB Project ID cannot be empty")
+	}
+
+	// Project IDs should be alphanumeric with hyphens/underscores
+	if len(projectID) < 3 {
+		return fmt.Errorf("Project ID is too short")
+	}
+
+	// Basic format validation
+	for _, c := range projectID {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_') {
+			return fmt.Errorf("Project ID contains invalid characters")
+		}
+	}
+
+	return nil
+}
+
+// ValidateZeroDBEndpoint validates a ZeroDB endpoint URL
+func (v *Validator) ValidateZeroDBEndpoint(endpoint string) error {
+	if endpoint == "" {
+		// Empty endpoint is allowed (will use default)
+		return nil
+	}
+
+	// Validate URL format
+	parsedURL, err := url.Parse(endpoint)
+	if err != nil {
+		return fmt.Errorf("invalid endpoint URL format: %w", err)
+	}
+
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("endpoint URL must use http or https scheme")
+	}
+
 	return nil
 }
 

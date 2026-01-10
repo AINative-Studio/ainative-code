@@ -27,6 +27,12 @@ const (
 	StepMetaLlamaModel
 	StepAINativeLogin
 	StepAINativeAPIKey
+	StepStrapiSetup
+	StepStrapiURL
+	StepStrapiAPIKey
+	StepZeroDBSetup
+	StepZeroDBProjectID
+	StepZeroDBEndpoint
 	StepColorScheme
 	StepPromptCaching
 	StepComplete
@@ -302,6 +308,64 @@ func (m PromptModel) View() string {
 			"Dark",
 		}))
 
+	case StepStrapiSetup:
+		s.WriteString(titleStyle.Render("Strapi CMS Integration"))
+		s.WriteString("\n\n")
+		s.WriteString(questionStyle.Render("Would you like to configure Strapi CMS?"))
+		s.WriteString("\n")
+		s.WriteString(questionStyle.Render("(Optional - enables headless CMS features)"))
+		s.WriteString("\n\n")
+		s.WriteString(m.renderYesNo())
+		s.WriteString("\n\n")
+		s.WriteString(m.renderHelpText("Strapi provides content management and API capabilities"))
+
+	case StepStrapiURL:
+		s.WriteString(titleStyle.Render("Strapi Configuration"))
+		s.WriteString("\n\n")
+		s.WriteString(questionStyle.Render("Enter your Strapi instance URL:"))
+		s.WriteString("\n")
+		s.WriteString(m.renderTextInput())
+		s.WriteString("\n\n")
+		s.WriteString(m.renderHelpText("Example: https://your-strapi-instance.com"))
+
+	case StepStrapiAPIKey:
+		s.WriteString(titleStyle.Render("Strapi API Key"))
+		s.WriteString("\n\n")
+		s.WriteString(questionStyle.Render("Enter your Strapi API key (optional):"))
+		s.WriteString("\n")
+		s.WriteString(m.renderTextInput())
+		s.WriteString("\n\n")
+		s.WriteString(m.renderHelpText("Get your API key from Strapi Settings > API Tokens"))
+
+	case StepZeroDBSetup:
+		s.WriteString(titleStyle.Render("ZeroDB Integration"))
+		s.WriteString("\n\n")
+		s.WriteString(questionStyle.Render("Would you like to configure ZeroDB?"))
+		s.WriteString("\n")
+		s.WriteString(questionStyle.Render("(Optional - enables vector storage, quantum operations, and memory)"))
+		s.WriteString("\n\n")
+		s.WriteString(m.renderYesNo())
+		s.WriteString("\n\n")
+		s.WriteString(m.renderHelpText("ZeroDB provides advanced AI database capabilities"))
+
+	case StepZeroDBProjectID:
+		s.WriteString(titleStyle.Render("ZeroDB Configuration"))
+		s.WriteString("\n\n")
+		s.WriteString(questionStyle.Render("Enter your ZeroDB Project ID:"))
+		s.WriteString("\n")
+		s.WriteString(m.renderTextInput())
+		s.WriteString("\n\n")
+		s.WriteString(m.renderHelpText("Get your Project ID from ZeroDB dashboard"))
+
+	case StepZeroDBEndpoint:
+		s.WriteString(titleStyle.Render("ZeroDB Endpoint"))
+		s.WriteString("\n\n")
+		s.WriteString(questionStyle.Render("Enter your ZeroDB endpoint URL (optional):"))
+		s.WriteString("\n")
+		s.WriteString(m.renderTextInput())
+		s.WriteString("\n\n")
+		s.WriteString(m.renderHelpText("Leave empty to use default ZeroDB endpoint"))
+
 	case StepPromptCaching:
 		s.WriteString(titleStyle.Render("Prompt Caching"))
 		s.WriteString("\n\n")
@@ -433,6 +497,22 @@ func (m PromptModel) handleEnter() (tea.Model, tea.Cmd) {
 		m.Selections["ainative_api_key"] = m.textInput.Value()
 		m.textInput.SetValue("")
 
+	case StepStrapiURL:
+		m.Selections["strapi_url"] = m.textInput.Value()
+		m.textInput.SetValue("")
+
+	case StepStrapiAPIKey:
+		m.Selections["strapi_api_key"] = m.textInput.Value()
+		m.textInput.SetValue("")
+
+	case StepZeroDBProjectID:
+		m.Selections["zerodb_project_id"] = m.textInput.Value()
+		m.textInput.SetValue("")
+
+	case StepZeroDBEndpoint:
+		m.Selections["zerodb_endpoint"] = m.textInput.Value()
+		m.textInput.SetValue("")
+
 	case StepColorScheme:
 		schemes := []string{"auto", "light", "dark"}
 		m.Selections["color_scheme"] = schemes[m.cursor]
@@ -506,6 +586,32 @@ func (m PromptModel) nextStep() (tea.Model, tea.Cmd) {
 		}
 
 	case StepAINativeAPIKey:
+		m.currentStep = StepStrapiSetup
+
+	case StepStrapiSetup:
+		if strapiEnabled, ok := m.Selections["strapi_enabled"].(bool); ok && strapiEnabled {
+			m.currentStep = StepStrapiURL
+		} else {
+			m.currentStep = StepZeroDBSetup
+		}
+
+	case StepStrapiURL:
+		m.currentStep = StepStrapiAPIKey
+
+	case StepStrapiAPIKey:
+		m.currentStep = StepZeroDBSetup
+
+	case StepZeroDBSetup:
+		if zeroDBEnabled, ok := m.Selections["zerodb_enabled"].(bool); ok && zeroDBEnabled {
+			m.currentStep = StepZeroDBProjectID
+		} else {
+			m.currentStep = StepColorScheme
+		}
+
+	case StepZeroDBProjectID:
+		m.currentStep = StepZeroDBEndpoint
+
+	case StepZeroDBEndpoint:
 		m.currentStep = StepColorScheme
 
 	case StepColorScheme:
@@ -538,12 +644,18 @@ func (m PromptModel) isTextInputStep() bool {
 		m.currentStep == StepOllamaURL ||
 		m.currentStep == StepOllamaModel ||
 		m.currentStep == StepMetaLlamaAPIKey ||
-		m.currentStep == StepAINativeAPIKey
+		m.currentStep == StepAINativeAPIKey ||
+		m.currentStep == StepStrapiURL ||
+		m.currentStep == StepStrapiAPIKey ||
+		m.currentStep == StepZeroDBProjectID ||
+		m.currentStep == StepZeroDBEndpoint
 }
 
 func (m PromptModel) isYesNoStep() bool {
 	return m.currentStep == StepExtendedThinking ||
 		m.currentStep == StepAINativeLogin ||
+		m.currentStep == StepStrapiSetup ||
+		m.currentStep == StepZeroDBSetup ||
 		m.currentStep == StepPromptCaching
 }
 
@@ -553,6 +665,10 @@ func (m PromptModel) getStepKey() string {
 		return "extended_thinking"
 	case StepAINativeLogin:
 		return "ainative_login"
+	case StepStrapiSetup:
+		return "strapi_enabled"
+	case StepZeroDBSetup:
+		return "zerodb_enabled"
 	case StepPromptCaching:
 		return "prompt_caching"
 	default:
@@ -577,6 +693,16 @@ func (m PromptModel) getChoiceCount() int {
 	default:
 		return 0
 	}
+}
+
+// GetCursor returns the current cursor position (for testing)
+func (m PromptModel) GetCursor() int {
+	return m.cursor
+}
+
+// GetCurrentStep returns the current step (for testing)
+func (m PromptModel) GetCurrentStep() Step {
+	return m.currentStep
 }
 
 // SummaryModel displays the configuration summary

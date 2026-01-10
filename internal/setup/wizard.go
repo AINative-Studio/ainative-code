@@ -179,7 +179,7 @@ func (w *Wizard) buildConfiguration() error {
 		LLM: config.LLMConfig{},
 		Platform: config.PlatformConfig{
 			Authentication: config.AuthConfig{
-				Method:  "api_key",
+				Method:  "none", // Default to none, will be set to api_key if user configures AINative
 				Timeout: 10000000000, // 10s in nanoseconds
 			},
 		},
@@ -359,7 +359,57 @@ func (w *Wizard) buildConfiguration() error {
 	// AINative platform login (optional)
 	if loginEnabled, ok := w.userSelections["ainative_login"].(bool); ok && loginEnabled {
 		if apiKey, ok := w.userSelections["ainative_api_key"].(string); ok {
+			cfg.Platform.Authentication.Method = "api_key"
 			cfg.Platform.Authentication.APIKey = apiKey
+		}
+	}
+
+	// Configure Strapi (optional)
+	if strapiEnabled, ok := w.userSelections["strapi_enabled"].(bool); ok && strapiEnabled {
+		strapiURL := ""
+		if url, ok := w.userSelections["strapi_url"].(string); ok {
+			strapiURL = url
+		}
+
+		strapiAPIKey := ""
+		if key, ok := w.userSelections["strapi_api_key"].(string); ok {
+			strapiAPIKey = key
+		}
+
+		cfg.Services.Strapi = &config.StrapiConfig{
+			Enabled:       true,
+			Endpoint:      strapiURL,
+			APIKey:        strapiAPIKey,
+			Timeout:       30000000000, // 30s
+			RetryAttempts: 3,
+		}
+	}
+
+	// Configure ZeroDB (optional)
+	if zeroDBEnabled, ok := w.userSelections["zerodb_enabled"].(bool); ok && zeroDBEnabled {
+		projectID := ""
+		if pid, ok := w.userSelections["zerodb_project_id"].(string); ok {
+			projectID = pid
+		}
+
+		endpoint := ""
+		if ep, ok := w.userSelections["zerodb_endpoint"].(string); ok && ep != "" {
+			endpoint = ep
+		}
+
+		cfg.Services.ZeroDB = &config.ZeroDBConfig{
+			Enabled:         true,
+			ProjectID:       projectID,
+			Endpoint:        endpoint,
+			Database:        "default",
+			SSL:             true,
+			SSLMode:         "require",
+			MaxConnections:  10,
+			IdleConnections: 5,
+			ConnMaxLifetime: 3600000000000, // 1h
+			Timeout:         30000000000,   // 30s
+			RetryAttempts:   3,
+			RetryDelay:      1000000000, // 1s
 		}
 	}
 

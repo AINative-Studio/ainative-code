@@ -66,7 +66,7 @@ func (v *Validator) validateLLM() {
 		return
 	}
 
-	validProviders := []string{"anthropic", "openai", "google", "bedrock", "azure", "ollama"}
+	validProviders := []string{"anthropic", "openai", "google", "bedrock", "azure", "ollama", "meta_llama", "meta"}
 	if !v.isValidEnum(v.config.LLM.DefaultProvider, validProviders) {
 		v.addError("llm.default_provider", fmt.Sprintf("must be one of: %s", strings.Join(validProviders, ", ")))
 	}
@@ -427,7 +427,7 @@ func (v *Validator) validateFallback() {
 		v.addError("llm.fallback.providers", "at least one fallback provider must be specified")
 	}
 
-	validProviders := []string{"anthropic", "openai", "google", "bedrock", "azure", "ollama"}
+	validProviders := []string{"anthropic", "openai", "google", "bedrock", "azure", "ollama", "meta_llama", "meta"}
 	for _, provider := range cfg.Providers {
 		if !v.isValidEnum(provider, validProviders) {
 			v.addError("llm.fallback.providers", fmt.Sprintf("invalid provider '%s', must be one of: %s", provider, strings.Join(validProviders, ", ")))
@@ -453,15 +453,18 @@ func (v *Validator) validateAuthentication() {
 	cfg := v.config.Platform.Authentication
 
 	if cfg.Method == "" {
-		cfg.Method = "api_key" // default
+		cfg.Method = "none" // default to none
 	}
 
-	validMethods := []string{"jwt", "api_key", "oauth2"}
+	validMethods := []string{"none", "jwt", "api_key", "oauth2"}
 	if !v.isValidEnum(cfg.Method, validMethods) {
 		v.addError("platform.authentication.method", fmt.Sprintf("must be one of: %s", strings.Join(validMethods, ", ")))
 	}
 
 	switch cfg.Method {
+	case "none":
+		// No validation needed for "none" method
+		return
 	case "api_key":
 		if cfg.APIKey == "" {
 			v.addError("platform.authentication.api_key", "API key is required when method is 'api_key'")
