@@ -39,7 +39,7 @@ Examples:
   ainative-code rlhf list
 
   # Export feedback data
-  ainative-code rlhf export --output feedback.jsonl
+  ainative-code rlhf export --file feedback.jsonl
 
   # View feedback statistics
   ainative-code rlhf stats
@@ -118,7 +118,10 @@ func init() {
 	rlhfListCmd.Flags().String("filter", "", "filter by rating or tag")
 
 	// Export flags
-	rlhfExportCmd.Flags().StringP("output", "o", "feedback.jsonl", "output file path")
+	// Using -f/--file for consistency with other commands (standardized in issue #121)
+	// Keeping -o/--output as deprecated alias for backward compatibility
+	rlhfExportCmd.Flags().StringP("file", "f", "feedback.jsonl", "output file path")
+	rlhfExportCmd.Flags().StringP("output", "o", "", "output file path (deprecated: use --file/-f instead)")
 	rlhfExportCmd.Flags().String("format", "jsonl", "export format (jsonl, csv, json)")
 	rlhfExportCmd.Flags().String("from", "", "start date (YYYY-MM-DD)")
 	rlhfExportCmd.Flags().String("to", "", "end date (YYYY-MM-DD)")
@@ -223,7 +226,20 @@ func runRlhfList(cmd *cobra.Command, args []string) error {
 }
 
 func runRlhfExport(cmd *cobra.Command, args []string) error {
-	output, _ := cmd.Flags().GetString("output")
+	// Get file path from --file flag (preferred) or fall back to --output (deprecated)
+	file, _ := cmd.Flags().GetString("file")
+	outputDeprecated, _ := cmd.Flags().GetString("output")
+
+	// Handle backward compatibility: use --output if --file is default and --output is set
+	output := file
+	if file == "feedback.jsonl" && outputDeprecated != "" {
+		output = outputDeprecated
+		fmt.Println("Warning: --output/-o flag is deprecated. Please use --file/-f instead.")
+		logger.WarnEvent().
+			Str("flag", "output").
+			Msg("Deprecated flag used: --output/-o. Use --file/-f instead for consistency.")
+	}
+
 	format, _ := cmd.Flags().GetString("format")
 	from, _ := cmd.Flags().GetString("from")
 	to, _ := cmd.Flags().GetString("to")

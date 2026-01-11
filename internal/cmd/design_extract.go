@@ -40,19 +40,19 @@ Supports multiple output formats:
 
 Examples:
   # Extract from CSS file to JSON
-  ainative-code design extract --source styles.css --output tokens.json --format json
+  ainative-code design extract --source styles.css --file tokens.json
 
   # Extract from SCSS file to Tailwind config
-  ainative-code design extract --source variables.scss --output tailwind.config.js --format tailwind
+  ainative-code design extract --source variables.scss --file tailwind.config.js --format tailwind
 
   # Extract from LESS file to YAML
-  ainative-code design extract --source theme.less --output tokens.yaml --format yaml
+  ainative-code design extract --source theme.less --file tokens.yaml --format yaml
 
   # Extract with validation enabled
-  ainative-code design extract --source styles.css --output tokens.json --validate
+  ainative-code design extract --source styles.css --file tokens.json --validate
 
   # Extract with pretty formatting
-  ainative-code design extract --source styles.css --output tokens.json --pretty`,
+  ainative-code design extract --source styles.css --file tokens.json --pretty`,
 	Aliases: []string{"ext", "parse"},
 	RunE:    runDesignExtract,
 }
@@ -62,18 +62,28 @@ func init() {
 
 	// Flags
 	designExtractCmd.Flags().StringVarP(&extractSourceFile, "source", "s", "", "source CSS/SCSS/LESS file (required)")
-	designExtractCmd.Flags().StringVarP(&extractOutputFile, "output", "o", "", "output file path (required)")
-	designExtractCmd.Flags().StringVarP(&extractFormat, "format", "f", "json", "output format (json, yaml, tailwind)")
+	// Using -f/--file for output consistency (issue #121), with --output as deprecated alias
+	designExtractCmd.Flags().StringVarP(&extractOutputFile, "file", "f", "", "output file path (required)")
+	designExtractCmd.Flags().StringVarP(&extractOutputFile, "output", "o", "", "output file path (deprecated: use --file/-f instead)")
+	designExtractCmd.Flags().StringVar(&extractFormat, "format", "json", "output format (json, yaml, tailwind)")
 	designExtractCmd.Flags().BoolVar(&extractPretty, "pretty", true, "pretty print output (for json)")
 	designExtractCmd.Flags().BoolVar(&extractValidate, "validate", true, "validate extracted tokens")
 	designExtractCmd.Flags().BoolVar(&extractIncludeComments, "include-comments", true, "include comments in output (for tailwind)")
 
 	// Mark required flags
 	designExtractCmd.MarkFlagRequired("source")
-	designExtractCmd.MarkFlagRequired("output")
+	designExtractCmd.MarkFlagRequired("file")
 }
 
 func runDesignExtract(cmd *cobra.Command, args []string) error {
+	// Check if deprecated --output flag was used
+	if cmd.Flags().Changed("output") && !cmd.Flags().Changed("file") {
+		fmt.Println("Warning: --output/-o flag is deprecated. Please use --file/-f instead.")
+		logger.WarnEvent().
+			Str("flag", "output").
+			Msg("Deprecated flag used: --output/-o. Use --file/-f instead for consistency.")
+	}
+
 	logger.InfoEvent().
 		Str("source", extractSourceFile).
 		Str("output", extractOutputFile).

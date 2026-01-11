@@ -467,21 +467,61 @@ func TestRunConfigValidate(t *testing.T) {
 		name       string
 		setupViper func()
 		wantErr    bool
+		wantOutput string
 	}{
 		{
-			name: "validates valid configuration",
+			name: "validates valid configuration with legacy provider field",
 			setupViper: func() {
 				viper.Reset()
 				viper.Set("provider", "openai")
 				viper.Set("model", "gpt-4")
 			},
-			wantErr: false,
+			wantErr:    false,
+			wantOutput: "Provider: openai (from provider)",
+		},
+		{
+			name: "validates valid configuration with new llm.default_provider field",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("llm.default_provider", "anthropic")
+				viper.Set("llm.anthropic.model", "claude-3-5-sonnet-20241022")
+			},
+			wantErr:    false,
+			wantOutput: "Provider: anthropic (from llm.default_provider)",
+		},
+		{
+			name: "prefers llm.default_provider over legacy provider",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("provider", "openai")
+				viper.Set("llm.default_provider", "anthropic")
+			},
+			wantErr:    false,
+			wantOutput: "Provider: anthropic (from llm.default_provider)",
 		},
 		{
 			name: "fails with missing provider",
 			setupViper: func() {
 				viper.Reset()
 				viper.Set("model", "gpt-4")
+			},
+			wantErr: true,
+		},
+		{
+			name: "fails with empty provider - Issue #122",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("provider", "")
+				viper.Set("llm.default_provider", "anthropic")
+			},
+			wantErr:    false,
+			wantOutput: "Provider: anthropic (from llm.default_provider)",
+		},
+		{
+			name: "fails with empty root provider and no nested provider - Issue #122",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("provider", "")
 			},
 			wantErr: true,
 		},
@@ -509,19 +549,66 @@ func TestRunConfigValidate(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "validates google provider",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("llm.default_provider", "google")
+			},
+			wantErr: false,
+		},
+		{
+			name: "validates bedrock provider",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("llm.default_provider", "bedrock")
+			},
+			wantErr: false,
+		},
+		{
+			name: "validates azure provider",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("llm.default_provider", "azure")
+			},
+			wantErr: false,
+		},
+		{
+			name: "validates meta_llama provider",
+			setupViper: func() {
+				viper.Reset()
+				viper.Set("llm.default_provider", "meta_llama")
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setupViper()
 
-			var buf bytes.Buffer
-			configValidateCmd.SetOut(&buf)
+			// Capture stdout
+			oldStdout := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
 
 			err := runConfigValidate(configValidateCmd, []string{})
 
+			// Restore stdout and read output
+			w.Close()
+			os.Stdout = oldStdout
+			var buf bytes.Buffer
+			buf.ReadFrom(r)
+			output := buf.String()
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("runConfigValidate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr && tt.wantOutput != "" {
+				if !strings.Contains(output, tt.wantOutput) {
+					t.Errorf("runConfigValidate() output = %q, want to contain %q", output, tt.wantOutput)
+				}
 			}
 		})
 	}

@@ -3,6 +3,8 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -16,6 +18,7 @@ type Registry struct {
 	checkInterval time.Duration
 	stopChan      chan struct{}
 	wg            sync.WaitGroup
+	configManager *ConfigManager
 }
 
 // ToolInfo contains information about a tool and its source server.
@@ -30,13 +33,72 @@ func NewRegistry(checkInterval time.Duration) *Registry {
 		checkInterval = 1 * time.Minute
 	}
 
-	return &Registry{
+	// Determine config path
+	configPath := os.Getenv("MCP_CONFIG_PATH")
+	if configPath == "" {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			configPath = filepath.Join(home, ".mcp.json")
+		} else {
+			configPath = ".mcp.json"
+		}
+	}
+
+	registry := &Registry{
 		servers:       make(map[string]*Client),
 		tools:         make(map[string]*ToolInfo),
 		healthStatus:  make(map[string]*HealthStatus),
 		checkInterval: checkInterval,
 		stopChan:      make(chan struct{}),
+		configManager: NewConfigManager(configPath),
 	}
+
+	// Load servers from config file
+	registry.loadServersFromConfig()
+
+	return registry
+}
+
+// loadServersFromConfig loads servers from the config file into the registry
+func (r *Registry) loadServersFromConfig() error {
+	config, err := r.configManager.LoadConfig()
+	if err != nil {
+		// If config file doesn't exist or can't be read, just continue with empty registry
+		return nil
+	}
+
+	// Convert config servers to registry servers
+	for name, serverConfig := range config.MCPServers {
+		// Only load HTTP-based servers (those with URL field)
+		if serverConfig.URL != "" {
+			enabled := true
+			if serverConfig.Enabled != nil {
+				enabled = *serverConfig.Enabled
+			}
+
+			// Parse timeout
+			timeout := 30 * time.Second
+			if serverConfig.Timeout != "" {
+				if parsedTimeout, err := time.ParseDuration(serverConfig.Timeout); err == nil {
+					timeout = parsedTimeout
+				}
+			}
+
+			server := &Server{
+				Name:        name,
+				URL:         serverConfig.URL,
+				Timeout:     timeout,
+				Headers:     serverConfig.Headers,
+				Enabled:     enabled,
+				Description: serverConfig.Description,
+			}
+
+			client := NewClient(server)
+			r.servers[name] = client
+		}
+	}
+
+	return nil
 }
 
 // AddServer adds an MCP server to the registry.
@@ -51,6 +113,22 @@ func (r *Registry) AddServer(server *Server) error {
 	client := NewClient(server)
 	r.servers[server.Name] = client
 
+	// Persist to config file
+	enabled := server.Enabled
+	serverConfig := ServerConfig{
+		URL:         server.URL,
+		Timeout:     server.Timeout.String(),
+		Headers:     server.Headers,
+		Enabled:     &enabled,
+		Description: server.Description,
+	}
+
+	if err := r.configManager.AddServer(server.Name, serverConfig); err != nil {
+		// Rollback in-memory change if persistence fails
+		delete(r.servers, server.Name)
+		return fmt.Errorf("failed to persist server configuration: %w", err)
+	}
+
 	return nil
 }
 
@@ -63,14 +141,36 @@ func (r *Registry) RemoveServer(name string) error {
 		return fmt.Errorf("server %s not found", name)
 	}
 
+	// Store server for potential rollback
+	removedServer := r.servers[name]
+	removedHealth := r.healthStatus[name]
+	removedTools := make(map[string]*ToolInfo)
+	for toolName, toolInfo := range r.tools {
+		if toolInfo.ServerName == name {
+			removedTools[toolName] = toolInfo
+		}
+	}
+
+	// Remove from in-memory storage
 	delete(r.servers, name)
 	delete(r.healthStatus, name)
 
 	// Remove tools from this server
-	for toolName, toolInfo := range r.tools {
-		if toolInfo.ServerName == name {
-			delete(r.tools, toolName)
+	for toolName := range removedTools {
+		delete(r.tools, toolName)
+	}
+
+	// Persist removal to config file
+	if err := r.configManager.RemoveServer(name); err != nil {
+		// Rollback in-memory changes if persistence fails
+		r.servers[name] = removedServer
+		if removedHealth != nil {
+			r.healthStatus[name] = removedHealth
 		}
+		for toolName, toolInfo := range removedTools {
+			r.tools[toolName] = toolInfo
+		}
+		return fmt.Errorf("failed to persist server removal: %w", err)
 	}
 
 	return nil

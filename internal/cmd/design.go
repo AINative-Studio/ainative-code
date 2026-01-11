@@ -121,6 +121,9 @@ func init() {
 
 	// Sync flags
 	designSyncCmd.Flags().String("direction", "pull", "sync direction (pull, push, both)")
+
+	// Validate flags
+	designValidateCmd.Flags().StringP("file", "f", "", "input file path to validate (optional)")
 }
 
 func runDesignList(cmd *cobra.Command, args []string) error {
@@ -341,9 +344,19 @@ func runDesignSync(cmd *cobra.Command, args []string) error {
 }
 
 func runDesignValidate(cmd *cobra.Command, args []string) error {
-	logger.Debug("Validating design tokens")
+	file, _ := cmd.Flags().GetString("file")
 
-	fmt.Println("Validating design tokens...")
+	logger.DebugEvent().Str("file", file).Msg("Validating design tokens")
+
+	if file != "" {
+		// Validate file path with comprehensive checks
+		if err := validateInputFile(file); err != nil {
+			return err
+		}
+		fmt.Printf("Validating design tokens from file: %s\n", file)
+	} else {
+		fmt.Println("Validating design tokens...")
+	}
 
 	// TODO: Implement token validation
 	// - Check required properties
@@ -351,6 +364,8 @@ func runDesignValidate(cmd *cobra.Command, args []string) error {
 	// - Check typography values
 	// - Verify spacing scale
 	// - Report issues
+	// - If file is provided, load and validate from file
+	// - Otherwise, validate tokens from database
 
 	fmt.Println("Validation completed!")
 

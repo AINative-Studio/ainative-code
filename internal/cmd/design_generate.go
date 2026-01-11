@@ -39,19 +39,19 @@ specified format. Supported formats include:
 
 Examples:
   # Generate Tailwind config from tokens
-  ainative-code design generate --tokens tokens.json --format tailwind --output tailwind.config.js
+  ainative-code design generate --tokens tokens.json --format tailwind --file tailwind.config.js
 
   # Generate CSS variables
-  ainative-code design generate --tokens tokens.json --format css --output design-tokens.css
+  ainative-code design generate --tokens tokens.json --format css --file design-tokens.css
 
   # Generate TypeScript constants
-  ainative-code design generate --tokens tokens.json --format typescript --output tokens.ts
+  ainative-code design generate --tokens tokens.json --format typescript --file tokens.ts
 
   # Generate SCSS variables
-  ainative-code design generate --tokens tokens.json --format scss --output _tokens.scss
+  ainative-code design generate --tokens tokens.json --format scss --file _tokens.scss
 
   # Use custom template
-  ainative-code design generate --tokens tokens.json --format css --output custom.css --template my-template.tmpl`,
+  ainative-code design generate --tokens tokens.json --format css --file custom.css --template my-template.tmpl`,
 	Aliases: []string{"gen", "g"},
 	RunE:    runDesignGenerate,
 }
@@ -61,8 +61,10 @@ func init() {
 
 	// Flags
 	designGenerateCmd.Flags().StringVarP(&generateTokensFile, "tokens", "t", "", "input tokens file (JSON) (required)")
-	designGenerateCmd.Flags().StringVarP(&generateFormat, "format", "f", "json", "output format (tailwind, css, scss, typescript, javascript, json)")
-	designGenerateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", "output file path (prints to stdout if not specified)")
+	designGenerateCmd.Flags().StringVar(&generateFormat, "format", "json", "output format (tailwind, css, scss, typescript, javascript, json)")
+	// Using -f/--file for output consistency (issue #121), with --output as deprecated alias
+	designGenerateCmd.Flags().StringVarP(&generateOutput, "file", "f", "", "output file path (prints to stdout if not specified)")
+	designGenerateCmd.Flags().StringVarP(&generateOutput, "output", "o", "", "output file path (deprecated: use --file/-f instead)")
 	designGenerateCmd.Flags().BoolVarP(&generatePretty, "pretty", "p", true, "pretty-print output (for JSON)")
 	designGenerateCmd.Flags().StringVar(&generateTemplate, "template", "", "path to custom template file")
 
@@ -70,6 +72,14 @@ func init() {
 }
 
 func runDesignGenerate(cmd *cobra.Command, args []string) error {
+	// Check if deprecated --output flag was used
+	if cmd.Flags().Changed("output") && !cmd.Flags().Changed("file") {
+		fmt.Println("Warning: --output/-o flag is deprecated. Please use --file/-f instead.")
+		logger.WarnEvent().
+			Str("flag", "output").
+			Msg("Deprecated flag used: --output/-o. Use --file/-f instead for consistency.")
+	}
+
 	logger.InfoEvent().
 		Str("tokens_file", generateTokensFile).
 		Str("format", generateFormat).

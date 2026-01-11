@@ -174,13 +174,14 @@ func (m PromptModel) View() string {
 		s.WriteString(questionStyle.Render("Which Claude model would you like to use?"))
 		s.WriteString("\n\n")
 		s.WriteString(m.renderChoices([]string{
-			"claude-3-5-sonnet-20241022 (Recommended)",
-			"claude-3-opus-20240229",
-			"claude-3-sonnet-20240229",
-			"claude-3-haiku-20240307",
+			"claude-sonnet-4-5-20250929 (Recommended - Latest)",
+			"claude-haiku-4-5-20251001 (Fast and cost-effective)",
+			"claude-opus-4-1 (Premium for complex tasks)",
+			"claude-sonnet-4-5 (Auto-update alias)",
+			"claude-haiku-4-5 (Auto-update alias)",
 		}))
 		s.WriteString("\n\n")
-		s.WriteString(m.renderHelpText("Sonnet 3.5 offers the best balance of performance and cost"))
+		s.WriteString(m.renderHelpText("Claude 4.5 Sonnet offers the best balance of intelligence, speed, and cost"))
 
 	case StepExtendedThinking:
 		s.WriteString(titleStyle.Render("Extended Thinking"))
@@ -441,10 +442,11 @@ func (m PromptModel) handleEnter() (tea.Model, tea.Cmd) {
 
 	case StepAnthropicModel:
 		models := []string{
-			"claude-3-5-sonnet-20241022",
-			"claude-3-opus-20240229",
-			"claude-3-sonnet-20240229",
-			"claude-3-haiku-20240307",
+			"claude-sonnet-4-5-20250929",
+			"claude-haiku-4-5-20251001",
+			"claude-opus-4-1",
+			"claude-sonnet-4-5",
+			"claude-haiku-4-5",
 		}
 		m.Selections["anthropic_model"] = models[m.cursor]
 
@@ -681,7 +683,7 @@ func (m PromptModel) getChoiceCount() int {
 	case StepProvider:
 		return 5 // Anthropic, OpenAI, Google, Meta Llama, Ollama
 	case StepAnthropicModel:
-		return 4 // 4 Claude models
+		return 5 // 5 Claude 4.5 models
 	case StepOpenAIModel:
 		return 3 // 3 GPT models
 	case StepGoogleModel:

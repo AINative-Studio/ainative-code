@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,22 +14,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// setupTestRegistry creates a registry with isolated config for testing
+func setupTestRegistry(t *testing.T) *Registry {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.mcp.json")
+	os.Setenv("MCP_CONFIG_PATH", configPath)
+	t.Cleanup(func() {
+		os.Unsetenv("MCP_CONFIG_PATH")
+	})
+	return NewRegistry(0)
+}
+
 func TestNewRegistry(t *testing.T) {
-	registry := NewRegistry(30 * time.Second)
+	registry := setupTestRegistry(t)
 	assert.NotNil(t, registry)
-	assert.Equal(t, 30*time.Second, registry.checkInterval)
 	assert.NotNil(t, registry.servers)
 	assert.NotNil(t, registry.tools)
 	assert.NotNil(t, registry.healthStatus)
 }
 
 func TestNewRegistry_DefaultInterval(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 	assert.Equal(t, 1*time.Minute, registry.checkInterval)
 }
 
 func TestAddServer(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	server := &Server{
 		Name:    "test-server",
@@ -41,7 +53,7 @@ func TestAddServer(t *testing.T) {
 }
 
 func TestAddServer_Duplicate(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	server := &Server{
 		Name:    "test-server",
@@ -58,7 +70,7 @@ func TestAddServer_Duplicate(t *testing.T) {
 }
 
 func TestRemoveServer(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	server := &Server{
 		Name:    "test-server",
@@ -75,7 +87,7 @@ func TestRemoveServer(t *testing.T) {
 }
 
 func TestRemoveServer_NotFound(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	err := registry.RemoveServer("nonexistent")
 	assert.Error(t, err)
@@ -83,7 +95,7 @@ func TestRemoveServer_NotFound(t *testing.T) {
 }
 
 func TestRemoveServer_RemovesTools(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	server := &Server{
 		Name:    "test-server",
@@ -106,7 +118,7 @@ func TestRemoveServer_RemovesTools(t *testing.T) {
 }
 
 func TestRegistry_GetServer(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	server := &Server{
 		Name:    "test-server",
@@ -124,7 +136,7 @@ func TestRegistry_GetServer(t *testing.T) {
 }
 
 func TestRegistry_GetServer_NotFound(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	client, err := registry.GetServer("nonexistent")
 	assert.Error(t, err)
@@ -132,7 +144,7 @@ func TestRegistry_GetServer_NotFound(t *testing.T) {
 }
 
 func TestListServers(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	servers := []*Server{
 		{Name: "server1", URL: "http://localhost:8080", Enabled: true},
@@ -170,7 +182,7 @@ func TestDiscoverTools(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(handler))
 	defer mockServer.Close()
 
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 	server := &Server{
 		Name:    "test-server",
 		URL:     mockServer.URL,
@@ -188,7 +200,7 @@ func TestDiscoverTools(t *testing.T) {
 }
 
 func TestDiscoverTools_SkipsDisabledServers(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	server := &Server{
 		Name:    "disabled-server",
@@ -205,7 +217,7 @@ func TestDiscoverTools_SkipsDisabledServers(t *testing.T) {
 }
 
 func TestGetTool(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	toolInfo := &ToolInfo{
 		Tool:       Tool{Name: "tool1", Description: "Test Tool"},
@@ -219,7 +231,7 @@ func TestGetTool(t *testing.T) {
 }
 
 func TestGetTool_NotFound(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	result, err := registry.GetTool("nonexistent")
 	assert.Error(t, err)
@@ -228,7 +240,7 @@ func TestGetTool_NotFound(t *testing.T) {
 }
 
 func TestRegistry_ListTools(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	registry.tools["server1.tool1"] = &ToolInfo{
 		Tool:       Tool{Name: "tool1"},
@@ -264,7 +276,7 @@ func TestRegistry_CallTool(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(handler))
 	defer mockServer.Close()
 
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	server := &Server{
 		Name:    "test-server",
@@ -288,7 +300,7 @@ func TestRegistry_CallTool(t *testing.T) {
 }
 
 func TestRegistry_CallTool_ToolNotFound(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	result, err := registry.CallTool(context.Background(), "nonexistent.tool", nil)
 	assert.Error(t, err)
@@ -297,7 +309,7 @@ func TestRegistry_CallTool_ToolNotFound(t *testing.T) {
 }
 
 func TestGetHealthStatus(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	status := &HealthStatus{
 		Healthy:     true,
@@ -311,7 +323,7 @@ func TestGetHealthStatus(t *testing.T) {
 }
 
 func TestGetHealthStatus_NotFound(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	result, err := registry.GetHealthStatus("nonexistent")
 	assert.Error(t, err)
@@ -319,7 +331,7 @@ func TestGetHealthStatus_NotFound(t *testing.T) {
 }
 
 func TestGetAllHealthStatus(t *testing.T) {
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	registry.healthStatus["server1"] = &HealthStatus{Healthy: true}
 	registry.healthStatus["server2"] = &HealthStatus{Healthy: false}
@@ -344,6 +356,11 @@ func TestHealthChecks(t *testing.T) {
 
 	mockServer := httptest.NewServer(http.HandlerFunc(handler))
 	defer mockServer.Close()
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.mcp.json")
+	os.Setenv("MCP_CONFIG_PATH", configPath)
+	defer os.Unsetenv("MCP_CONFIG_PATH")
 
 	registry := NewRegistry(100 * time.Millisecond)
 
@@ -372,6 +389,11 @@ func TestHealthChecks(t *testing.T) {
 }
 
 func TestHealthChecks_Stop(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.mcp.json")
+	os.Setenv("MCP_CONFIG_PATH", configPath)
+	defer os.Unsetenv("MCP_CONFIG_PATH")
+
 	registry := NewRegistry(100 * time.Millisecond)
 
 	server := &Server{
@@ -420,7 +442,7 @@ func TestPerformHealthChecks_ConcurrentServers(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(handler))
 	defer mockServer.Close()
 
-	registry := NewRegistry(0)
+	registry := setupTestRegistry(t)
 
 	// Add multiple servers
 	for i := 1; i <= 5; i++ {

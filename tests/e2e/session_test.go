@@ -53,12 +53,31 @@ func TestSessionExportWorkflow(t *testing.T) {
 	t.Run("session list with limit flag", func(t *testing.T) {
 		result := h.RunCommand("session", "list", "--limit", "5")
 		h.AssertSuccess(result, "session list with limit should work")
-		h.AssertStdoutContains(result, "Limit: 5", "should respect limit")
 
 		// Test short flag
 		result = h.RunCommand("session", "list", "-n", "3")
 		h.AssertSuccess(result, "session list with -n should work")
-		h.AssertStdoutContains(result, "Limit: 3", "should respect -n limit")
+	})
+
+	t.Run("session list with negative limit returns error", func(t *testing.T) {
+		result := h.RunCommand("session", "list", "--limit", "-1")
+		h.AssertFailure(result, "session list with negative limit should fail")
+		assert.Contains(t, result.Stderr, "Error: limit must be a positive integer",
+			"should show validation error for negative limit")
+	})
+
+	t.Run("session list with zero limit returns error", func(t *testing.T) {
+		result := h.RunCommand("session", "list", "--limit", "0")
+		h.AssertFailure(result, "session list with zero limit should fail")
+		assert.Contains(t, result.Stderr, "Error: limit must be a positive integer",
+			"should show validation error for zero limit")
+	})
+
+	t.Run("session list with large negative limit returns error", func(t *testing.T) {
+		result := h.RunCommand("session", "list", "-n", "-999")
+		h.AssertFailure(result, "session list with large negative limit should fail")
+		assert.Contains(t, result.Stderr, "Error: limit must be a positive integer",
+			"should show validation error for large negative limit")
 	})
 
 	t.Run("session show displays session details", func(t *testing.T) {

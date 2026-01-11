@@ -257,6 +257,49 @@ func TestValidateOllamaModel(t *testing.T) {
 	}
 }
 
+func TestValidateMetaLlamaKey(t *testing.T) {
+	ctx := context.Background()
+	validator := NewValidator()
+
+	tests := []struct {
+		name    string
+		apiKey  string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "empty key",
+			apiKey:  "",
+			wantErr: true,
+			errMsg:  "API key cannot be empty",
+		},
+		{
+			name:    "too short key",
+			apiKey:  "short",
+			wantErr: true,
+			errMsg:  "API key appears to be too short",
+		},
+		{
+			name:    "valid key format",
+			apiKey:  "meta-llama-valid-key-12345678901234567890",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.ValidateMetaLlamaKey(ctx, tt.apiKey)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestValidateAINativeKey(t *testing.T) {
 	ctx := context.Background()
 	validator := NewValidator()
@@ -365,6 +408,24 @@ func TestValidateProviderConfig(t *testing.T) {
 				"ollama_model": "llama2",
 			},
 			wantErr: false, // Will fail connection but that's expected in test
+		},
+		{
+			name:     "meta_llama - valid",
+			provider: "meta_llama",
+			selections: map[string]interface{}{
+				"provider":            "meta_llama",
+				"meta_llama_api_key": "meta-llama-test-key-12345678901234567890",
+			},
+			wantErr: false,
+		},
+		{
+			name:     "meta - alias works",
+			provider: "meta",
+			selections: map[string]interface{}{
+				"provider":            "meta",
+				"meta_llama_api_key": "meta-llama-test-key-12345678901234567890",
+			},
+			wantErr: false,
 		},
 		{
 			name:     "unsupported provider",

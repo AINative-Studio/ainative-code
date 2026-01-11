@@ -117,6 +117,143 @@ func TestRunChatNoProvider(t *testing.T) {
 	}
 }
 
+// TestRunChatEmptyMessage tests that empty messages are rejected locally
+func TestRunChatEmptyMessage(t *testing.T) {
+	tests := []struct {
+		name        string
+		message     string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "empty string",
+			message:     "",
+			expectError: true,
+			errorMsg:    "Error: message cannot be empty",
+		},
+		{
+			name:        "single space",
+			message:     " ",
+			expectError: true,
+			errorMsg:    "Error: message cannot be empty",
+		},
+		{
+			name:        "multiple spaces",
+			message:     "   ",
+			expectError: true,
+			errorMsg:    "Error: message cannot be empty",
+		},
+		{
+			name:        "tabs only",
+			message:     "\t\t",
+			expectError: true,
+			errorMsg:    "Error: message cannot be empty",
+		},
+		{
+			name:        "newlines only",
+			message:     "\n\n",
+			expectError: true,
+			errorMsg:    "Error: message cannot be empty",
+		},
+		{
+			name:        "mixed whitespace",
+			message:     " \t\n ",
+			expectError: true,
+			errorMsg:    "Error: message cannot be empty",
+		},
+		{
+			name:        "valid message",
+			message:     "Hello",
+			expectError: true, // Will fail due to invalid API key, but NOT empty message error
+			errorMsg:    "",   // Don't check specific error
+		},
+		{
+			name:        "message with leading/trailing spaces",
+			message:     "  Hello  ",
+			expectError: true, // Will fail due to invalid API key, but NOT empty message error
+			errorMsg:    "",   // Don't check specific error
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset viper and flags
+			viper.Reset()
+			provider = "openai"
+			model = "gpt-4"
+			chatSessionID = ""
+			chatSystemMsg = ""
+			chatStream = true
+
+			// Set mock API key for testing
+			viper.Set("api_key", "test-api-key-for-testing")
+
+			// Capture output
+			var buf bytes.Buffer
+			chatCmd.SetOut(&buf)
+
+			// Execute
+			err := runChat(chatCmd, []string{tt.message})
+
+			// Check error expectation
+			if tt.expectError && err == nil {
+				t.Error("expected error but got none")
+			}
+
+			// Check specific error message if provided
+			if tt.errorMsg != "" && err != nil {
+				if err.Error() != tt.errorMsg {
+					t.Errorf("expected error %q, got %q", tt.errorMsg, err.Error())
+				}
+			}
+
+			// For valid messages, ensure we don't get the empty message error
+			if tt.errorMsg == "" && err != nil {
+				if err.Error() == "Error: message cannot be empty" {
+					t.Errorf("should not get empty message error for valid message %q", tt.message)
+				}
+			}
+		})
+	}
+}
+
+// TestRunChatEmptyMessageNoAPICall tests that API is not called for empty messages
+func TestRunChatEmptyMessageNoAPICall(t *testing.T) {
+	// Reset viper and flags
+	viper.Reset()
+	provider = "openai"
+	model = "gpt-4"
+	chatSessionID = ""
+	chatSystemMsg = ""
+	chatStream = true
+
+	// Intentionally NOT setting API key to ensure if API call is made, it fails differently
+	// If validation works, we should get "Error: message cannot be empty" before API key check
+
+	// Capture output
+	var buf bytes.Buffer
+	chatCmd.SetOut(&buf)
+
+	// Test with empty message
+	err := runChat(chatCmd, []string{""})
+
+	// Should get empty message error, NOT API key error
+	if err == nil {
+		t.Fatal("expected error for empty message")
+	}
+
+	expectedError := "Error: message cannot be empty"
+	if err.Error() != expectedError {
+		t.Errorf("expected error %q, got %q", expectedError, err.Error())
+	}
+
+	// The error should happen BEFORE any API initialization
+	// If we got past validation, we'd see a different error about API keys
+	if err.Error() == "AI provider not configured. Use --provider flag or set in config file" {
+		t.Error("validation should happen before provider check")
+	}
+}
+
 // TestRunChatWithProvider tests chat command with provider configured
 func TestRunChatWithProvider(t *testing.T) {
 	tests := []struct {

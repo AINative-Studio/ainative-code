@@ -400,28 +400,33 @@ func runConfigValidate(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Validating configuration...")
 
-	// Check required settings
-	requiredSettings := []string{"provider"}
-	missingSettings := []string{}
+	// Check for provider in the correct location
+	// Priority: llm.default_provider (new structure) > provider (legacy)
+	var provider string
+	var providerLocation string
 
-	for _, setting := range requiredSettings {
-		if !viper.IsSet(setting) {
-			missingSettings = append(missingSettings, setting)
-		}
+	if viper.IsSet("llm.default_provider") {
+		provider = viper.GetString("llm.default_provider")
+		providerLocation = "llm.default_provider"
+	} else if viper.IsSet("provider") {
+		provider = viper.GetString("provider")
+		providerLocation = "provider"
 	}
 
-	if len(missingSettings) > 0 {
+	// Check if provider is set and not empty
+	if provider == "" {
 		fmt.Println("\nValidation failed!")
 		fmt.Println("Missing required settings:")
-		for _, setting := range missingSettings {
-			fmt.Printf("  - %s\n", setting)
-		}
-		return fmt.Errorf("configuration validation failed")
+		fmt.Println("  - Either 'llm.default_provider' or 'provider' must be set")
+		fmt.Println("\nRecommended: Use 'llm.default_provider' in your config file")
+		fmt.Println("Example:")
+		fmt.Println("  llm:")
+		fmt.Println("    default_provider: anthropic")
+		return fmt.Errorf("configuration validation failed: no provider configured")
 	}
 
 	// Validate provider value
-	provider := viper.GetString("provider")
-	validProviders := []string{"openai", "anthropic", "ollama"}
+	validProviders := []string{"openai", "anthropic", "ollama", "google", "bedrock", "azure", "meta_llama", "meta"}
 	isValidProvider := false
 	for _, vp := range validProviders {
 		if provider == vp {
@@ -431,13 +436,29 @@ func runConfigValidate(cmd *cobra.Command, args []string) error {
 	}
 
 	if !isValidProvider {
-		return fmt.Errorf("invalid provider '%s'. Valid providers: %v", provider, validProviders)
+		fmt.Println("\nValidation failed!")
+		fmt.Printf("Invalid provider: '%s'\n", provider)
+		fmt.Printf("Valid providers: %v\n", validProviders)
+		return fmt.Errorf("configuration validation failed: invalid provider '%s'", provider)
 	}
 
+	// Success message
 	fmt.Println("\nConfiguration is valid!")
-	fmt.Printf("Provider: %s\n", provider)
-	if viper.IsSet("model") {
+	fmt.Printf("Provider: %s (from %s)\n", provider, providerLocation)
+
+	// Show additional info if available
+	if viper.IsSet("llm." + provider + ".model") {
+		fmt.Printf("Model: %s\n", viper.GetString("llm."+provider+".model"))
+	} else if viper.IsSet("model") {
 		fmt.Printf("Model: %s\n", viper.GetString("model"))
+	}
+
+	// Warn if using legacy structure
+	if providerLocation == "provider" {
+		fmt.Println("\nNote: You are using the legacy 'provider' field.")
+		fmt.Println("Consider migrating to the new structure:")
+		fmt.Println("  llm:")
+		fmt.Println("    default_provider: " + provider)
 	}
 
 	return nil

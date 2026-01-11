@@ -56,6 +56,15 @@ func init() {
 }
 
 func runChat(cmd *cobra.Command, args []string) error {
+	// Validate message early if single message mode to avoid unnecessary API calls
+	if len(args) > 0 {
+		message := args[0]
+		// Validate message is not empty or only whitespace
+		if strings.TrimSpace(message) == "" {
+			return fmt.Errorf("Error: message cannot be empty")
+		}
+	}
+
 	providerName := GetProvider()
 	modelName := GetModel()
 

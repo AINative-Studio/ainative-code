@@ -494,14 +494,14 @@ func runTableList(cmd *cobra.Command, args []string) error {
 // createZeroDBClient creates a ZeroDB client with configuration from viper.
 func createZeroDBClient() (*zerodb.Client, error) {
 	// Get configuration
-	baseURL := viper.GetString("zerodb.base_url")
+	baseURL := viper.GetString("services.zerodb.endpoint")
 	if baseURL == "" {
 		baseURL = "https://api.ainative.studio"
 	}
 
-	projectID := viper.GetString("zerodb.project_id")
+	projectID := viper.GetString("services.zerodb.project_id")
 	if projectID == "" {
-		return nil, fmt.Errorf("zerodb.project_id not configured (set in config file or AINATIVE_CODE_ZERODB_PROJECT_ID env var)")
+		return nil, fmt.Errorf("services.zerodb.project_id not configured (set in config file or AINATIVE_CODE_SERVICES_ZERODB_PROJECT_ID env var)")
 	}
 
 	// Create HTTP client

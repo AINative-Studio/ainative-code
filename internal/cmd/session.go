@@ -113,13 +113,13 @@ Examples:
   ainative-code session export abc123
 
   # Export to Markdown
-  ainative-code session export abc123 --format markdown --output conversation.md
+  ainative-code session export abc123 --format markdown --file conversation.md
 
   # Export to HTML with custom output
-  ainative-code session export abc123 --format html --output report.html
+  ainative-code session export abc123 --format html --file report.html
 
   # Export using custom template
-  ainative-code session export abc123 --template custom.tmpl --output custom.md`,
+  ainative-code session export abc123 --template custom.tmpl --file custom.md`,
 	Args: cobra.ExactArgs(1),
 	RunE: runSessionExport,
 }
@@ -206,8 +206,11 @@ func init() {
 	sessionListCmd.Flags().IntVarP(&sessionLimit, "limit", "n", 10, "limit number of sessions to display")
 
 	// Session export flags
-	sessionExportCmd.Flags().StringVarP(&exportFormat, "format", "f", "json", "export format: json, markdown, html")
-	sessionExportCmd.Flags().StringVarP(&exportOutput, "output", "o", "", "output file path (default: session-<id>.<format>)")
+	// Note: --format uses long form only to avoid conflict with -f/--file (issue #121)
+	sessionExportCmd.Flags().StringVar(&exportFormat, "format", "json", "export format: json, markdown, html")
+	// Using -f/--file for output consistency (issue #121), with --output as deprecated alias
+	sessionExportCmd.Flags().StringVarP(&exportOutput, "file", "f", "", "output file path (default: session-<id>.<format>)")
+	sessionExportCmd.Flags().StringVarP(&exportOutput, "output", "o", "", "output file path (deprecated: use --file/-f instead)")
 	sessionExportCmd.Flags().StringVarP(&exportTemplate, "template", "t", "", "custom template file path (optional)")
 
 	// Session search flags
@@ -232,6 +235,11 @@ func runSessionList(cmd *cobra.Command, args []string) error {
 		Bool("all", sessionListAll).
 		Int("limit", sessionLimit).
 		Msg("Listing sessions")
+
+	// Validate limit parameter
+	if sessionLimit <= 0 {
+		return fmt.Errorf("Error: limit must be a positive integer")
+	}
 
 	// Initialize database connection
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -532,6 +540,14 @@ func runSessionDelete(cmd *cobra.Command, args []string) error {
 
 func runSessionExport(cmd *cobra.Command, args []string) error {
 	sessionID := args[0]
+
+	// Check if deprecated --output flag was used
+	if cmd.Flags().Changed("output") && !cmd.Flags().Changed("file") {
+		fmt.Println("Warning: --output/-o flag is deprecated. Please use --file/-f instead.")
+		logger.WarnEvent().
+			Str("flag", "output").
+			Msg("Deprecated flag used: --output/-o. Use --file/-f instead for consistency.")
+	}
 
 	// Validate and normalize format
 	format := strings.ToLower(exportFormat)

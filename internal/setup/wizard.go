@@ -225,7 +225,7 @@ func (w *Wizard) buildConfiguration() error {
 			apiKey = key
 		}
 
-		model := "claude-3-5-sonnet-20241022"
+		model := "claude-sonnet-4-5-20250929"
 		if m, ok := w.userSelections["anthropic_model"].(string); ok && m != "" {
 			model = m
 		}

@@ -160,6 +160,22 @@ func (v *Validator) ValidateOllamaModel(ctx context.Context, baseURL, modelName 
 	return nil
 }
 
+// ValidateMetaLlamaKey validates a Meta Llama API key
+func (v *Validator) ValidateMetaLlamaKey(ctx context.Context, apiKey string) error {
+	if apiKey == "" {
+		return fmt.Errorf("API key cannot be empty")
+	}
+
+	// Basic format validation
+	if len(apiKey) < 20 {
+		return fmt.Errorf("API key appears to be too short")
+	}
+
+	// Note: We don't actually test the API key here to avoid rate limits and network dependencies
+	// The key will be validated when actually used
+	return nil
+}
+
 // ValidateAINativeKey validates an AINative platform API key
 func (v *Validator) ValidateAINativeKey(ctx context.Context, apiKey string) error {
 	if apiKey == "" {
@@ -215,6 +231,13 @@ func (v *Validator) ValidateProviderConfig(ctx context.Context, provider string,
 			return fmt.Errorf("Ollama model name is required")
 		}
 		return v.ValidateOllamaModel(ctx, baseURL, modelName)
+
+	case "meta_llama", "meta":
+		apiKey, ok := selections["meta_llama_api_key"].(string)
+		if !ok || apiKey == "" {
+			return fmt.Errorf("Meta Llama API key is required")
+		}
+		return v.ValidateMetaLlamaKey(ctx, apiKey)
 
 	default:
 		return fmt.Errorf("unsupported provider: %s", provider)
