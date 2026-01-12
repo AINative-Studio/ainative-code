@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - v1.0.0
 
+## [0.1.10] - 2026-01-11
+
+### Fixed
+- **CRITICAL**: Fixed binary builds using `CGO_ENABLED=0` which completely broke SQLite functionality
+  - Updated Makefile to enable CGO for builds requiring SQLite
+  - All session commands now work correctly
+  - Documented CGO cross-compilation limitations
+
+### Added
+- **#124 - session list --json flag** - Added JSON output support for `session list` command
+  - Consistent with `session search --json` behavior
+  - Perfect for scripting and automation
+  - Works seamlessly with `jq` for filtering
+  - Added comprehensive integration tests
+  - File: `internal/cmd/session.go`
+
+### Documentation
+- Created `docs/BUILD_NOTES_CGO.md` with CGO cross-compilation guidance
+- Created `CRITICAL_BUG_CGO_DISABLED.md` documenting the SQLite/CGO issue
+- Added integration tests for `session list --json` functionality
+
 ## [0.1.9] - 2026-01-10
 
 ### Fixed

@@ -59,7 +59,7 @@ build-all: ## Build for all platforms
 		OUTPUT_NAME=$(BUILD_DIR)/$(BINARY_NAME)-$$OS-$$ARCH; \
 		if [ $$OS = "windows" ]; then OUTPUT_NAME=$$OUTPUT_NAME.exe; fi; \
 		echo "Building for $$OS/$$ARCH..."; \
-		GOOS=$$OS GOARCH=$$ARCH CGO_ENABLED=0 $(GOBUILD) $(LDFLAGS) -o $$OUTPUT_NAME $(CMD_DIR); \
+		GOOS=$$OS GOARCH=$$ARCH CGO_ENABLED=1 $(GOBUILD) -tags "$(SQLITE_TAGS)" $(LDFLAGS) -o $$OUTPUT_NAME $(CMD_DIR); \
 	done
 	@echo "$(COLOR_GREEN)All builds complete!$(COLOR_RESET)"
 

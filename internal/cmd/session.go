@@ -18,6 +18,7 @@ import (
 var (
 	sessionListAll   bool
 	sessionLimit     int
+	sessionListJSON  bool
 	exportFormat     string
 	exportOutput     string
 	exportTemplate   string
@@ -69,7 +70,23 @@ Examples:
 var sessionListCmd = &cobra.Command{
 	Use:     "list",
 	Short:   "List chat sessions",
-	Long:    `List all chat sessions or recent sessions.`,
+	Long:    `List all chat sessions or recent sessions.
+
+Examples:
+  # List recent sessions (default limit: 10)
+  ainative-code session list
+
+  # List all sessions
+  ainative-code session list --all
+
+  # List 20 sessions
+  ainative-code session list --limit 20
+
+  # Output as JSON for scripting
+  ainative-code session list --json
+
+  # Output all sessions as JSON
+  ainative-code session list --all --json`,
 	Aliases: []string{"ls", "l"},
 	RunE:    runSessionList,
 }
@@ -204,6 +221,7 @@ func init() {
 	// Session list flags
 	sessionListCmd.Flags().BoolVarP(&sessionListAll, "all", "a", false, "list all sessions")
 	sessionListCmd.Flags().IntVarP(&sessionLimit, "limit", "n", 10, "limit number of sessions to display")
+	sessionListCmd.Flags().BoolVar(&sessionListJSON, "json", false, "output results as JSON")
 
 	// Session export flags
 	// Note: --format uses long form only to avoid conflict with -f/--file (issue #121)
@@ -266,9 +284,24 @@ func runSessionList(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(sessions) == 0 {
+		if sessionListJSON {
+			// Output empty JSON array
+			fmt.Println("[]")
+			return nil
+		}
 		fmt.Println("No sessions found.")
 		fmt.Println("\nCreate a new session with:")
 		fmt.Println("  ainative-code session create --title \"My Session\"")
+		return nil
+	}
+
+	// Output JSON if requested
+	if sessionListJSON {
+		jsonData, err := json.MarshalIndent(sessions, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal sessions to JSON: %w", err)
+		}
+		fmt.Println(string(jsonData))
 		return nil
 	}
 
