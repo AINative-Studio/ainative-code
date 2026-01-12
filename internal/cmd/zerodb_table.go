@@ -235,7 +235,8 @@ func init() {
 	zerodbTableDeleteCmd.MarkFlagRequired("table")
 	zerodbTableDeleteCmd.MarkFlagRequired("id")
 
-	// Note: --json flag is inherited from parent zerodbCmd
+	// Table output flags - register --json flag for all table commands
+	zerodbTableCmd.PersistentFlags().BoolVar(&tableOutputJSON, "json", false, "output in JSON format")
 }
 
 func runTableCreate(cmd *cobra.Command, args []string) error {

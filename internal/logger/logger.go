@@ -81,7 +81,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Level:            InfoLevel,
 		Format:           TextFormat,
-		Output:           "stdout",
+		Output:           "stderr",
 		EnableRotation:   false,
 		MaxSize:          100, // 100 MB
 		MaxBackups:       3,

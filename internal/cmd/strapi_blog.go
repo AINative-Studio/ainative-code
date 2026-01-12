@@ -223,6 +223,11 @@ func init() {
 }
 
 func runStrapiBlogCreate(cmd *cobra.Command, args []string) error {
+	// Suppress INFO/DEBUG logs if JSON output is requested
+	if blogOutputJSON {
+		defer logger.SuppressInfoLogsForJSON()()
+	}
+
 	ctx := context.Background()
 
 	// Get Strapi configuration
@@ -293,6 +298,11 @@ func runStrapiBlogCreate(cmd *cobra.Command, args []string) error {
 }
 
 func runStrapiBlogList(cmd *cobra.Command, args []string) error {
+	// Suppress INFO/DEBUG logs if JSON output is requested
+	if blogOutputJSON {
+		defer logger.SuppressInfoLogsForJSON()()
+	}
+
 	ctx := context.Background()
 
 	// Get Strapi configuration
@@ -388,6 +398,11 @@ func runStrapiBlogList(cmd *cobra.Command, args []string) error {
 }
 
 func runStrapiBlogUpdate(cmd *cobra.Command, args []string) error {
+	// Suppress INFO/DEBUG logs if JSON output is requested
+	if blogOutputJSON {
+		defer logger.SuppressInfoLogsForJSON()()
+	}
+
 	ctx := context.Background()
 
 	// Get Strapi configuration
@@ -479,6 +494,11 @@ func runStrapiBlogUpdate(cmd *cobra.Command, args []string) error {
 }
 
 func runStrapiBlogPublish(cmd *cobra.Command, args []string) error {
+	// Suppress INFO/DEBUG logs if JSON output is requested
+	if blogOutputJSON {
+		defer logger.SuppressInfoLogsForJSON()()
+	}
+
 	ctx := context.Background()
 
 	// Get Strapi configuration

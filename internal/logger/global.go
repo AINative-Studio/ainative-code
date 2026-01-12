@@ -203,3 +203,22 @@ func ErrorEvent() *zerolog.Event {
 	}
 	return event
 }
+
+// SuppressInfoLogsForJSON temporarily sets log level to ERROR to suppress INFO/DEBUG logs
+// when outputting JSON. This ensures clean JSON output for piping to tools like jq.
+// Returns a cleanup function that should be deferred to restore the original log level.
+func SuppressInfoLogsForJSON() func() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Save current level
+	currentLevel := zerolog.GlobalLevel()
+
+	// Set to error level to suppress info/debug
+	zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+
+	// Return cleanup function to restore original level
+	return func() {
+		zerolog.SetGlobalLevel(currentLevel)
+	}
+}

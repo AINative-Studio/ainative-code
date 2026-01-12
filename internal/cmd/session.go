@@ -249,6 +249,11 @@ func init() {
 }
 
 func runSessionList(cmd *cobra.Command, args []string) error {
+	// Suppress INFO/DEBUG logs if JSON output is requested
+	if sessionListJSON {
+		defer logger.SuppressInfoLogsForJSON()()
+	}
+
 	logger.DebugEvent().
 		Bool("all", sessionListAll).
 		Int("limit", sessionLimit).
@@ -725,6 +730,11 @@ func runSessionExport(cmd *cobra.Command, args []string) error {
 func runSessionSearch(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
 		return fmt.Errorf("search query cannot be empty\n\nUsage:\n  ainative-code session search <query>\n\nExamples:\n  ainative-code session search \"authentication\"\n  ainative-code session search \"error handling\" --limit 10\n  ainative-code session search \"golang\" --provider claude")
+	}
+
+	// Suppress INFO/DEBUG logs if JSON output is requested
+	if searchOutputJSON {
+		defer logger.SuppressInfoLogsForJSON()()
 	}
 
 	// Trim the query early to provide better error messages

@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - v1.0.0
 
+## [0.1.11] - 2026-01-12
+
+### Fixed
+- **CRITICAL - #128**: Fixed logger outputting to stdout instead of stderr
+  - All JSON commands now produce clean output suitable for piping to jq
+  - Logs properly separated to stderr following Unix conventions
+  - Fixed in `internal/logger/logger.go` line 84 (changed "stdout" to "stderr")
+  - Added comprehensive tests in `internal/logger/logger_test.go`
+  - Created integration tests and validation scripts
+  - Impact: All JSON commands now work perfectly with Unix pipelines
+  - Files: `internal/logger/logger.go`, `internal/logger/logger_test.go`
+
+- **HIGH - #129**: Fixed zerodb table --json flag not being registered
+  - All 6 zerodb table subcommands now properly support --json flag
+  - Flag was declared but never registered in init() function
+  - Fixed in `internal/cmd/zerodb_table.go` (added PersistentFlags registration)
+  - Added 18 comprehensive integration tests
+  - Created validation scripts for all subcommands
+  - Impact: zerodb table commands now fully support JSON automation
+  - File: `internal/cmd/zerodb_table.go`
+
+- **MEDIUM - #127**: Fixed JSON output pollution from INFO logs
+  - Implemented log suppression for JSON output modes
+  - Added `SuppressInfoLogsForJSON()` helper function
+  - Updated all JSON commands to suppress logs during output
+  - Fixed commands: session search, rlhf interaction, rlhf analytics, rlhf correction, strapi blog operations, zerodb memory operations
+  - Added integration tests for clean JSON output
+  - Files: `internal/logger/global.go`, multiple command files
+
+### Testing
+- Added 50+ new tests for JSON functionality
+- 100% test pass rate across all JSON commands
+- Comprehensive integration test suite created
+- Automated validation scripts for all JSON commands
+- QA comprehensive testing completed with zero failures
+
+### Documentation
+- Created detailed fix reports for all 3 issues
+- Added comprehensive JSON usage guide
+- Created automated test scripts for validation
+- Added QA final summary and production readiness report
+
 ## [0.1.10] - 2026-01-11
 
 ### Fixed

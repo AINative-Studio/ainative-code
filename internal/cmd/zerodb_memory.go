@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/AINative-studio/ainative-code/internal/client/zerodb"
+	"github.com/AINative-studio/ainative-code/internal/logger"
 )
 
 var (
@@ -193,6 +194,11 @@ func init() {
 }
 
 func runMemoryStore(cmd *cobra.Command, args []string) error {
+	// Suppress INFO/DEBUG logs if JSON output is requested
+	if memoryOutputJSON {
+		defer logger.SuppressInfoLogsForJSON()()
+	}
+
 	ctx := context.Background()
 
 	// Parse metadata JSON if provided
@@ -244,6 +250,11 @@ func runMemoryStore(cmd *cobra.Command, args []string) error {
 }
 
 func runMemoryRetrieve(cmd *cobra.Command, args []string) error {
+	// Suppress INFO/DEBUG logs if JSON output is requested
+	if memoryOutputJSON {
+		defer logger.SuppressInfoLogsForJSON()()
+	}
+
 	ctx := context.Background()
 
 	// Create ZeroDB client
@@ -343,6 +354,11 @@ func runMemoryClear(cmd *cobra.Command, args []string) error {
 }
 
 func runMemoryList(cmd *cobra.Command, args []string) error {
+	// Suppress INFO/DEBUG logs if JSON output is requested
+	if memoryOutputJSON {
+		defer logger.SuppressInfoLogsForJSON()()
+	}
+
 	ctx := context.Background()
 
 	// Create ZeroDB client

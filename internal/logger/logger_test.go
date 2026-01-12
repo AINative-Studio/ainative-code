@@ -492,8 +492,8 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("Expected default format TextFormat, got %s", config.Format)
 	}
 
-	if config.Output != "stdout" {
-		t.Errorf("Expected default output stdout, got %s", config.Output)
+	if config.Output != "stderr" {
+		t.Errorf("Expected default output stderr, got %s", config.Output)
 	}
 
 	if config.EnableRotation {
@@ -566,6 +566,79 @@ func TestParseLogLevel(t *testing.T) {
 			if !tt.wantErr && level.String() != tt.expected {
 				t.Errorf("parseLogLevel() = %v, want %v", level.String(), tt.expected)
 			}
+		})
+	}
+}
+
+// TestLoggerOutputsToStderr verifies that the logger writes to stderr by default
+func TestLoggerOutputsToStderr(t *testing.T) {
+	// Test that default config uses stderr
+	config := DefaultConfig()
+	if config.Output != "stderr" {
+		t.Errorf("DefaultConfig should output to stderr, got %s", config.Output)
+	}
+
+	// Test that logger can be explicitly configured to use stderr
+	stderrConfig := &Config{
+		Level:  InfoLevel,
+		Format: JSONFormat,
+		Output: "stderr",
+	}
+
+	logger, err := New(stderrConfig)
+	if err != nil {
+		t.Fatalf("Failed to create logger with stderr output: %v", err)
+	}
+
+	if logger == nil {
+		t.Fatal("Logger should not be nil")
+	}
+
+	// Verify the config is stored correctly
+	if logger.config.Output != "stderr" {
+		t.Errorf("Logger config should have Output=stderr, got %s", logger.config.Output)
+	}
+}
+
+// TestLoggerStdoutVsStderr verifies that stdout and stderr outputs work correctly
+func TestLoggerStdoutVsStderr(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+	}{
+		{
+			name:   "stdout output",
+			output: "stdout",
+		},
+		{
+			name:   "stderr output",
+			output: "stderr",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &Config{
+				Level:  InfoLevel,
+				Format: JSONFormat,
+				Output: tt.output,
+			}
+
+			logger, err := New(config)
+			if err != nil {
+				t.Fatalf("Failed to create logger with %s output: %v", tt.output, err)
+			}
+
+			if logger == nil {
+				t.Fatalf("Logger should not be nil for %s output", tt.output)
+			}
+
+			if logger.config.Output != tt.output {
+				t.Errorf("Logger config should have Output=%s, got %s", tt.output, logger.config.Output)
+			}
+
+			// Verify logger can write without errors
+			logger.Info("test message")
 		})
 	}
 }
