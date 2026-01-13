@@ -2,6 +2,8 @@ package tui
 
 import (
 	"github.com/AINative-studio/ainative-code/internal/rlhf"
+	"github.com/AINative-studio/ainative-code/internal/tui/dialogs"
+	"github.com/AINative-studio/ainative-code/internal/tui/layout"
 	"github.com/AINative-studio/ainative-code/internal/tui/syntax"
 	"github.com/AINative-studio/ainative-code/pkg/lsp"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -42,6 +44,12 @@ type Model struct {
 	// Syntax highlighting (TASK-022)
 	syntaxHighlighter *syntax.Highlighter
 	syntaxEnabled     bool
+
+	// Dialog system (TASK-133)
+	dialogManager *dialogs.DialogManager
+
+	// Layout management (TASK-132)
+	layoutManager layout.LayoutManager
 }
 
 // Message represents a chat message
@@ -60,6 +68,9 @@ func NewModel() Model {
 
 	// Initialize syntax highlighter with AINative branding
 	highlighter := syntax.NewHighlighter(syntax.AINativeConfig())
+
+	// Initialize dialog manager
+	dialogMgr := dialogs.NewDialogManager()
 
 	return Model{
 		textInput:         ti,
@@ -80,6 +91,7 @@ func NewModel() Model {
 		showNavigation:    false,
 		syntaxHighlighter: highlighter,
 		syntaxEnabled:     true,
+		dialogManager:     dialogMgr,
 	}
 }
 
@@ -97,29 +109,64 @@ func (m *Model) SetSize(width, height int) {
 	m.width = width
 	m.height = height
 
-	if !m.ready {
-		// Initialize viewport with proper dimensions
-		// Reserve space for input area (3 lines) and status bar (1 line)
-		viewportHeight := height - 4
-		if viewportHeight < 1 {
-			viewportHeight = 1
-		}
+	// Initialize layout manager on first call
+	if m.layoutManager == nil {
+		m.layoutManager = m.createLayoutManager()
+	}
 
-		m.viewport = viewport.New(width, viewportHeight)
-		m.viewport.YPosition = 0
+	// Update layout manager with new size
+	m.layoutManager.SetAvailableSize(width, height)
+	_ = m.layoutManager.RecalculateLayout()
+
+	// Apply calculated bounds to components
+	viewportBounds := m.layoutManager.GetComponentBounds("viewport")
+	inputBounds := m.layoutManager.GetComponentBounds("input")
+
+	if !m.ready {
+		// Initialize viewport with calculated dimensions
+		m.viewport = viewport.New(viewportBounds.Width, viewportBounds.Height)
+		m.viewport.YPosition = viewportBounds.Y
 		m.ready = true
 	} else {
 		// Update existing viewport dimensions
-		viewportHeight := height - 4
-		if viewportHeight < 1 {
-			viewportHeight = 1
-		}
-		m.viewport.Width = width
-		m.viewport.Height = viewportHeight
+		m.viewport.Width = viewportBounds.Width
+		m.viewport.Height = viewportBounds.Height
+		m.viewport.YPosition = viewportBounds.Y
 	}
 
-	// Update text input width
-	m.textInput.Width = width - 4
+	// Update text input width (subtract 2 for prompt "► ")
+	if inputBounds.Width > 2 {
+		m.textInput.Width = inputBounds.Width - 2
+	} else {
+		m.textInput.Width = inputBounds.Width
+	}
+
+	// Update dialog manager size
+	m.dialogManager.SetSize(width, height)
+}
+
+// createLayoutManager initializes the layout manager with component constraints
+func (m *Model) createLayoutManager() layout.LayoutManager {
+	// Create vertical box layout
+	vbox := layout.NewBoxLayout(layout.Vertical)
+	mgr := layout.NewManager(vbox)
+
+	// Register viewport - flexible component that grows to fill space
+	_ = mgr.RegisterComponent("viewport", layout.FlexConstraints(10, 1))
+
+	// Register input area - fixed height (3 lines: separator + input + padding)
+	_ = mgr.RegisterComponent("input", layout.Constraints{
+		MinHeight: 3,
+		MaxHeight: 3,
+		Grow:      false,
+		Shrink:    false,
+		Weight:    0,
+	})
+
+	// Register status bar - fixed height (1 line)
+	_ = mgr.RegisterComponent("statusbar", layout.FixedConstraints(0, 1))
+
+	return mgr
 }
 
 // AddMessage adds a new message to the conversation
