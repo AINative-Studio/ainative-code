@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AINative-studio/ainative-code/internal/tui/components"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -373,3 +375,76 @@ func RenderMinimalStatusBar(isStreaming bool, hasError bool) string {
 	style := lipgloss.NewStyle().Foreground(color).Bold(true)
 	return style.Render(fmt.Sprintf("%s %s", icon, text))
 }
+
+// StatusBarComponent is a wrapper that makes StatusBarState implement the Component interface.
+// This is NON-BREAKING - it only adds new methods and doesn't modify existing behavior.
+type StatusBarComponent struct {
+	state *StatusBarState
+	*components.ComponentAdapter
+	isStreaming bool
+	hasError    bool
+}
+
+// NewStatusBarComponent creates a new status bar component wrapper around StatusBarState.
+func NewStatusBarComponent(state *StatusBarState) *StatusBarComponent {
+	adapter := components.NewComponentAdapter()
+	return &StatusBarComponent{
+		state:            state,
+		ComponentAdapter: adapter,
+		isStreaming:      false,
+		hasError:         false,
+	}
+}
+
+// Init implements Component interface.
+func (s *StatusBarComponent) Init() tea.Cmd {
+	return s.ComponentAdapter.Init()
+}
+
+// Update implements Component interface.
+func (s *StatusBarComponent) Update(msg tea.Msg) (components.Component, tea.Cmd) {
+	// Handle window size messages
+	if wsMsg, ok := msg.(tea.WindowSizeMsg); ok {
+		s.SetSize(wsMsg.Width, 1) // Status bar is always 1 line tall
+	}
+	return s, nil
+}
+
+// View implements Component interface.
+func (s *StatusBarComponent) View() string {
+	if !s.IsVisible() {
+		return ""
+	}
+	width, _ := s.GetSize()
+	if width == 0 {
+		width = 80 // Default width
+	}
+	return s.state.RenderStatusBar(width, s.isStreaming, s.hasError)
+}
+
+// SetStreaming sets the streaming state for rendering.
+func (s *StatusBarComponent) SetStreaming(streaming bool) {
+	s.isStreaming = streaming
+}
+
+// SetError sets the error state for rendering.
+func (s *StatusBarComponent) SetError(hasError bool) {
+	s.hasError = hasError
+}
+
+// GetState returns the underlying StatusBarState.
+func (s *StatusBarComponent) GetState() *StatusBarState {
+	return s.state
+}
+
+// AsComponent returns the status bar as a Component interface.
+// This allows existing code to work with the new interface without changes.
+func (s *StatusBarState) AsComponent() components.Component {
+	return NewStatusBarComponent(s)
+}
+
+// Ensure StatusBarComponent implements Component interface
+var _ components.Component = (*StatusBarComponent)(nil)
+var _ components.Sizeable = (*StatusBarComponent)(nil)
+var _ components.Stateful = (*StatusBarComponent)(nil)
+var _ components.Lifecycle = (*StatusBarComponent)(nil)

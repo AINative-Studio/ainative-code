@@ -6,7 +6,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/AINative-studio/ainative-code/internal/tui/components"
 	"github.com/AINative-studio/ainative-code/pkg/lsp"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -294,3 +296,98 @@ func TriggerCompletion(ctx context.Context, m *Model, documentURI string, line, 
 
 	return nil
 }
+
+// CompletionPopup is a wrapper that makes Model's completion functionality
+// implement the PopupComponent interface. This is NON-BREAKING - it only
+// adds new methods and doesn't modify existing behavior.
+type CompletionPopup struct {
+	model *Model
+	*components.PopupAdapter
+}
+
+// NewCompletionPopup creates a new completion popup wrapper around a Model.
+func NewCompletionPopup(m *Model) *CompletionPopup {
+	adapter := components.NewPopupAdapter()
+	adapter.SetSize(completionWidth, maxCompletionItems+5)
+	return &CompletionPopup{
+		model:        m,
+		PopupAdapter: adapter,
+	}
+}
+
+// Init implements Component interface.
+func (c *CompletionPopup) Init() tea.Cmd {
+	return c.PopupAdapter.Init()
+}
+
+// Update implements Component interface.
+func (c *CompletionPopup) Update(msg tea.Msg) (components.Component, tea.Cmd) {
+	return c, nil
+}
+
+// View implements Component interface.
+func (c *CompletionPopup) View() string {
+	return c.RenderPopup()
+}
+
+// RenderPopup implements PopupComponent interface.
+func (c *CompletionPopup) RenderPopup() string {
+	return RenderCompletion(c.model)
+}
+
+// IsVisible implements Stateful interface.
+func (c *CompletionPopup) IsVisible() bool {
+	return c.model.GetShowCompletion()
+}
+
+// Show implements Stateful interface.
+func (c *CompletionPopup) Show() {
+	// This would be controlled by the model's completion logic
+	c.PopupAdapter.Show()
+}
+
+// Hide implements Stateful interface.
+func (c *CompletionPopup) Hide() {
+	c.model.ClearCompletion()
+	c.PopupAdapter.Hide()
+}
+
+// GetSelectedIndex implements Selectable interface.
+func (c *CompletionPopup) GetSelectedIndex() int {
+	return c.model.completionIndex
+}
+
+// SelectNext implements Selectable interface.
+func (c *CompletionPopup) SelectNext() {
+	c.model.NextCompletion()
+}
+
+// SelectPrevious implements Selectable interface.
+func (c *CompletionPopup) SelectPrevious() {
+	c.model.PrevCompletion()
+}
+
+// SetSelectedIndex implements Selectable interface.
+func (c *CompletionPopup) SetSelectedIndex(index int) {
+	if index >= 0 && index < len(c.model.completionItems) {
+		c.model.completionIndex = index
+	}
+}
+
+// GetSelectedValue implements Selectable interface.
+func (c *CompletionPopup) GetSelectedValue() interface{} {
+	return c.model.GetSelectedCompletion()
+}
+
+// AsPopupComponent returns the completion as a PopupComponent interface.
+// This allows existing code to work with the new interface without changes.
+func (m *Model) AsCompletionPopup() components.PopupComponent {
+	return NewCompletionPopup(m)
+}
+
+// Ensure CompletionPopup implements PopupComponent interface
+var _ components.Component = (*CompletionPopup)(nil)
+var _ components.PopupComponent = (*CompletionPopup)(nil)
+var _ components.Selectable = (*CompletionPopup)(nil)
+var _ components.Stateful = (*CompletionPopup)(nil)
+var _ components.Sizeable = (*CompletionPopup)(nil)

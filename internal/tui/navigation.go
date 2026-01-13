@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/AINative-studio/ainative-code/internal/tui/components"
 	"github.com/AINative-studio/ainative-code/pkg/lsp"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -221,3 +223,70 @@ func FindReferences(ctx context.Context, m *Model, documentURI string, line, cha
 	m.SetNavigationResult(locations)
 	return nil
 }
+
+// NavigationPopup is a wrapper that makes Model's navigation functionality
+// implement the PopupComponent interface. This is NON-BREAKING - it only
+// adds new methods and doesn't modify existing behavior.
+type NavigationPopup struct {
+	model *Model
+	*components.PopupAdapter
+}
+
+// NewNavigationPopup creates a new navigation popup wrapper around a Model.
+func NewNavigationPopup(m *Model) *NavigationPopup {
+	adapter := components.NewPopupAdapter()
+	adapter.SetSize(navigationWidth, maxNavigationResults+5)
+	return &NavigationPopup{
+		model:        m,
+		PopupAdapter: adapter,
+	}
+}
+
+// Init implements Component interface.
+func (n *NavigationPopup) Init() tea.Cmd {
+	return n.PopupAdapter.Init()
+}
+
+// Update implements Component interface.
+func (n *NavigationPopup) Update(msg tea.Msg) (components.Component, tea.Cmd) {
+	return n, nil
+}
+
+// View implements Component interface.
+func (n *NavigationPopup) View() string {
+	return n.RenderPopup()
+}
+
+// RenderPopup implements PopupComponent interface.
+func (n *NavigationPopup) RenderPopup() string {
+	return RenderNavigation(n.model)
+}
+
+// IsVisible implements Stateful interface.
+func (n *NavigationPopup) IsVisible() bool {
+	return n.model.GetShowNavigation()
+}
+
+// Show implements Stateful interface.
+func (n *NavigationPopup) Show() {
+	// This would be controlled by the model's navigation logic
+	n.PopupAdapter.Show()
+}
+
+// Hide implements Stateful interface.
+func (n *NavigationPopup) Hide() {
+	n.model.ClearNavigation()
+	n.PopupAdapter.Hide()
+}
+
+// AsNavigationPopup returns the navigation as a PopupComponent interface.
+// This allows existing code to work with the new interface without changes.
+func (m *Model) AsNavigationPopup() components.PopupComponent {
+	return NewNavigationPopup(m)
+}
+
+// Ensure NavigationPopup implements PopupComponent interface
+var _ components.Component = (*NavigationPopup)(nil)
+var _ components.PopupComponent = (*NavigationPopup)(nil)
+var _ components.Stateful = (*NavigationPopup)(nil)
+var _ components.Sizeable = (*NavigationPopup)(nil)

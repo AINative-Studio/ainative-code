@@ -6,7 +6,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/AINative-studio/ainative-code/internal/tui/components"
 	"github.com/AINative-studio/ainative-code/pkg/lsp"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -248,3 +250,70 @@ func TriggerHover(ctx context.Context, m *Model, documentURI string, line, char 
 	m.SetHoverInfo(hover)
 	return nil
 }
+
+// HoverPopup is a wrapper that makes Model's hover functionality
+// implement the PopupComponent interface. This is NON-BREAKING - it only
+// adds new methods and doesn't modify existing behavior.
+type HoverPopup struct {
+	model *Model
+	*components.PopupAdapter
+}
+
+// NewHoverPopup creates a new hover popup wrapper around a Model.
+func NewHoverPopup(m *Model) *HoverPopup {
+	adapter := components.NewPopupAdapter()
+	adapter.SetSize(hoverWidth, hoverHeight)
+	return &HoverPopup{
+		model:        m,
+		PopupAdapter: adapter,
+	}
+}
+
+// Init implements Component interface.
+func (h *HoverPopup) Init() tea.Cmd {
+	return h.PopupAdapter.Init()
+}
+
+// Update implements Component interface.
+func (h *HoverPopup) Update(msg tea.Msg) (components.Component, tea.Cmd) {
+	return h, nil
+}
+
+// View implements Component interface.
+func (h *HoverPopup) View() string {
+	return h.RenderPopup()
+}
+
+// RenderPopup implements PopupComponent interface.
+func (h *HoverPopup) RenderPopup() string {
+	return RenderHover(h.model)
+}
+
+// IsVisible implements Stateful interface.
+func (h *HoverPopup) IsVisible() bool {
+	return h.model.GetShowHover()
+}
+
+// Show implements Stateful interface.
+func (h *HoverPopup) Show() {
+	// This would be controlled by the model's hover logic
+	h.PopupAdapter.Show()
+}
+
+// Hide implements Stateful interface.
+func (h *HoverPopup) Hide() {
+	h.model.ClearHover()
+	h.PopupAdapter.Hide()
+}
+
+// AsHoverPopup returns the hover as a PopupComponent interface.
+// This allows existing code to work with the new interface without changes.
+func (m *Model) AsHoverPopup() components.PopupComponent {
+	return NewHoverPopup(m)
+}
+
+// Ensure HoverPopup implements PopupComponent interface
+var _ components.Component = (*HoverPopup)(nil)
+var _ components.PopupComponent = (*HoverPopup)(nil)
+var _ components.Stateful = (*HoverPopup)(nil)
+var _ components.Sizeable = (*HoverPopup)(nil)
