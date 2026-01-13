@@ -2,6 +2,8 @@ package tui
 
 import (
 	"github.com/AINative-studio/ainative-code/internal/rlhf"
+	"github.com/AINative-studio/ainative-code/internal/tui/dialogs"
+	"github.com/AINative-studio/ainative-code/internal/tui/layout"
 	"github.com/AINative-studio/ainative-code/internal/tui/syntax"
 	"github.com/AINative-studio/ainative-code/pkg/lsp"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -42,6 +44,12 @@ type Model struct {
 	// Syntax highlighting (TASK-022)
 	syntaxHighlighter *syntax.Highlighter
 	syntaxEnabled     bool
+
+	// Dialog system (TASK-133)
+	dialogManager *dialogs.DialogManager
+
+	// Layout management (TASK-132)
+	layoutManager layout.LayoutManager
 }
 
 // Message represents a chat message
@@ -60,6 +68,9 @@ func NewModel() Model {
 
 	// Initialize syntax highlighter with AINative branding
 	highlighter := syntax.NewHighlighter(syntax.AINativeConfig())
+
+	// Initialize dialog manager
+	dialogMgr := dialogs.NewDialogManager()
 
 	return Model{
 		textInput:         ti,
@@ -80,6 +91,7 @@ func NewModel() Model {
 		showNavigation:    false,
 		syntaxHighlighter: highlighter,
 		syntaxEnabled:     true,
+		dialogManager:     dialogMgr,
 	}
 }
 
@@ -120,6 +132,9 @@ func (m *Model) SetSize(width, height int) {
 
 	// Update text input width
 	m.textInput.Width = width - 4
+
+	// Update dialog manager size
+	m.dialogManager.SetSize(width, height)
 }
 
 // AddMessage adds a new message to the conversation

@@ -384,3 +384,67 @@ func overlayPopup(content, popup string, width, height int) string {
 
 	return strings.Join(result, "\n")
 }
+
+// layerDialog layers a dialog on top of the base content
+// Dialogs use lipgloss.Place internally for centering, so we just overlay the result
+func layerDialog(base, dialog string, width, height int) string {
+	if dialog == "" {
+		return base
+	}
+
+	baseLines := strings.Split(base, "\n")
+	dialogLines := strings.Split(dialog, "\n")
+
+	// Ensure we have enough lines
+	maxLines := len(baseLines)
+	if len(dialogLines) > maxLines {
+		maxLines = len(dialogLines)
+		// Pad base with empty lines
+		for i := len(baseLines); i < maxLines; i++ {
+			baseLines = append(baseLines, strings.Repeat(" ", width))
+		}
+	}
+
+	// Overlay dialog lines on base
+	result := make([]string, maxLines)
+	for i := 0; i < maxLines; i++ {
+		if i < len(baseLines) && i < len(dialogLines) {
+			result[i] = mergeDialogLine(baseLines[i], dialogLines[i])
+		} else if i < len(baseLines) {
+			result[i] = baseLines[i]
+		} else if i < len(dialogLines) {
+			result[i] = dialogLines[i]
+		}
+	}
+
+	return strings.Join(result, "\n")
+}
+
+// mergeDialogLine merges a dialog line with a base line
+// Non-space characters from dialog override the base
+func mergeDialogLine(base, dialog string) string {
+	if dialog == "" {
+		return base
+	}
+
+	baseRunes := []rune(base)
+	dialogRunes := []rune(dialog)
+
+	// Ensure base is at least as long as dialog
+	if len(baseRunes) < len(dialogRunes) {
+		padding := make([]rune, len(dialogRunes)-len(baseRunes))
+		for i := range padding {
+			padding[i] = ' '
+		}
+		baseRunes = append(baseRunes, padding...)
+	}
+
+	// Overlay dialog onto base
+	for i, r := range dialogRunes {
+		if r != ' ' && r != '\x00' {
+			baseRunes[i] = r
+		}
+	}
+
+	return string(baseRunes)
+}
