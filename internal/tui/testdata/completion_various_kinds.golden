@@ -1,0 +1,15 @@
+╭──────────────────────────────────────────────────╮
+│ Completions                                      │
+│ ──────────────────────────────────────────────   │
+│ ƒ MyFunction                                     │
+│ m MyMethod                                       │
+│ v myVariable                                     │
+│ c MY_CONSTANT                                    │
+│ C MyClass                                        │
+│ I MyInterface                                    │
+│ S MyStruct                                       │
+│ k if                                             │
+│                                                  │
+│ Tab/↑↓ to navigate • Enter to select • Esc to    │
+│ cancel                                           │
+╰──────────────────────────────────────────────────╯

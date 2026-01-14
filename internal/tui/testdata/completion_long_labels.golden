@@ -1,0 +1,12 @@
+╭──────────────────────────────────────────────────╮
+│ Completions                                      │
+│ ──────────────────────────────────────────────   │
+│ ƒ VeryLongFunctionNameThatExc... This is a very  │
+│ lo...                                            │
+│ m AnotherExtremelyLongMethodN... Another lengthy │
+│ d...                                             │
+│ ƒ ShortFunc Brief                                │
+│                                                  │
+│ Tab/↑↓ to navigate • Enter to select • Esc to    │
+│ cancel                                           │
+╰──────────────────────────────────────────────────╯
