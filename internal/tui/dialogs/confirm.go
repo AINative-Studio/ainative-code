@@ -178,3 +178,9 @@ func (d *ConfirmDialog) Result() interface{} {
 func (d *ConfirmDialog) GetResult() *bool {
 	return d.result
 }
+
+// NewConfirmDialogWithConfig creates a confirm dialog with custom modal configuration
+func NewConfirmDialogWithConfig(config ConfirmDialogConfig, modalConfig ModalConfig) (*ConfirmDialog, ModalConfig) {
+	dialog := NewConfirmDialog(config)
+	return dialog, modalConfig
+}

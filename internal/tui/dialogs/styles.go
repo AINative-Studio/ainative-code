@@ -28,11 +28,6 @@ var (
 				MarginTop(1).
 				MarginBottom(1)
 
-	// Backdrop style for modal overlay
-	BackdropStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("#000000")).
-			Foreground(lipgloss.Color("#000000"))
-
 	// Button styles
 	ButtonActiveStyle = lipgloss.NewStyle().
 				Bold(true).
@@ -99,12 +94,11 @@ var (
 				Bold(true)
 )
 
-// RenderBackdrop creates a semi-transparent backdrop
+// RenderBackdrop creates a semi-transparent backdrop (deprecated - use BackdropRenderer)
 func RenderBackdrop(width, height int) string {
-	style := BackdropStyle.
-		Width(width).
-		Height(height)
-	return style.Render("")
+	// Use the new BackdropRenderer with dark backdrop
+	renderer := NewBackdropRenderer(width, height, DarkBackdrop)
+	return renderer.Render()
 }
 
 // RenderDialogBox renders a dialog box at the center
