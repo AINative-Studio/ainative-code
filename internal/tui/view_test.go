@@ -261,7 +261,7 @@ func TestRenderStatusBar(t *testing.T) {
 			m.streaming = tt.streaming
 			m.width = tt.width
 			if tt.hasError {
-				m.SetError("test error")
+				m.SetError(errors.New("test error"))
 			}
 
 			statusBar := m.renderStatusBar()
@@ -298,7 +298,7 @@ func TestRenderStatusBarStreaming(t *testing.T) {
 func TestRenderStatusBarError(t *testing.T) {
 	m := NewModel()
 	m.streaming = false
-	m.SetError("test error")
+	m.SetError(errors.New("test error"))
 	m.width = 80
 
 	statusBar := m.renderStatusBar()
@@ -400,7 +400,7 @@ func TestRenderStatusBarHelpHint(t *testing.T) {
 			m.streaming = tt.streaming
 			m.width = 80
 			if tt.hasError {
-				m.SetError("test error")
+				m.SetError(errors.New("test error"))
 			}
 
 			statusBar := m.renderStatusBar()
@@ -754,7 +754,7 @@ func TestViewEdgeCases(t *testing.T) {
 			setup: func(m *Model) {
 				m.ready = true
 				m.streaming = true
-				m.SetError("test error")
+				m.SetError(errors.New("test error"))
 				m.SetSize(80, 24)
 			},
 			validate: func(t *testing.T, view string) {
@@ -768,7 +768,7 @@ func TestViewEdgeCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := NewModel()
-			tt.setup(m)
+			tt.setup(&m)
 			view := m.View()
 			tt.validate(t, view)
 		})

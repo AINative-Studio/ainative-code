@@ -1,7 +1,9 @@
 package tui
 
 import (
+	"errors"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -89,7 +91,7 @@ func TestInitWithDifferentModelStates(t *testing.T) {
 		{
 			name: "init with error state",
 			setupFunc: func(m *Model) {
-				m.SetError("test error")
+				m.SetError(errors.New("test error"))
 			},
 		},
 	}
@@ -353,7 +355,7 @@ func TestInitReturnsImmediately(t *testing.T) {
 	select {
 	case <-done:
 		// Success - Init returned immediately
-	case <-tea.Tick(100 * tea.Millisecond):
+	case <-time.After(100 * time.Millisecond):
 		t.Error("Init did not return within 100ms - it may be blocking")
 	}
 }

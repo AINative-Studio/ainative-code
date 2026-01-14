@@ -1,10 +1,8 @@
 package tui
 
 import (
+	"errors"
 	"testing"
-
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
 )
 
 // TestNewModel tests the NewModel constructor
@@ -299,7 +297,7 @@ func TestSetError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := NewModel()
-			m.SetError(tt.errMsg)
+			m.SetError(errors.New(tt.errMsg))
 
 			if m.err == nil {
 				t.Error("expected error to be set, got nil")
@@ -315,7 +313,7 @@ func TestClearError(t *testing.T) {
 	m := NewModel()
 
 	// Set an error
-	m.SetError("test error")
+	m.SetError(errors.New("test error"))
 	if m.err == nil {
 		t.Error("expected error to be set")
 	}
@@ -484,7 +482,7 @@ func TestModelIntegration(t *testing.T) {
 	}
 
 	// Set error
-	m.SetError("test error")
+	m.SetError(errors.New("test error"))
 	if m.err == nil {
 		t.Error("expected error to be set")
 	}
