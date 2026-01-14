@@ -29,6 +29,7 @@ var (
 	searchOutputJSON bool
 	// Create command flags
 	createTitle      string
+	createName       string
 	createTags       string
 	createProvider   string
 	createModel      string
@@ -189,9 +190,14 @@ The create command allows you to create a new session with custom settings
 including title, tags, provider, model, and metadata. By default, the newly
 created session will be activated for immediate use.
 
+You can use either --title or --name to specify the session name (they are equivalent).
+
 Examples:
   # Create a session with a title
   ainative-code session create --title "Bug Investigation"
+
+  # Create a session with --name (equivalent to --title)
+  ainative-code session create --name "Bug Investigation"
 
   # Create a session with tags
   ainative-code session create --title "API Development" --tags "golang,api,rest"
@@ -239,8 +245,9 @@ func init() {
 	sessionSearchCmd.Flags().BoolVar(&searchOutputJSON, "json", false, "output results as JSON")
 
 	// Session create flags
-	sessionCreateCmd.Flags().StringVarP(&createTitle, "title", "t", "", "session title (required)")
-	sessionCreateCmd.MarkFlagRequired("title")
+	sessionCreateCmd.Flags().StringVarP(&createTitle, "title", "t", "", "session title (also accepts --name)")
+	sessionCreateCmd.Flags().StringVarP(&createName, "name", "n", "", "session name (alias for --title)")
+	// Note: We validate in runSessionCreate that at least one of --title or --name is provided
 	sessionCreateCmd.Flags().StringVar(&createTags, "tags", "", "comma-separated list of tags")
 	sessionCreateCmd.Flags().StringVarP(&createProvider, "provider", "p", "", "AI provider name (e.g., anthropic, openai)")
 	sessionCreateCmd.Flags().StringVarP(&createModel, "model", "m", "", "model name (e.g., claude-3-5-sonnet-20241022)")
@@ -876,10 +883,27 @@ func outputSearchResultsTable(results *session.SearchResultSet) error {
 }
 
 func runSessionCreate(cmd *cobra.Command, args []string) error {
-	// Validate required title
+	// Handle both --title and --name flags
+	// If both provided, --title takes precedence
 	title := strings.TrimSpace(createTitle)
+	name := strings.TrimSpace(createName)
+
+	// Check if both flags are provided
+	if title != "" && name != "" {
+		logger.WarnEvent().
+			Str("title", title).
+			Str("name", name).
+			Msg("Both --title and --name provided, using --title")
+	}
+
+	// Use --title if provided, otherwise use --name
 	if title == "" {
-		return fmt.Errorf("session title cannot be empty")
+		title = name
+	}
+
+	// Validate that at least one was provided
+	if title == "" {
+		return fmt.Errorf("session title is required (use --title or --name)")
 	}
 
 	logger.InfoEvent().
