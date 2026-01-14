@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"runtime"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -41,8 +42,11 @@ func runVersion(cmd *cobra.Command, args []string) {
 	short, _ := cmd.Flags().GetBool("short")
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 
+	// Strip "v" prefix if present to avoid double-v (git tags already include "v")
+	displayVersion := strings.TrimPrefix(version, "v")
+
 	if short {
-		fmt.Println(version)
+		fmt.Println(displayVersion)
 		return
 	}
 
@@ -55,11 +59,11 @@ func runVersion(cmd *cobra.Command, args []string) {
   "goVersion": "%s",
   "platform": "%s/%s"
 }
-`, version, commit, buildDate, builtBy, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+`, displayVersion, commit, buildDate, builtBy, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		return
 	}
 
-	fmt.Printf("AINative Code v%s\n", version)
+	fmt.Printf("AINative Code v%s\n", displayVersion)
 	fmt.Printf("Commit:     %s\n", commit)
 	fmt.Printf("Built:      %s\n", buildDate)
 	fmt.Printf("Built by:   %s\n", builtBy)
