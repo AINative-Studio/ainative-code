@@ -9,6 +9,7 @@ import (
 	"github.com/AINative-studio/ainative-code/internal/tui/toast"
 	"github.com/AINative-studio/ainative-code/pkg/lsp"
 	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/viewport"
 )
 
@@ -164,6 +165,9 @@ func (m *Model) SetSize(width, height int) {
 
 	// Update dialog manager size
 	m.dialogManager.SetSize(width, height)
+
+	// Update toast manager size
+	m.toastManager.SetSize(width, height)
 
 	// Update toast manager size
 	m.toastManager.SetSize(width, height)
@@ -602,3 +606,4 @@ func (m *Model) DismissAllToasts() tea.Cmd {
 	}
 	return m.toastManager.DismissAll()
 }
+
