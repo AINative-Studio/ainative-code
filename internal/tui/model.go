@@ -5,6 +5,8 @@ import (
 	"github.com/AINative-studio/ainative-code/internal/tui/dialogs"
 	"github.com/AINative-studio/ainative-code/internal/tui/layout"
 	"github.com/AINative-studio/ainative-code/internal/tui/syntax"
+	"github.com/AINative-studio/ainative-code/internal/tui/theme"
+	"github.com/AINative-studio/ainative-code/internal/tui/toast"
 	"github.com/AINative-studio/ainative-code/pkg/lsp"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -50,6 +52,12 @@ type Model struct {
 
 	// Layout management (TASK-132)
 	layoutManager layout.LayoutManager
+
+	// Theme management (TASK-137)
+	themeManager *theme.ThemeManager
+
+	// Toast notification system (TASK-138)
+	toastManager *toast.ToastManager
 }
 
 // Message represents a chat message
@@ -72,6 +80,17 @@ func NewModel() Model {
 	// Initialize dialog manager
 	dialogMgr := dialogs.NewDialogManager()
 
+	// Initialize theme manager with built-in themes
+	themeMgr := theme.NewThemeManager()
+	theme.RegisterBuiltinThemes(themeMgr)
+	themeMgr.SetTheme("AINative") // Set AINative as default
+	themeMgr.LoadConfig()         // Try to load saved theme preference
+
+	// Initialize toast manager
+	toastMgr := toast.NewToastManager()
+	toastMgr.SetMaxToasts(3)              // Max 3 visible toasts
+	toastMgr.SetPosition(toast.TopRight)  // Default position
+
 	return Model{
 		textInput:         ti,
 		messages:          []Message{},
@@ -92,6 +111,8 @@ func NewModel() Model {
 		syntaxHighlighter: highlighter,
 		syntaxEnabled:     true,
 		dialogManager:     dialogMgr,
+		themeManager:      themeMgr,
+		toastManager:      toastMgr,
 	}
 }
 
@@ -143,6 +164,9 @@ func (m *Model) SetSize(width, height int) {
 
 	// Update dialog manager size
 	m.dialogManager.SetSize(width, height)
+
+	// Update toast manager size
+	m.toastManager.SetSize(width, height)
 }
 
 // createLayoutManager initializes the layout manager with component constraints
@@ -465,4 +489,116 @@ func (m *Model) DismissFeedbackPrompt() {
 // GetFeedbackPromptModel returns the feedback prompt model
 func (m *Model) GetFeedbackPromptModel() *rlhf.FeedbackPromptModel {
 	return m.feedbackPromptModel
+}
+
+// Theme-related methods (TASK-137)
+
+// GetThemeManager returns the theme manager
+func (m *Model) GetThemeManager() *theme.ThemeManager {
+	return m.themeManager
+}
+
+// GetCurrentTheme returns the current theme
+func (m *Model) GetCurrentTheme() *theme.Theme {
+	if m.themeManager == nil {
+		return nil
+	}
+	return m.themeManager.CurrentTheme()
+}
+
+// SwitchTheme switches to a different theme by name
+func (m *Model) SwitchTheme(name string) error {
+	if m.themeManager == nil {
+		return nil
+	}
+	err := m.themeManager.SetTheme(name)
+	if err == nil {
+		// Save theme preference
+		_ = m.themeManager.SaveConfig()
+	}
+	return err
+}
+
+// CycleTheme cycles to the next theme
+func (m *Model) CycleTheme() error {
+	if m.themeManager == nil {
+		return nil
+	}
+	err := m.themeManager.CycleTheme()
+	if err == nil {
+		// Save theme preference
+		_ = m.themeManager.SaveConfig()
+	}
+	return err
+}
+
+// Toast notification methods (TASK-138)
+
+// GetToastManager returns the toast manager
+func (m *Model) GetToastManager() *toast.ToastManager {
+	return m.toastManager
+}
+
+// ShowToast displays a custom toast notification
+func (m *Model) ShowToast(config toast.ToastConfig) tea.Cmd {
+	if m.toastManager == nil {
+		return nil
+	}
+	return m.toastManager.ShowToast(config)
+}
+
+// ShowInfoToast displays an info toast
+func (m *Model) ShowInfoToast(message string) tea.Cmd {
+	if m.toastManager == nil {
+		return nil
+	}
+	return m.toastManager.ShowInfo(message)
+}
+
+// ShowSuccessToast displays a success toast
+func (m *Model) ShowSuccessToast(message string) tea.Cmd {
+	if m.toastManager == nil {
+		return nil
+	}
+	return m.toastManager.ShowSuccess(message)
+}
+
+// ShowWarningToast displays a warning toast
+func (m *Model) ShowWarningToast(message string) tea.Cmd {
+	if m.toastManager == nil {
+		return nil
+	}
+	return m.toastManager.ShowWarning(message)
+}
+
+// ShowErrorToast displays an error toast
+func (m *Model) ShowErrorToast(message string) tea.Cmd {
+	if m.toastManager == nil {
+		return nil
+	}
+	return m.toastManager.ShowError(message)
+}
+
+// ShowLoadingToast displays a loading toast
+func (m *Model) ShowLoadingToast(message string) tea.Cmd {
+	if m.toastManager == nil {
+		return nil
+	}
+	return m.toastManager.ShowLoading(message)
+}
+
+// DismissToast dismisses a specific toast by ID
+func (m *Model) DismissToast(id string) tea.Cmd {
+	if m.toastManager == nil {
+		return nil
+	}
+	return m.toastManager.DismissToast(id)
+}
+
+// DismissAllToasts dismisses all visible toasts
+func (m *Model) DismissAllToasts() tea.Cmd {
+	if m.toastManager == nil {
+		return nil
+	}
+	return m.toastManager.DismissAll()
 }
