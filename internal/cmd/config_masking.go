@@ -222,6 +222,11 @@ func formatConfigOutput(data interface{}, indent int) string {
 		// Sort keys for consistent output
 		// Note: Using a simple approach here; could use sort.Strings for alphabetical
 		for _, key := range keys {
+			// Skip empty or whitespace-only keys to prevent confusing output
+			if strings.TrimSpace(key) == "" {
+				continue
+			}
+
 			value := values[key]
 			if value == nil {
 				continue
