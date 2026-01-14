@@ -1,0 +1,10 @@
+╭──────────────────────────────────────────────────╮
+│ Completions                                      │
+│ ──────────────────────────────────────────────   │
+│ S Model type Model struct                        │
+│ ƒ NewModel func NewModel() M...                  │
+│ m Update func (m *Model) U...                    │
+│                                                  │
+│ Tab/↑↓ to navigate • Enter to select • Esc to    │
+│ cancel                                           │
+╰──────────────────────────────────────────────────╯

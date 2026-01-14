@@ -1,0 +1,45 @@
+  ╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗  
+  ║                                                                                                                  ║  
+  ║   AINative-Code - Complete Keyboard Reference                                                                    ║  
+  ║                                                                                                                  ║  
+  ║   About                                                                                                          ║  
+  ║   AINative-Code is a terminal-based AI coding assistant.                                                         ║  
+  ║   Use keyboard shortcuts for efficient navigation and control.                                                   ║  
+  ║                                                                                                                  ║  
+  ║   Navigation Shortcuts                                                                                           ║  
+  ║     ↑/↓              Scroll up/down                                                                              ║  
+  ║     PgUp/PgDn        Page up/down                                                                                ║  
+  ║     Home             Jump to top                                                                                 ║  
+  ║     End              Jump to bottom                                                                              ║  
+  ║     Ctrl+U           Scroll half page up                                                                         ║  
+  ║     Ctrl+D           Scroll half page down                                                                       ║  
+  ║                                                                                                                  ║  
+  ║   Editing & Input                                                                                                ║  
+  ║     Enter            Send message                                                                                ║  
+  ║     Ctrl+L           Clear conversation                                                                          ║  
+  ║     Esc              Cancel input/close overlay                                                                  ║  
+  ║                                                                                                                  ║  
+  ║   View & Display Options                                                                                         ║  
+  ║     t                Toggle thinking display                                                                     ║  
+  ║     e                Expand all thinking blocks                                                                  ║  
+  ║     c                Collapse all thinking blocks                                                                ║  
+  ║     Ctrl+R           Refresh display                                                                             ║  
+  ║     Ctrl+T           Toggle theme                                                                                ║  
+  ║                                                                                                                  ║  
+  ║   Help & Information                                                                                             ║  
+  ║     ?                Show/hide this help                                                                         ║  
+  ║     Ctrl+H           Toggle compact/full help                                                                    ║  
+  ║                                                                                                                  ║  
+  ║   System Controls                                                                                                ║  
+  ║     Ctrl+C           Quit application                                                                            ║  
+  ║     Ctrl+Z           Suspend (background)                                                                        ║  
+  ║                                                                                                                  ║  
+  ║   Tips                                                                                                           ║  
+  ║   • Use arrow keys or PgUp/PgDn to scroll through long conversations                                             ║  
+  ║   • Press 't' to toggle thinking blocks for Claude's extended thinking                                           ║  
+  ║   • Use Ctrl+L to clear conversation and start fresh                                                             ║  
+  ║   ... (3 more lines)                                                                                             ║  
+  ║                                                                                                                  ║  
+  ║                                                                                                                  ║  
+  ║                                                                                                                  ║  
+  ╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝  

@@ -1,0 +1,11 @@
+╭──────────────────────────────────────────────────╮
+│ Completions                                      │
+│ ──────────────────────────────────────────────   │
+│ S Model type Model struct                        │
+│ S Message type Message struct                    │
+│ ƒ NewModel func NewModel() M...                  │
+│ ƒ RenderCompletion func RenderComple...          │
+│                                                  │
+│ Tab/↑↓ to navigate • Enter to select • Esc to    │
+│ cancel                                           │
+╰──────────────────────────────────────────────────╯

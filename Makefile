@@ -156,6 +156,15 @@ test-e2e-clean: ## Clean E2E test artifacts
 	@rm -f tests/e2e/e2e-test-output.log
 	@echo "$(COLOR_GREEN)E2E artifacts cleaned!$(COLOR_RESET)"
 
+test-golden: ## Run golden tests for UI regression testing
+	@echo "$(COLOR_GREEN)Running golden tests...$(COLOR_RESET)"
+	$(GOTEST) -tags "$(SQLITE_TAGS)" -v ./internal/tui/... -run Golden
+
+test-update-golden: ## Update golden test snapshots
+	@echo "$(COLOR_YELLOW)Updating golden test snapshots...$(COLOR_RESET)"
+	UPDATE_GOLDEN=true $(GOTEST) -tags "$(SQLITE_TAGS)" -v ./internal/tui/... -run Golden
+	@echo "$(COLOR_GREEN)Golden snapshots updated!$(COLOR_RESET)"
+
 test-all: test test-integration test-e2e ## Run all tests (unit, integration, and E2E)
 	@echo "$(COLOR_GREEN)All tests completed!$(COLOR_RESET)"
 
