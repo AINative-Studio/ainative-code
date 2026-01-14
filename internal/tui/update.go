@@ -3,6 +3,8 @@ package tui
 import (
 	"strings"
 
+	"github.com/AINative-studio/ainative-code/internal/tui/theme"
+	"github.com/AINative-studio/ainative-code/internal/tui/toast"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -13,6 +15,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd  tea.Cmd
 		cmds []tea.Cmd
 	)
+
+	// Always update toast manager first (it handles its own messages)
+	if m.toastManager != nil {
+		toastModel, toastCmd := m.toastManager.Update(msg)
+		m.toastManager = toastModel.(*toast.ToastManager)
+		if toastCmd != nil {
+			cmds = append(cmds, toastCmd)
+		}
+	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -133,6 +144,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// c: Collapse all thinking blocks
 			m.CollapseAllThinking()
 			m.viewport.SetContent(m.renderMessages())
+			return m, nil
+
+		case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+t"))):
+			// Ctrl+T: Cycle through themes
+			err := m.CycleTheme()
+			if err == nil {
+				// Update viewport with new theme colors
+				m.viewport.SetContent(m.renderMessages())
+			}
 			return m, nil
 
 		case key.Matches(msg, key.NewBinding(key.WithKeys("esc"))):
@@ -269,6 +289,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case expandAllThinkingMsg:
 		// Expand all thinking blocks
 		m.ExpandAllThinking()
+		m.viewport.SetContent(m.renderMessages())
+		return m, nil
+
+	case theme.SwitchThemeMsg:
+		// Switch to specific theme
+		err := m.SwitchTheme(msg.ThemeName)
+		if err == nil {
+			// Update viewport with new theme
+			m.viewport.SetContent(m.renderMessages())
+		}
+		return m, nil
+
+	case theme.CycleThemeMsg:
+		// Cycle to next theme
+		err := m.CycleTheme()
+		if err == nil {
+			// Update viewport with new theme
+			m.viewport.SetContent(m.renderMessages())
+		}
+		return m, nil
+
+	case theme.ThemeChangeMsg:
+		// Theme changed, update all components
 		m.viewport.SetContent(m.renderMessages())
 		return m, nil
 

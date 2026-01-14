@@ -4,60 +4,28 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/AINative-studio/ainative-code/internal/tui/theme"
 	"github.com/AINative-studio/ainative-code/pkg/lsp"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Color scheme and styles
-var (
-	// Border styles
-	borderStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("63"))
-
-	// Status bar styles
-	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241")).
-			Background(lipgloss.Color("235"))
-
-	streamingIndicatorStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("10")).
-				Bold(true)
-
-	helpHintStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241"))
-
-	// Input area styles
-	inputPromptStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("12")).
-				Bold(true)
-
-	// Error styles
-	errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("9")).
-			Bold(true)
-
-	// Loading/Quitting styles
-	centeredTextStyle = lipgloss.NewStyle().
-				Align(lipgloss.Center)
-)
-
 // View renders the complete TUI interface
 func (m Model) View() string {
+	// Get theme-aware render helpers
+	currentTheme := m.GetCurrentTheme()
+	if currentTheme == nil {
+		currentTheme = theme.AINativeTheme() // Fallback
+	}
+	renderer := theme.NewRenderHelpers(currentTheme)
+
 	// Handle quitting state
 	if m.quitting {
-		quitStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("10")).
-			Bold(true).
-			Align(lipgloss.Center)
-		return quitStyle.Render("Thanks for using ainative-code! Goodbye!\n")
+		return renderer.QuitStyle().Render("Thanks for using ainative-code! Goodbye!\n")
 	}
 
 	// Handle not ready state
 	if !m.ready {
-		loadingStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("14"))
-		return loadingStyle.Render("Initializing TUI...\n")
+		return renderer.LoadingStyle().Render("Initializing TUI...\n")
 	}
 
 	var sb strings.Builder
@@ -87,29 +55,44 @@ func (m Model) View() string {
 		content = overlayPopup(content, RenderNavigation(&m), m.width, m.height)
 	}
 
+	// 5. Toast notifications (top layer, non-blocking)
+	if m.toastManager != nil && m.toastManager.HasToasts() {
+		toastView := m.toastManager.View()
+		if toastView != "" {
+			// Overlay toasts on top of everything else
+			// Toasts are positioned by the manager, so we use PlaceOverlay
+			content = lipgloss.PlaceVertical(m.height, lipgloss.Top,
+				lipgloss.JoinVertical(lipgloss.Left, toastView, content),
+			)
+		}
+	}
+
 	return content
 }
 
 // renderInputArea creates the input section with prompt and text field
 func (m *Model) renderInputArea() string {
+	currentTheme := m.GetCurrentTheme()
+	if currentTheme == nil {
+		currentTheme = theme.AINativeTheme()
+	}
+	renderer := theme.NewRenderHelpers(currentTheme)
+
 	var sb strings.Builder
 
-	// Add separator line with improved styling
+	// Add separator line with theme colors
 	separator := strings.Repeat("─", m.width)
-	separatorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	sb.WriteString(separatorStyle.Render(separator))
+	sb.WriteString(renderer.SeparatorStyle().Render(separator))
 	sb.WriteString("\n")
 
 	// Add prompt and input field
-	prompt := inputPromptStyle.Render("►")
+	prompt := renderer.InputPromptStyle().Render("►")
 	sb.WriteString(prompt)
 	sb.WriteString(" ")
 
 	if m.streaming {
-		// Show disabled state during streaming with optional animation
-		disabledStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240"))
-		sb.WriteString(disabledStyle.Render(m.textInput.Placeholder))
+		// Show disabled state during streaming
+		sb.WriteString(renderer.DisabledStyle().Render(m.textInput.Placeholder))
 	} else {
 		// Show active input field
 		sb.WriteString(m.textInput.View())
@@ -117,11 +100,8 @@ func (m *Model) renderInputArea() string {
 
 	// Add input hint for small terminals
 	if m.width < 80 && !m.streaming {
-		hintStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("242")).
-			Italic(true)
 		sb.WriteString(" ")
-		sb.WriteString(hintStyle.Render("(Enter to send)"))
+		sb.WriteString(renderer.HelpHintStyle().Render("(Enter to send)"))
 	}
 
 	return sb.String()
@@ -129,28 +109,36 @@ func (m *Model) renderInputArea() string {
 
 // renderStatusBar creates the status bar with streaming indicator and help hint
 func (m *Model) renderStatusBar() string {
+	currentTheme := m.GetCurrentTheme()
+	if currentTheme == nil {
+		currentTheme = theme.AINativeTheme()
+	}
+	renderer := theme.NewRenderHelpers(currentTheme)
+
 	var leftSection, rightSection string
 
 	// Left section: Streaming indicator or ready status with LSP status
 	if m.streaming {
-		leftSection = streamingIndicatorStyle.Render("● Streaming...")
+		leftSection = renderer.StreamingIndicatorStyle().Render("● Streaming...")
 	} else if m.err != nil {
-		leftSection = errorStyle.Render("✗ Error occurred")
+		leftSection = renderer.ErrorStyle().Render("✗ Error occurred")
 	} else {
-		readyStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("10"))
-		leftSection = readyStyle.Render("● Ready")
+		leftSection = renderer.ReadyStyle().Render("● Ready")
 	}
 
 	// Add LSP status indicator
 	if m.IsLSPEnabled() {
 		lspStatus := m.GetLSPStatus()
-		lspIndicator := renderLSPStatus(lspStatus)
+		lspIndicator := m.renderLSPStatus(lspStatus)
 		leftSection += " " + lspIndicator
 	}
 
-	// Right section: Help hint and thinking status
+	// Right section: Help hint, theme indicator, and thinking status
 	rightParts := []string{}
+
+	// Add theme indicator
+	themeIndicator := renderer.FormatThemeIndicator()
+	rightParts = append(rightParts, themeIndicator)
 
 	// Add thinking status if there are thinking blocks
 	if len(m.thinkingState.Blocks) > 0 {
@@ -160,7 +148,7 @@ func (m *Model) renderStatusBar() string {
 		} else {
 			thinkingStatus = "Thinking: OFF"
 		}
-		rightParts = append(rightParts, helpHintStyle.Render(thinkingStatus))
+		rightParts = append(rightParts, renderer.HelpHintStyle().Render(thinkingStatus))
 	}
 
 	// Add scroll indicator for large content
@@ -169,7 +157,7 @@ func (m *Model) renderStatusBar() string {
 		rightParts = append(rightParts, scrollIndicator)
 	}
 
-	rightParts = append(rightParts, helpHintStyle.Render("Press ? for help"))
+	rightParts = append(rightParts, renderer.HelpHintStyle().Render("? help | Ctrl+T theme"))
 	rightSection = strings.Join(rightParts, " | ")
 
 	// Calculate spacing
@@ -183,7 +171,7 @@ func (m *Model) renderStatusBar() string {
 
 	// Combine sections
 	statusContent := leftSection + spacing + rightSection
-	return statusBarStyle.Render(statusContent)
+	return renderer.StatusBarStyle().Render(statusContent)
 }
 
 // renderScrollIndicator renders a scroll position indicator
@@ -197,15 +185,17 @@ func (m *Model) renderScrollIndicator() string {
 		return ""
 	}
 
+	currentTheme := m.GetCurrentTheme()
+	if currentTheme == nil {
+		currentTheme = theme.AINativeTheme()
+	}
+	renderer := theme.NewRenderHelpers(currentTheme)
+
 	// Calculate scroll percentage
 	scrollPercent := 0
 	if m.viewport.TotalLineCount() > 0 {
 		scrollPercent = int(float64(m.viewport.YOffset) / float64(m.viewport.TotalLineCount()) * 100)
 	}
-
-	indicatorStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("242")).
-		Italic(true)
 
 	var indicator string
 	if scrollPercent == 0 {
@@ -216,50 +206,46 @@ func (m *Model) renderScrollIndicator() string {
 		indicator = fmt.Sprintf("↕ %d%%", scrollPercent)
 	}
 
-	return indicatorStyle.Render(indicator)
+	return renderer.ScrollIndicatorStyle().Render(indicator)
 }
 
-// FormatError formats an error message for display
+// FormatError formats an error message for display (deprecated, use theme.RenderHelpers)
 func FormatError(err error) string {
 	if err == nil {
 		return ""
 	}
-	return errorStyle.Render(fmt.Sprintf("Error: %s", err.Error()))
+	// Use default theme
+	renderer := theme.NewRenderHelpers(theme.AINativeTheme())
+	return renderer.FormatError(err)
 }
 
-// FormatUserMessage formats a user message for display
+// FormatUserMessage formats a user message for display (deprecated, use theme.RenderHelpers)
 func FormatUserMessage(content string) string {
-	userStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("12")).
-		Bold(true)
-
-	label := userStyle.Render("You:")
-	return fmt.Sprintf("%s %s", label, content)
+	renderer := theme.NewRenderHelpers(theme.AINativeTheme())
+	return renderer.FormatUserMessage(content)
 }
 
-// FormatAssistantMessage formats an assistant message for display
+// FormatAssistantMessage formats an assistant message for display (deprecated, use theme.RenderHelpers)
 func FormatAssistantMessage(content string) string {
-	assistantStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("10")).
-		Bold(true)
-
-	label := assistantStyle.Render("Assistant:")
-	return fmt.Sprintf("%s %s", label, content)
+	renderer := theme.NewRenderHelpers(theme.AINativeTheme())
+	return renderer.FormatAssistantMessage(content)
 }
 
-// FormatSystemMessage formats a system message for display
+// FormatSystemMessage formats a system message for display (deprecated, use theme.RenderHelpers)
 func FormatSystemMessage(content string) string {
-	systemStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("11")).
-		Bold(true)
-
-	label := systemStyle.Render("System:")
-	return fmt.Sprintf("%s %s", label, content)
+	renderer := theme.NewRenderHelpers(theme.AINativeTheme())
+	return renderer.FormatSystemMessage(content)
 }
 
 // renderCompactView renders a simplified view for very small terminals
 func (m *Model) renderCompactView() string {
 	if m.width < 40 || m.height < 10 {
+		currentTheme := m.GetCurrentTheme()
+		if currentTheme == nil {
+			currentTheme = theme.AINativeTheme()
+		}
+		renderer := theme.NewRenderHelpers(currentTheme)
+
 		var sb strings.Builder
 
 		// Show only the last message or a placeholder
@@ -268,30 +254,26 @@ func (m *Model) renderCompactView() string {
 			var formatted string
 			switch lastMsg.Role {
 			case "user":
-				formatted = FormatUserMessage(lastMsg.Content)
+				formatted = renderer.FormatUserMessage(lastMsg.Content)
 			case "assistant":
-				formatted = FormatAssistantMessage(lastMsg.Content)
+				formatted = renderer.FormatAssistantMessage(lastMsg.Content)
 			case "system":
-				formatted = FormatSystemMessage(lastMsg.Content)
+				formatted = renderer.FormatSystemMessage(lastMsg.Content)
 			default:
 				formatted = lastMsg.Content
 			}
 			sb.WriteString(formatted)
 		} else {
-			placeholderStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("242")).
-				Italic(true)
-			sb.WriteString(placeholderStyle.Render("No messages yet"))
+			sb.WriteString(renderer.PlaceholderStyle().Render("No messages yet"))
 		}
 
 		sb.WriteString("\n")
 
 		// Minimal status
-		statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 		if m.streaming {
-			sb.WriteString(statusStyle.Render("● Streaming..."))
+			sb.WriteString(renderer.StreamingIndicatorStyle().Render("● Streaming..."))
 		} else {
-			sb.WriteString(statusStyle.Render("► Ready"))
+			sb.WriteString(renderer.ReadyStyle().Render("► Ready"))
 		}
 
 		return sb.String()
@@ -301,24 +283,22 @@ func (m *Model) renderCompactView() string {
 }
 
 // renderLSPStatus renders the LSP connection status indicator
-func renderLSPStatus(status lsp.ConnectionStatus) string {
+func (m *Model) renderLSPStatus(status lsp.ConnectionStatus) string {
+	currentTheme := m.GetCurrentTheme()
+	if currentTheme == nil {
+		currentTheme = theme.AINativeTheme()
+	}
+	renderer := theme.NewRenderHelpers(currentTheme)
+
 	switch status {
 	case lsp.StatusConnected:
-		connectedStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("10"))
-		return connectedStyle.Render("[LSP: ●]")
+		return renderer.LSPConnectedStyle().Render("[LSP: ●]")
 	case lsp.StatusConnecting:
-		connectingStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("11"))
-		return connectingStyle.Render("[LSP: ○]")
+		return renderer.LSPConnectingStyle().Render("[LSP: ○]")
 	case lsp.StatusError:
-		errorLSPStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("9"))
-		return errorLSPStyle.Render("[LSP: ✗]")
+		return renderer.LSPErrorStyle().Render("[LSP: ✗]")
 	case lsp.StatusDisconnected:
-		disconnectedStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("243"))
-		return disconnectedStyle.Render("[LSP: -]")
+		return renderer.LSPDisconnectedStyle().Render("[LSP: -]")
 	default:
 		return ""
 	}
