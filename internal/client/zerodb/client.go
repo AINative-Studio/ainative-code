@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/AINative-studio/ainative-code/internal/client"
 	"github.com/AINative-studio/ainative-code/internal/logger"
+	"github.com/google/uuid"
 )
 
 // Client represents a client for ZeroDB NoSQL operations.
@@ -217,7 +219,7 @@ func (c *Client) ListTables(ctx context.Context) ([]*Table, error) {
 	return resp.Tables, nil
 }
 
-// StoreMemory stores agent memory content.
+// StoreMemory stores agent memory content using the embeddings API.
 func (c *Client) StoreMemory(ctx context.Context, req *MemoryStoreRequest) (*Memory, error) {
 	logger.InfoEvent().
 		Str("agent_id", req.AgentID).
@@ -231,26 +233,73 @@ func (c *Client) StoreMemory(ctx context.Context, req *MemoryStoreRequest) (*Mem
 		return nil, fmt.Errorf("content is required")
 	}
 
-	path := fmt.Sprintf("/api/v1/projects/%s/memory/store", c.projectID)
-	respData, err := c.apiClient.Post(ctx, path, req)
+	// Generate unique ID for this memory
+	memoryID := fmt.Sprintf("memory_%s", uuid.New().String())
+
+	// Build metadata
+	metadata := make(map[string]interface{})
+	metadata["agent_id"] = req.AgentID
+	if req.SessionID != "" {
+		metadata["session_id"] = req.SessionID
+	}
+	if req.Role != "" {
+		metadata["role"] = req.Role
+	}
+	// Merge any additional metadata
+	for k, v := range req.Metadata {
+		metadata[k] = v
+	}
+
+	// Create embed-and-store request
+	embedReq := EmbedAndStoreRequest{
+		Documents: []EmbedAndStoreDocument{
+			{
+				ID:       memoryID,
+				Text:     req.Content,
+				Metadata: metadata,
+			},
+		},
+		Namespace: "agent_memories",
+		Upsert:    true,
+	}
+
+	path := fmt.Sprintf("/v1/public/%s/embeddings/embed-and-store", c.projectID)
+	respData, err := c.apiClient.Post(ctx, path, embedReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store memory: %w", err)
 	}
 
-	var resp MemoryStoreResponse
-	if err := json.Unmarshal(respData, &resp); err != nil {
+	var embedResp EmbedAndStoreResponse
+	if err := json.Unmarshal(respData, &embedResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if !embedResp.Success || embedResp.Stored == 0 {
+		return nil, fmt.Errorf("failed to store memory: success=%v, stored=%d", embedResp.Success, embedResp.Stored)
+	}
+
+	// Construct Memory object to return
+	now := time.Now()
+	memory := &Memory{
+		ID:        memoryID,
+		AgentID:   req.AgentID,
+		SessionID: req.SessionID,
+		Content:   req.Content,
+		Role:      req.Role,
+		Metadata:  req.Metadata,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	logger.InfoEvent().
 		Str("agent_id", req.AgentID).
-		Str("memory_id", resp.Memory.ID).
+		Str("memory_id", memoryID).
 		Msg("Memory stored successfully")
 
-	return resp.Memory, nil
+	return memory, nil
 }
 
-// RetrieveMemory retrieves agent memories using semantic search.
+// RetrieveMemory retrieves agent memories using semantic search via embeddings API.
 func (c *Client) RetrieveMemory(ctx context.Context, req *MemoryRetrieveRequest) ([]*Memory, error) {
 	logger.DebugEvent().
 		Str("agent_id", req.AgentID).
@@ -269,27 +318,71 @@ func (c *Client) RetrieveMemory(ctx context.Context, req *MemoryRetrieveRequest)
 		req.Limit = 10
 	}
 
-	path := fmt.Sprintf("/api/v1/projects/%s/memory/retrieve", c.projectID)
-	respData, err := c.apiClient.Post(ctx, path, req)
+	// Build filter for agent_id and optional session_id
+	filter := make(map[string]interface{})
+	filter["agent_id"] = req.AgentID
+	if req.SessionID != "" {
+		filter["session_id"] = req.SessionID
+	}
+
+	// Create search request
+	searchReq := SearchEmbeddingsRequest{
+		Query:     req.Query,
+		TopK:      req.Limit,
+		Namespace: "agent_memories",
+		Filter:    filter,
+	}
+
+	path := fmt.Sprintf("/v1/public/%s/embeddings/search", c.projectID)
+	respData, err := c.apiClient.Post(ctx, path, searchReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve memories: %w", err)
 	}
 
-	var resp MemoryRetrieveResponse
-	if err := json.Unmarshal(respData, &resp); err != nil {
+	var searchResp SearchEmbeddingsResponse
+	if err := json.Unmarshal(respData, &searchResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Convert search results to Memory objects
+	memories := make([]*Memory, 0, len(searchResp.Results))
+	for _, result := range searchResp.Results {
+		memory := &Memory{
+			ID:         result.ID,
+			Content:    result.Text,
+			Similarity: result.Score,
+		}
+
+		// Extract metadata fields
+		if result.Metadata != nil {
+			if agentID, ok := result.Metadata["agent_id"].(string); ok {
+				memory.AgentID = agentID
+			}
+			if sessionID, ok := result.Metadata["session_id"].(string); ok {
+				memory.SessionID = sessionID
+			}
+			if role, ok := result.Metadata["role"].(string); ok {
+				memory.Role = role
+			}
+			// Store remaining metadata
+			memory.Metadata = result.Metadata
+		}
+
+		memories = append(memories, memory)
 	}
 
 	logger.DebugEvent().
 		Str("agent_id", req.AgentID).
-		Int("count", len(resp.Memories)).
-		Int("total", resp.Total).
+		Int("count", len(memories)).
+		Int("total", searchResp.Total).
 		Msg("Memories retrieved successfully")
 
-	return resp.Memories, nil
+	return memories, nil
 }
 
-// ClearMemory clears agent memories.
+// ClearMemory clears agent memories by searching and deleting them.
+// Note: This performs a search followed by individual deletes since the embeddings API
+// doesn't provide a bulk delete endpoint.
 func (c *Client) ClearMemory(ctx context.Context, req *MemoryClearRequest) (*MemoryClearResponse, error) {
 	logger.InfoEvent().
 		Str("agent_id", req.AgentID).
@@ -300,26 +393,62 @@ func (c *Client) ClearMemory(ctx context.Context, req *MemoryClearRequest) (*Mem
 		return nil, fmt.Errorf("agent_id is required")
 	}
 
-	path := fmt.Sprintf("/api/v1/projects/%s/memory/clear", c.projectID)
-	respData, err := c.apiClient.Post(ctx, path, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to clear memories: %w", err)
+	// First, search for all memories matching the criteria
+	filter := make(map[string]interface{})
+	filter["agent_id"] = req.AgentID
+	if req.SessionID != "" {
+		filter["session_id"] = req.SessionID
 	}
 
-	var resp MemoryClearResponse
-	if err := json.Unmarshal(respData, &resp); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+	searchReq := SearchEmbeddingsRequest{
+		Query:     " ",
+		TopK:      1000, // Get a large batch
+		Namespace: "agent_memories",
+		Filter:    filter,
+	}
+
+	searchPath := fmt.Sprintf("/v1/public/%s/embeddings/search", c.projectID)
+	respData, err := c.apiClient.Post(ctx, searchPath, searchReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search memories for deletion: %w", err)
+	}
+
+	var searchResp SearchEmbeddingsResponse
+	if err := json.Unmarshal(respData, &searchResp); err != nil {
+		return nil, fmt.Errorf("failed to parse search response: %w", err)
+	}
+
+	// Delete each memory
+	deleted := 0
+	for _, result := range searchResp.Results {
+		// Try to delete using the embeddings namespace pattern
+		deletePath := fmt.Sprintf("/v1/public/%s/embeddings/%s?namespace=agent_memories", c.projectID, result.ID)
+		_, err := c.apiClient.Delete(ctx, deletePath)
+		if err != nil {
+			// Log error but continue with other deletions
+			logger.WarnEvent().
+				Str("memory_id", result.ID).
+				Err(err).
+				Msg("Failed to delete memory")
+			continue
+		}
+		deleted++
 	}
 
 	logger.InfoEvent().
 		Str("agent_id", req.AgentID).
-		Int("deleted", resp.Deleted).
-		Msg("Memories cleared successfully")
+		Int("deleted", deleted).
+		Int("total_found", len(searchResp.Results)).
+		Msg("Memories cleared")
 
-	return &resp, nil
+	return &MemoryClearResponse{
+		Deleted: deleted,
+		Message: fmt.Sprintf("Deleted %d memories for agent %s", deleted, req.AgentID),
+	}, nil
 }
 
-// ListMemory lists agent memories.
+// ListMemory lists agent memories using embeddings search with a wildcard query.
+// Note: Since embeddings API doesn't have a direct "list" endpoint, we use a broad search query.
 func (c *Client) ListMemory(ctx context.Context, req *MemoryListRequest) ([]*Memory, int, error) {
 	logger.DebugEvent().
 		Str("agent_id", req.AgentID).
@@ -335,24 +464,67 @@ func (c *Client) ListMemory(ctx context.Context, req *MemoryListRequest) ([]*Mem
 		req.Limit = 100
 	}
 
-	path := fmt.Sprintf("/api/v1/projects/%s/memory/list", c.projectID)
-	respData, err := c.apiClient.Post(ctx, path, req)
+	// Build filter for agent_id and optional session_id
+	filter := make(map[string]interface{})
+	filter["agent_id"] = req.AgentID
+	if req.SessionID != "" {
+		filter["session_id"] = req.SessionID
+	}
+
+	// Use a space as a broad query - embeddings API requires a query
+	// The filter will constrain results to the specific agent
+	searchReq := SearchEmbeddingsRequest{
+		Query:     " ",
+		TopK:      req.Limit,
+		Namespace: "agent_memories",
+		Filter:    filter,
+	}
+
+	path := fmt.Sprintf("/v1/public/%s/embeddings/search", c.projectID)
+	respData, err := c.apiClient.Post(ctx, path, searchReq)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list memories: %w", err)
 	}
 
-	var resp MemoryListResponse
-	if err := json.Unmarshal(respData, &resp); err != nil {
+	var searchResp SearchEmbeddingsResponse
+	if err := json.Unmarshal(respData, &searchResp); err != nil {
 		return nil, 0, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Convert search results to Memory objects
+	memories := make([]*Memory, 0, len(searchResp.Results))
+	for _, result := range searchResp.Results {
+		memory := &Memory{
+			ID:         result.ID,
+			Content:    result.Text,
+			Similarity: result.Score,
+		}
+
+		// Extract metadata fields
+		if result.Metadata != nil {
+			if agentID, ok := result.Metadata["agent_id"].(string); ok {
+				memory.AgentID = agentID
+			}
+			if sessionID, ok := result.Metadata["session_id"].(string); ok {
+				memory.SessionID = sessionID
+			}
+			if role, ok := result.Metadata["role"].(string); ok {
+				memory.Role = role
+			}
+			// Store remaining metadata
+			memory.Metadata = result.Metadata
+		}
+
+		memories = append(memories, memory)
 	}
 
 	logger.DebugEvent().
 		Str("agent_id", req.AgentID).
-		Int("count", len(resp.Memories)).
-		Int("total", resp.Total).
+		Int("count", len(memories)).
+		Int("total", searchResp.Total).
 		Msg("Memories listed successfully")
 
-	return resp.Memories, resp.Total, nil
+	return memories, searchResp.Total, nil
 }
 
 // CreateCollection creates a new vector collection with the specified dimensions.

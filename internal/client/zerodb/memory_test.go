@@ -32,14 +32,10 @@ func TestStoreMemory(t *testing.T) {
 					"category": "preference",
 				},
 			},
-			serverResp: MemoryStoreResponse{
-				Memory: &Memory{
-					ID:        "mem_xyz",
-					AgentID:   "agent_123",
-					Content:   "User prefers dark mode",
-					Role:      "user",
-					SessionID: "session_abc",
-				},
+			serverResp: EmbedAndStoreResponse{
+				Success: true,
+				Stored:  1,
+				IDs:     []string{"memory_xyz"},
 			},
 			statusCode:  http.StatusOK,
 			expectError: false,
@@ -79,7 +75,7 @@ func TestStoreMemory(t *testing.T) {
 
 			// Test successful cases
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/api/v1/projects/test-project/memory/store", r.URL.Path)
+				assert.Equal(t, "/v1/public/test-project/embeddings/embed-and-store", r.URL.Path)
 				assert.Equal(t, http.MethodPost, r.Method)
 
 				w.WriteHeader(tt.statusCode)
@@ -99,7 +95,7 @@ func TestStoreMemory(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.NotNil(t, memory)
-			assert.Equal(t, "mem_xyz", memory.ID)
+			assert.Contains(t, memory.ID, "memory_")
 			assert.Equal(t, "agent_123", memory.AgentID)
 			assert.Equal(t, "User prefers dark mode", memory.Content)
 		})
@@ -121,19 +117,25 @@ func TestRetrieveMemory(t *testing.T) {
 				Query:   "user preferences",
 				Limit:   5,
 			},
-			serverResp: MemoryRetrieveResponse{
-				Memories: []*Memory{
+			serverResp: SearchEmbeddingsResponse{
+				Results: []SearchResult{
 					{
-						ID:         "mem_1",
-						AgentID:    "agent_123",
-						Content:    "User prefers dark mode",
-						Similarity: 0.95,
+						ID:    "mem_1",
+						Text:  "User prefers dark mode",
+						Score: 0.95,
+						Metadata: map[string]interface{}{
+							"agent_id": "agent_123",
+							"role":     "user",
+						},
 					},
 					{
-						ID:         "mem_2",
-						AgentID:    "agent_123",
-						Content:    "User wants email notifications",
-						Similarity: 0.87,
+						ID:    "mem_2",
+						Text:  "User wants email notifications",
+						Score: 0.87,
+						Metadata: map[string]interface{}{
+							"agent_id": "agent_123",
+							"role":     "user",
+						},
 					},
 				},
 				Total: 2,
@@ -176,7 +178,7 @@ func TestRetrieveMemory(t *testing.T) {
 
 			// Test successful cases
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/api/v1/projects/test-project/memory/retrieve", r.URL.Path)
+				assert.Equal(t, "/v1/public/test-project/embeddings/search", r.URL.Path)
 				assert.Equal(t, http.MethodPost, r.Method)
 
 				w.WriteHeader(tt.statusCode)
@@ -198,6 +200,7 @@ func TestRetrieveMemory(t *testing.T) {
 			assert.Len(t, memories, 2)
 			assert.Equal(t, "mem_1", memories[0].ID)
 			assert.Equal(t, 0.95, memories[0].Similarity)
+			assert.Equal(t, "User prefers dark mode", memories[0].Content)
 		})
 	}
 }
@@ -206,8 +209,6 @@ func TestClearMemory(t *testing.T) {
 	tests := []struct {
 		name        string
 		req         *MemoryClearRequest
-		serverResp  interface{}
-		statusCode  int
 		expectError bool
 	}{
 		{
@@ -215,11 +216,6 @@ func TestClearMemory(t *testing.T) {
 			req: &MemoryClearRequest{
 				AgentID: "agent_123",
 			},
-			serverResp: MemoryClearResponse{
-				Deleted: 10,
-				Message: "All memories cleared",
-			},
-			statusCode:  http.StatusOK,
 			expectError: false,
 		},
 		{
@@ -228,11 +224,6 @@ func TestClearMemory(t *testing.T) {
 				AgentID:   "agent_123",
 				SessionID: "session_abc",
 			},
-			serverResp: MemoryClearResponse{
-				Deleted: 5,
-				Message: "Session memories cleared",
-			},
-			statusCode:  http.StatusOK,
 			expectError: false,
 		},
 		{
@@ -261,13 +252,24 @@ func TestClearMemory(t *testing.T) {
 				return
 			}
 
-			// Test successful cases
+			// Test successful cases - ClearMemory does search + delete
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/api/v1/projects/test-project/memory/clear", r.URL.Path)
-				assert.Equal(t, http.MethodPost, r.Method)
-
-				w.WriteHeader(tt.statusCode)
-				json.NewEncoder(w).Encode(tt.serverResp)
+				if r.URL.Path == "/v1/public/test-project/embeddings/search" {
+					// Return mock search results
+					searchResp := SearchEmbeddingsResponse{
+						Results: []SearchResult{
+							{ID: "mem_1", Text: "Memory 1"},
+							{ID: "mem_2", Text: "Memory 2"},
+						},
+						Total: 2,
+					}
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(searchResp)
+				} else if r.Method == http.MethodDelete {
+					// Handle delete requests
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+				}
 			}))
 			defer server.Close()
 
@@ -283,7 +285,7 @@ func TestClearMemory(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.NotNil(t, resp)
-			assert.Greater(t, resp.Deleted, 0)
+			assert.Equal(t, 2, resp.Deleted)
 		})
 	}
 }
@@ -303,22 +305,24 @@ func TestListMemory(t *testing.T) {
 				Limit:   50,
 				Offset:  0,
 			},
-			serverResp: MemoryListResponse{
-				Memories: []*Memory{
+			serverResp: SearchEmbeddingsResponse{
+				Results: []SearchResult{
 					{
-						ID:      "mem_1",
-						AgentID: "agent_123",
-						Content: "First memory",
+						ID:   "mem_1",
+						Text: "First memory",
+						Metadata: map[string]interface{}{
+							"agent_id": "agent_123",
+						},
 					},
 					{
-						ID:      "mem_2",
-						AgentID: "agent_123",
-						Content: "Second memory",
+						ID:   "mem_2",
+						Text: "Second memory",
+						Metadata: map[string]interface{}{
+							"agent_id": "agent_123",
+						},
 					},
 				},
-				Total:  2,
-				Limit:  50,
-				Offset: 0,
+				Total: 2,
 			},
 			statusCode:  http.StatusOK,
 			expectError: false,
@@ -330,18 +334,18 @@ func TestListMemory(t *testing.T) {
 				SessionID: "session_abc",
 				Limit:     10,
 			},
-			serverResp: MemoryListResponse{
-				Memories: []*Memory{
+			serverResp: SearchEmbeddingsResponse{
+				Results: []SearchResult{
 					{
-						ID:        "mem_1",
-						AgentID:   "agent_123",
-						SessionID: "session_abc",
-						Content:   "Session memory",
+						ID:   "mem_1",
+						Text: "Session memory",
+						Metadata: map[string]interface{}{
+							"agent_id":   "agent_123",
+							"session_id": "session_abc",
+						},
 					},
 				},
-				Total:  1,
-				Limit:  10,
-				Offset: 0,
+				Total: 1,
 			},
 			statusCode:  http.StatusOK,
 			expectError: false,
@@ -374,7 +378,7 @@ func TestListMemory(t *testing.T) {
 
 			// Test successful cases
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/api/v1/projects/test-project/memory/list", r.URL.Path)
+				assert.Equal(t, "/v1/public/test-project/embeddings/search", r.URL.Path)
 				assert.Equal(t, http.MethodPost, r.Method)
 
 				w.WriteHeader(tt.statusCode)

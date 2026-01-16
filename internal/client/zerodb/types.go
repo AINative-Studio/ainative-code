@@ -184,6 +184,49 @@ type MemoryListResponse struct {
 	Offset   int       `json:"offset"`
 }
 
+// EmbedAndStoreDocument represents a document to be embedded and stored.
+type EmbedAndStoreDocument struct {
+	ID       string                 `json:"id"`
+	Text     string                 `json:"text"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// EmbedAndStoreRequest represents a request to embed and store documents.
+type EmbedAndStoreRequest struct {
+	Documents []EmbedAndStoreDocument `json:"documents"`
+	Namespace string                  `json:"namespace,omitempty"`
+	Upsert    bool                    `json:"upsert,omitempty"`
+}
+
+// EmbedAndStoreResponse represents the response from embed-and-store.
+type EmbedAndStoreResponse struct {
+	Success bool     `json:"success"`
+	Stored  int      `json:"stored"`
+	IDs     []string `json:"ids,omitempty"`
+}
+
+// SearchEmbeddingsRequest represents a request to search embeddings.
+type SearchEmbeddingsRequest struct {
+	Query     string                 `json:"query"`
+	TopK      int                    `json:"top_k,omitempty"`
+	Namespace string                 `json:"namespace,omitempty"`
+	Filter    map[string]interface{} `json:"filter,omitempty"`
+}
+
+// SearchResult represents a single search result.
+type SearchResult struct {
+	ID       string                 `json:"id"`
+	Text     string                 `json:"text"`
+	Score    float64                `json:"score"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// SearchEmbeddingsResponse represents the response from search.
+type SearchEmbeddingsResponse struct {
+	Results []SearchResult `json:"results"`
+	Total   int            `json:"total"`
+}
+
 // VectorCollection represents a vector collection for storing embeddings.
 type VectorCollection struct {
 	ID         string    `json:"id"`
