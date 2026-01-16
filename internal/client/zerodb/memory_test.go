@@ -33,9 +33,11 @@ func TestStoreMemory(t *testing.T) {
 				},
 			},
 			serverResp: EmbedAndStoreResponse{
-				Success: true,
-				Stored:  1,
-				IDs:     []string{"memory_xyz"},
+				Success:             true,
+				VectorsStored:       1,
+				EmbeddingsGenerated: 1,
+				Model:               "BAAI/bge-small-en-v1.5",
+				Dimensions:          384,
 			},
 			statusCode:  http.StatusOK,
 			expectError: false,
@@ -120,22 +122,26 @@ func TestRetrieveMemory(t *testing.T) {
 			serverResp: SearchEmbeddingsResponse{
 				Results: []SearchResult{
 					{
-						ID:    "mem_1",
-						Text:  "User prefers dark mode",
-						Score: 0.95,
-						Metadata: map[string]interface{}{
+						VectorID:       "mem_1",
+						Document:       "User prefers dark mode",
+						Score:          0.95,
+						VectorMetadata: map[string]interface{}{
 							"agent_id": "agent_123",
 							"role":     "user",
 						},
+						Namespace: "agent_memories",
+						CreatedAt: "2024-01-15T10:00:00Z",
 					},
 					{
-						ID:    "mem_2",
-						Text:  "User wants email notifications",
-						Score: 0.87,
-						Metadata: map[string]interface{}{
+						VectorID:       "mem_2",
+						Document:       "User wants email notifications",
+						Score:          0.87,
+						VectorMetadata: map[string]interface{}{
 							"agent_id": "agent_123",
 							"role":     "user",
 						},
+						Namespace: "agent_memories",
+						CreatedAt: "2024-01-15T10:05:00Z",
 					},
 				},
 				Total: 2,
@@ -258,8 +264,8 @@ func TestClearMemory(t *testing.T) {
 					// Return mock search results
 					searchResp := SearchEmbeddingsResponse{
 						Results: []SearchResult{
-							{ID: "mem_1", Text: "Memory 1"},
-							{ID: "mem_2", Text: "Memory 2"},
+							{VectorID: "mem_1", Document: "Memory 1", Namespace: "agent_memories", CreatedAt: "2024-01-15T10:00:00Z"},
+							{VectorID: "mem_2", Document: "Memory 2", Namespace: "agent_memories", CreatedAt: "2024-01-15T10:01:00Z"},
 						},
 						Total: 2,
 					}
@@ -308,18 +314,22 @@ func TestListMemory(t *testing.T) {
 			serverResp: SearchEmbeddingsResponse{
 				Results: []SearchResult{
 					{
-						ID:   "mem_1",
-						Text: "First memory",
-						Metadata: map[string]interface{}{
+						VectorID: "mem_1",
+						Document: "First memory",
+						VectorMetadata: map[string]interface{}{
 							"agent_id": "agent_123",
 						},
+						Namespace: "agent_memories",
+						CreatedAt: "2024-01-15T10:00:00Z",
 					},
 					{
-						ID:   "mem_2",
-						Text: "Second memory",
-						Metadata: map[string]interface{}{
+						VectorID: "mem_2",
+						Document: "Second memory",
+						VectorMetadata: map[string]interface{}{
 							"agent_id": "agent_123",
 						},
+						Namespace: "agent_memories",
+						CreatedAt: "2024-01-15T10:01:00Z",
 					},
 				},
 				Total: 2,
@@ -337,12 +347,14 @@ func TestListMemory(t *testing.T) {
 			serverResp: SearchEmbeddingsResponse{
 				Results: []SearchResult{
 					{
-						ID:   "mem_1",
-						Text: "Session memory",
-						Metadata: map[string]interface{}{
+						VectorID: "mem_1",
+						Document: "Session memory",
+						VectorMetadata: map[string]interface{}{
 							"agent_id":   "agent_123",
 							"session_id": "session_abc",
 						},
+						Namespace: "agent_memories",
+						CreatedAt: "2024-01-15T10:00:00Z",
 					},
 				},
 				Total: 1,

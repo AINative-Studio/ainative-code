@@ -33,8 +33,11 @@ func New(opts ...Option) *Client {
 		opt(client)
 	}
 
-	client.httpClient = &http.Client{
-		Timeout: client.timeout,
+	// Only create default HTTP client if one wasn't provided
+	if client.httpClient == nil {
+		client.httpClient = &http.Client{
+			Timeout: client.timeout,
+		}
 	}
 
 	return client

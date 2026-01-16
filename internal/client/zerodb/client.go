@@ -236,8 +236,9 @@ func (c *Client) StoreMemory(ctx context.Context, req *MemoryStoreRequest) (*Mem
 	// Generate unique ID for this memory
 	memoryID := fmt.Sprintf("memory_%s", uuid.New().String())
 
-	// Build metadata
+	// Build metadata object for this memory
 	metadata := make(map[string]interface{})
+	metadata["memory_id"] = memoryID
 	metadata["agent_id"] = req.AgentID
 	if req.SessionID != "" {
 		metadata["session_id"] = req.SessionID
@@ -250,17 +251,11 @@ func (c *Client) StoreMemory(ctx context.Context, req *MemoryStoreRequest) (*Mem
 		metadata[k] = v
 	}
 
-	// Create embed-and-store request
+	// Create embed-and-store request with correct API format
 	embedReq := EmbedAndStoreRequest{
-		Documents: []EmbedAndStoreDocument{
-			{
-				ID:       memoryID,
-				Text:     req.Content,
-				Metadata: metadata,
-			},
-		},
+		Texts:     []string{req.Content},
 		Namespace: "agent_memories",
-		Upsert:    true,
+		Metadata:  []map[string]interface{}{metadata},
 	}
 
 	path := fmt.Sprintf("/v1/public/%s/embeddings/embed-and-store", c.projectID)
@@ -274,8 +269,8 @@ func (c *Client) StoreMemory(ctx context.Context, req *MemoryStoreRequest) (*Mem
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	if !embedResp.Success || embedResp.Stored == 0 {
-		return nil, fmt.Errorf("failed to store memory: success=%v, stored=%d", embedResp.Success, embedResp.Stored)
+	if !embedResp.Success || embedResp.VectorsStored == 0 {
+		return nil, fmt.Errorf("failed to store memory: success=%v, vectors_stored=%d", embedResp.Success, embedResp.VectorsStored)
 	}
 
 	// Construct Memory object to return
@@ -347,25 +342,35 @@ func (c *Client) RetrieveMemory(ctx context.Context, req *MemoryRetrieveRequest)
 	// Convert search results to Memory objects
 	memories := make([]*Memory, 0, len(searchResp.Results))
 	for _, result := range searchResp.Results {
-		memory := &Memory{
-			ID:         result.ID,
-			Content:    result.Text,
-			Similarity: result.Score,
+		// Parse created_at timestamp
+		var createdAt time.Time
+		if result.CreatedAt != "" {
+			if t, err := time.Parse(time.RFC3339, result.CreatedAt); err == nil {
+				createdAt = t
+			}
 		}
 
-		// Extract metadata fields
-		if result.Metadata != nil {
-			if agentID, ok := result.Metadata["agent_id"].(string); ok {
+		memory := &Memory{
+			ID:         result.VectorID,
+			Content:    result.Document,
+			Similarity: result.Score,
+			CreatedAt:  createdAt,
+			UpdatedAt:  createdAt,
+		}
+
+		// Extract metadata fields from vector_metadata
+		if result.VectorMetadata != nil {
+			if agentID, ok := result.VectorMetadata["agent_id"].(string); ok {
 				memory.AgentID = agentID
 			}
-			if sessionID, ok := result.Metadata["session_id"].(string); ok {
+			if sessionID, ok := result.VectorMetadata["session_id"].(string); ok {
 				memory.SessionID = sessionID
 			}
-			if role, ok := result.Metadata["role"].(string); ok {
+			if role, ok := result.VectorMetadata["role"].(string); ok {
 				memory.Role = role
 			}
-			// Store remaining metadata
-			memory.Metadata = result.Metadata
+			// Store full metadata
+			memory.Metadata = result.VectorMetadata
 		}
 
 		memories = append(memories, memory)
@@ -422,12 +427,12 @@ func (c *Client) ClearMemory(ctx context.Context, req *MemoryClearRequest) (*Mem
 	deleted := 0
 	for _, result := range searchResp.Results {
 		// Try to delete using the embeddings namespace pattern
-		deletePath := fmt.Sprintf("/v1/public/%s/embeddings/%s?namespace=agent_memories", c.projectID, result.ID)
+		deletePath := fmt.Sprintf("/v1/public/%s/embeddings/%s?namespace=agent_memories", c.projectID, result.VectorID)
 		_, err := c.apiClient.Delete(ctx, deletePath)
 		if err != nil {
 			// Log error but continue with other deletions
 			logger.WarnEvent().
-				Str("memory_id", result.ID).
+				Str("memory_id", result.VectorID).
 				Err(err).
 				Msg("Failed to delete memory")
 			continue
@@ -494,25 +499,35 @@ func (c *Client) ListMemory(ctx context.Context, req *MemoryListRequest) ([]*Mem
 	// Convert search results to Memory objects
 	memories := make([]*Memory, 0, len(searchResp.Results))
 	for _, result := range searchResp.Results {
-		memory := &Memory{
-			ID:         result.ID,
-			Content:    result.Text,
-			Similarity: result.Score,
+		// Parse created_at timestamp
+		var createdAt time.Time
+		if result.CreatedAt != "" {
+			if t, err := time.Parse(time.RFC3339, result.CreatedAt); err == nil {
+				createdAt = t
+			}
 		}
 
-		// Extract metadata fields
-		if result.Metadata != nil {
-			if agentID, ok := result.Metadata["agent_id"].(string); ok {
+		memory := &Memory{
+			ID:         result.VectorID,
+			Content:    result.Document,
+			Similarity: result.Score,
+			CreatedAt:  createdAt,
+			UpdatedAt:  createdAt,
+		}
+
+		// Extract metadata fields from vector_metadata
+		if result.VectorMetadata != nil {
+			if agentID, ok := result.VectorMetadata["agent_id"].(string); ok {
 				memory.AgentID = agentID
 			}
-			if sessionID, ok := result.Metadata["session_id"].(string); ok {
+			if sessionID, ok := result.VectorMetadata["session_id"].(string); ok {
 				memory.SessionID = sessionID
 			}
-			if role, ok := result.Metadata["role"].(string); ok {
+			if role, ok := result.VectorMetadata["role"].(string); ok {
 				memory.Role = role
 			}
-			// Store remaining metadata
-			memory.Metadata = result.Metadata
+			// Store full metadata
+			memory.Metadata = result.VectorMetadata
 		}
 
 		memories = append(memories, memory)

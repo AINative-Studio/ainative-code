@@ -184,25 +184,25 @@ type MemoryListResponse struct {
 	Offset   int       `json:"offset"`
 }
 
-// EmbedAndStoreDocument represents a document to be embedded and stored.
-type EmbedAndStoreDocument struct {
-	ID       string                 `json:"id"`
-	Text     string                 `json:"text"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
-}
-
 // EmbedAndStoreRequest represents a request to embed and store documents.
+// The actual API expects texts as an array of strings, not document objects.
 type EmbedAndStoreRequest struct {
-	Documents []EmbedAndStoreDocument `json:"documents"`
-	Namespace string                  `json:"namespace,omitempty"`
-	Upsert    bool                    `json:"upsert,omitempty"`
+	Texts     []string                 `json:"texts"`
+	Namespace string                   `json:"namespace,omitempty"`
+	Metadata  []map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // EmbedAndStoreResponse represents the response from embed-and-store.
 type EmbedAndStoreResponse struct {
-	Success bool     `json:"success"`
-	Stored  int      `json:"stored"`
-	IDs     []string `json:"ids,omitempty"`
+	Success              bool    `json:"success"`
+	VectorsStored        int     `json:"vectors_stored"`
+	EmbeddingsGenerated  int     `json:"embeddings_generated"`
+	Model                string  `json:"model"`
+	Dimensions           int     `json:"dimensions"`
+	TargetColumn         string  `json:"target_column"`
+	Namespace            string  `json:"namespace"`
+	ProjectID            string  `json:"project_id"`
+	ProcessingTimeMs     float64 `json:"processing_time_ms"`
 }
 
 // SearchEmbeddingsRequest represents a request to search embeddings.
@@ -213,12 +213,16 @@ type SearchEmbeddingsRequest struct {
 	Filter    map[string]interface{} `json:"filter,omitempty"`
 }
 
-// SearchResult represents a single search result.
+// SearchResult represents a single search result from the embeddings API.
 type SearchResult struct {
-	ID       string                 `json:"id"`
-	Text     string                 `json:"text"`
-	Score    float64                `json:"score"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	VectorID       string                 `json:"vector_id"`
+	Document       string                 `json:"document"`
+	VectorMetadata map[string]interface{} `json:"vector_metadata"`
+	Namespace      string                 `json:"namespace"`
+	ProjectID      string                 `json:"project_id"`
+	Source         *string                `json:"source"`
+	CreatedAt      string                 `json:"created_at"`
+	Score          float64                `json:"score,omitempty"` // May not always be present
 }
 
 // SearchEmbeddingsResponse represents the response from search.

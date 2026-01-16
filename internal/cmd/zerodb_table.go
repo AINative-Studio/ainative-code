@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -495,7 +496,7 @@ func runTableList(cmd *cobra.Command, args []string) error {
 // createZeroDBClient creates a ZeroDB client with configuration from viper.
 func createZeroDBClient() (*zerodb.Client, error) {
 	// Get configuration
-	baseURL := viper.GetString("services.zerodb.endpoint")
+	baseURL := viper.GetString("services.zerodb.base_url")
 	if baseURL == "" {
 		baseURL = "https://api.ainative.studio"
 	}
@@ -505,10 +506,22 @@ func createZeroDBClient() (*zerodb.Client, error) {
 		return nil, fmt.Errorf("services.zerodb.project_id not configured (set in config file or AINATIVE_CODE_SERVICES_ZERODB_PROJECT_ID env var)")
 	}
 
-	// Create HTTP client
+	apiKey := viper.GetString("services.zerodb.api_key")
+	if apiKey == "" {
+		return nil, fmt.Errorf("services.zerodb.api_key not configured (set in config file or AINATIVE_CODE_SERVICES_ZERODB_API_KEY env var)")
+	}
+
+	// Create HTTP client with API key header injector
 	httpClient := client.New(
 		client.WithBaseURL(baseURL),
 		client.WithTimeout(30*time.Second),
+		client.WithHTTPClient(&http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &apiKeyTransport{
+				apiKey:    apiKey,
+				transport: http.DefaultTransport,
+			},
+		}),
 	)
 
 	// Create ZeroDB client
@@ -523,4 +536,17 @@ func createZeroDBClient() (*zerodb.Client, error) {
 		Msg("Created ZeroDB client")
 
 	return zdbClient, nil
+}
+
+// apiKeyTransport is an http.RoundTripper that adds the X-API-Key header to all requests.
+type apiKeyTransport struct {
+	apiKey    string
+	transport http.RoundTripper
+}
+
+func (t *apiKeyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Clone the request to avoid modifying the original
+	reqCopy := req.Clone(req.Context())
+	reqCopy.Header.Set("X-API-Key", t.apiKey)
+	return t.transport.RoundTrip(reqCopy)
 }
