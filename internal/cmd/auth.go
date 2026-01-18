@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/AINative-studio/ainative-code/internal/auth/keychain"
 	"github.com/AINative-studio/ainative-code/internal/auth/oauth"
+	"github.com/AINative-studio/ainative-code/internal/backend"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -340,4 +343,144 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// newAuthLoginBackendCmd creates a new login command using backend.Client
+func newAuthLoginBackendCmd() *cobra.Command {
+	var email, password string
+
+	cmd := &cobra.Command{
+		Use:   "login-backend",
+		Short: "Login using AINative backend API",
+		Long: `Authenticate with AINative platform using email and password.
+
+This command uses the AINative backend API directly for authentication
+and stores the received tokens in configuration.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+
+			// Get backend URL from config
+			backendURL := viper.GetString("backend_url")
+			if backendURL == "" {
+				backendURL = "http://localhost:8000"
+			}
+
+			// Create backend client
+			client := backend.NewClient(backendURL)
+
+			// Login
+			resp, err := client.Login(ctx, email, password)
+			if err != nil {
+				return fmt.Errorf("login failed: %w", err)
+			}
+
+			// Save tokens to config
+			viper.Set("access_token", resp.AccessToken)
+			viper.Set("refresh_token", resp.RefreshToken)
+			viper.Set("user_email", resp.User.Email)
+			viper.Set("user_id", resp.User.ID)
+
+			if err := viper.WriteConfig(); err != nil {
+				// If config file doesn't exist, create it
+				if err := viper.SafeWriteConfig(); err != nil {
+					// Ignore error if config can't be written, tokens are still in memory
+					cmd.Printf("Warning: Could not save config: %v\n", err)
+				}
+			}
+
+			cmd.Printf("Successfully logged in as %s\n", resp.User.Email)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&email, "email", "e", "", "Email address (required)")
+	cmd.Flags().StringVarP(&password, "password", "p", "", "Password (required)")
+	cmd.MarkFlagRequired("email")
+	cmd.MarkFlagRequired("password")
+
+	return cmd
+}
+
+// newAuthLogoutBackendCmd creates a new logout command using backend.Client
+func newAuthLogoutBackendCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "logout-backend",
+		Short: "Logout using AINative backend API",
+		Long:  `Clear stored credentials and notify the AINative backend.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+
+			// Get backend URL and access token from config
+			backendURL := viper.GetString("backend_url")
+			if backendURL == "" {
+				backendURL = "http://localhost:8000"
+			}
+
+			accessToken := viper.GetString("access_token")
+
+			// Call logout endpoint if we have a token
+			if accessToken != "" {
+				client := backend.NewClient(backendURL)
+				_ = client.Logout(ctx, accessToken)
+			}
+
+			// Clear tokens from config
+			viper.Set("access_token", "")
+			viper.Set("refresh_token", "")
+			viper.Set("user_email", "")
+			viper.Set("user_id", "")
+
+			if err := viper.WriteConfig(); err != nil {
+				// Ignore error if config can't be written
+				cmd.Printf("Warning: Could not save config: %v\n", err)
+			}
+
+			cmd.Println("Successfully logged out")
+			return nil
+		},
+	}
+}
+
+// newAuthRefreshBackendCmd creates a new token refresh command using backend.Client
+func newAuthRefreshBackendCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "refresh-backend",
+		Short: "Refresh access token using backend API",
+		Long:  `Refresh the access token using the stored refresh token.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+
+			// Get backend URL and refresh token from config
+			backendURL := viper.GetString("backend_url")
+			if backendURL == "" {
+				backendURL = "http://localhost:8000"
+			}
+
+			refreshToken := viper.GetString("refresh_token")
+			if refreshToken == "" {
+				return fmt.Errorf("not authenticated: no refresh token found")
+			}
+
+			// Create backend client
+			client := backend.NewClient(backendURL)
+
+			// Refresh token
+			resp, err := client.RefreshToken(ctx, refreshToken)
+			if err != nil {
+				return fmt.Errorf("token refresh failed: %w", err)
+			}
+
+			// Save new tokens to config
+			viper.Set("access_token", resp.AccessToken)
+			viper.Set("refresh_token", resp.RefreshToken)
+
+			if err := viper.WriteConfig(); err != nil {
+				// Ignore error if config can't be written
+				cmd.Printf("Warning: Could not save config: %v\n", err)
+			}
+
+			cmd.Println("Token refreshed successfully")
+			return nil
+		},
+	}
 }

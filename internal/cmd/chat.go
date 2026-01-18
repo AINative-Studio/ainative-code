@@ -7,11 +7,13 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/spf13/cobra"
+	"github.com/AINative-studio/ainative-code/internal/backend"
 	"github.com/AINative-studio/ainative-code/internal/logger"
 	llmprovider "github.com/AINative-studio/ainative-code/internal/provider"
 	"github.com/AINative-studio/ainative-code/internal/tui"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -204,12 +206,12 @@ func runInteractiveChat(ctx context.Context, aiProvider llmprovider.Provider, mo
 	// Create bubbletea program with alt screen
 	p := tea.NewProgram(
 		&interactiveChatModel{
-			tuiModel:   model,
-			provider:   aiProvider,
-			modelName:  modelName,
-			ctx:        ctx,
-			messages:   []llmprovider.Message{},
-			systemMsg:  chatSystemMsg,
+			tuiModel:  model,
+			provider:  aiProvider,
+			modelName: modelName,
+			ctx:       ctx,
+			messages:  []llmprovider.Message{},
+			systemMsg: chatSystemMsg,
 		},
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
@@ -262,7 +264,7 @@ func (m *interactiveChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case streamStartMsg:
 		// Start processing stream events
 		m.tuiModel.SetStreaming(true)
-		m.streamingContent = ""  // Reset streaming content
+		m.streamingContent = "" // Reset streaming content
 		return m, m.handleStreamEvents(msg.eventChan)
 
 	case streamChunkMsg:
@@ -461,4 +463,140 @@ func getDefaultModel(providerName string) string {
 	default:
 		return ""
 	}
+}
+
+// newChatAINativeCmd creates a new chat command using AINative backend
+func newChatAINativeCmd() *cobra.Command {
+	var (
+		message      string
+		autoProvider bool
+		modelName    string
+		verbose      bool
+	)
+
+	cmd := &cobra.Command{
+		Use:   "chat-ainative",
+		Short: "Chat using AINative backend API",
+		Long: `Send chat messages using the AINative backend with intelligent provider selection.
+
+This command integrates with:
+- AINative backend API for chat completions
+- Provider selector for intelligent provider routing
+- Credit management and warnings`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+
+			// Validate message
+			if message == "" && len(args) == 0 {
+				return fmt.Errorf("Error: message cannot be empty")
+			}
+
+			// Use message from args if not provided via flag
+			if message == "" && len(args) > 0 {
+				message = strings.TrimSpace(args[0])
+			}
+
+			// Validate message is not empty or whitespace only
+			if strings.TrimSpace(message) == "" {
+				return fmt.Errorf("Error: message cannot be empty")
+			}
+
+			// Check authentication
+			accessToken := viper.GetString("access_token")
+			if accessToken == "" {
+				return fmt.Errorf("not authenticated. Please run 'ainative-code auth login' first")
+			}
+
+			// Get backend URL from config
+			backendURL := viper.GetString("backend_url")
+			if backendURL == "" {
+				backendURL = "http://localhost:8000"
+			}
+
+			// Provider selection logic
+			var selectedModel string
+			if autoProvider {
+				// Use provider selector
+				selector := llmprovider.NewSelector(
+					llmprovider.WithProviders("anthropic", "openai", "google"),
+					llmprovider.WithUserPreference(viper.GetString("preferred_provider")),
+					llmprovider.WithCreditThreshold(50),
+					llmprovider.WithFallback(viper.GetBool("fallback_enabled")),
+				)
+
+				user := &llmprovider.User{
+					Email:   viper.GetString("user_email"),
+					Credits: viper.GetInt("credits"),
+					Tier:    viper.GetString("tier"),
+				}
+
+				provider, err := selector.Select(ctx, user)
+				if err != nil {
+					return fmt.Errorf("provider selection failed: %w", err)
+				}
+
+				// Display low credit warning if applicable
+				if provider.LowCreditWarning {
+					fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Low credit balance (%d credits remaining)\n", user.Credits)
+				}
+
+				// Use provider's default model if not specified
+				if modelName == "" {
+					selectedModel = getDefaultModel(provider.Name)
+				} else {
+					selectedModel = modelName
+				}
+			} else {
+				// Use specified model or default
+				if modelName == "" {
+					selectedModel = "claude-sonnet-4-5-20250929"
+				} else {
+					selectedModel = modelName
+				}
+			}
+
+			// Create backend client
+			client := backend.NewClient(backendURL)
+
+			// Prepare chat request
+			req := &backend.ChatCompletionRequest{
+				Messages: []backend.Message{
+					{
+						Role:    "user",
+						Content: message,
+					},
+				},
+				Model: selectedModel,
+			}
+
+			// Send chat completion request
+			resp, err := client.ChatCompletion(ctx, accessToken, req)
+			if err != nil {
+				return fmt.Errorf("chat request failed: %w", err)
+			}
+
+			// Display response
+			if len(resp.Choices) > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "%s\n", resp.Choices[0].Message.Content)
+			}
+
+			// Display usage stats if verbose
+			if verbose {
+				fmt.Fprintf(cmd.ErrOrStderr(), "\nModel: %s\n", resp.Model)
+				fmt.Fprintf(cmd.ErrOrStderr(), "Tokens - Prompt: %d, Completion: %d, Total: %d\n",
+					resp.Usage.PromptTokens,
+					resp.Usage.CompletionTokens,
+					resp.Usage.TotalTokens)
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&message, "message", "m", "", "Message to send (required)")
+	cmd.Flags().BoolVar(&autoProvider, "auto-provider", false, "Auto-select provider based on preferences")
+	cmd.Flags().StringVar(&modelName, "model", "", "Model to use (default: auto-selected)")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Display usage statistics")
+
+	return cmd
 }
