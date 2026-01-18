@@ -122,23 +122,52 @@ ainative-code version
 
 ## Quick Start
 
+### AINative Cloud (Recommended)
+
+Get started with AINative's cloud authentication and hosted inference:
+
+1. **Start the Python Backend**:
+   ```bash
+   cd python-backend
+   uvicorn app.main:app --reload
+   ```
+
+2. **Login to AINative**:
+   ```bash
+   ainative-code auth login-backend \
+     --email your-email@example.com \
+     --password your-password
+   ```
+
+3. **Send Your First Chat**:
+   ```bash
+   ainative-code chat-ainative \
+     --message "Hello! Tell me about AINative" \
+     --auto-provider
+   ```
+
+**Learn More:**
+- [Getting Started Guide](docs/guides/ainative-getting-started.md) - Complete setup instructions
+- [Authentication Guide](docs/guides/authentication.md) - Manage credentials and tokens
+- [Hosted Inference Guide](docs/guides/hosted-inference.md) - Explore chat features
+- [API Reference](docs/api/ainative-provider.md) - Detailed command documentation
+
+### Traditional Setup (API Keys)
+
+Alternatively, use direct API key authentication:
+
 1. **Initialize configuration**:
    ```bash
    ainative-code setup
    ```
 
-2. **Authenticate with AINative platform** (optional):
-   ```bash
-   ainative-code auth login
-   ```
-
-3. **Configure your preferred LLM provider**:
+2. **Configure your preferred LLM provider**:
    ```bash
    ainative-code config set provider anthropic
    ainative-code config set anthropic.api_key "your-api-key"
    ```
 
-4. **Start coding**:
+3. **Start coding**:
    ```bash
    ainative-code chat
    ```

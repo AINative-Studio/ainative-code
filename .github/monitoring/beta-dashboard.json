@@ -1,0 +1,227 @@
+{
+  "dashboard": "AINative Code Beta",
+  "version": "v1.1.0-beta.1",
+  "refresh_interval": "30s",
+  "time_range": "Last 24 hours",
+  "metrics": [
+    {
+      "name": "Error Rate",
+      "description": "Percentage of HTTP requests returning 5xx errors",
+      "query": "rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m]) * 100",
+      "unit": "%",
+      "target": "<1%",
+      "alert_threshold": ">2%",
+      "chart_type": "line",
+      "panel_size": "medium"
+    },
+    {
+      "name": "Auth Success Rate",
+      "description": "Percentage of successful authentication attempts",
+      "query": "rate(auth_requests_total{status=\"success\"}[5m]) / rate(auth_requests_total[5m]) * 100",
+      "unit": "%",
+      "target": ">95%",
+      "alert_threshold": "<90%",
+      "chart_type": "line",
+      "panel_size": "medium"
+    },
+    {
+      "name": "Chat Completion Success",
+      "description": "Percentage of successful chat completions",
+      "query": "rate(chat_requests_total{status=\"success\"}[5m]) / rate(chat_requests_total[5m]) * 100",
+      "unit": "%",
+      "target": ">98%",
+      "alert_threshold": "<95%",
+      "chart_type": "line",
+      "panel_size": "medium"
+    },
+    {
+      "name": "P95 Latency",
+      "description": "95th percentile request latency",
+      "query": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+      "unit": "seconds",
+      "target": "<2s",
+      "alert_threshold": ">5s",
+      "chart_type": "line",
+      "panel_size": "medium"
+    },
+    {
+      "name": "P50 Latency",
+      "description": "50th percentile request latency (median)",
+      "query": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))",
+      "unit": "seconds",
+      "target": "<1s",
+      "alert_threshold": ">3s",
+      "chart_type": "line",
+      "panel_size": "small"
+    },
+    {
+      "name": "Token Refresh Success",
+      "description": "Percentage of successful token refresh operations",
+      "query": "rate(token_refresh_total{status=\"success\"}[5m]) / rate(token_refresh_total[5m]) * 100",
+      "unit": "%",
+      "target": ">99%",
+      "alert_threshold": "<95%",
+      "chart_type": "line",
+      "panel_size": "medium"
+    },
+    {
+      "name": "Active Beta Users",
+      "description": "Number of unique users active in the last hour",
+      "query": "count(count by (user_id) (http_requests_total{beta=\"true\"}[1h]))",
+      "unit": "users",
+      "target": "30",
+      "chart_type": "number",
+      "panel_size": "small"
+    },
+    {
+      "name": "Request Rate",
+      "description": "Total requests per second",
+      "query": "sum(rate(http_requests_total[5m]))",
+      "unit": "req/s",
+      "chart_type": "line",
+      "panel_size": "medium"
+    },
+    {
+      "name": "Provider Distribution",
+      "description": "Breakdown of requests by LLM provider",
+      "query": "sum by (provider) (rate(chat_requests_total[5m]))",
+      "chart_type": "pie",
+      "panel_size": "medium"
+    },
+    {
+      "name": "Credit Usage",
+      "description": "Total credits consumed over time",
+      "query": "sum(increase(credits_consumed_total[1h]))",
+      "unit": "credits",
+      "chart_type": "line",
+      "panel_size": "medium"
+    },
+    {
+      "name": "Login Success Rate",
+      "description": "Percentage of successful login attempts",
+      "query": "rate(login_attempts_total{status=\"success\"}[5m]) / rate(login_attempts_total[5m]) * 100",
+      "unit": "%",
+      "target": ">95%",
+      "alert_threshold": "<85%",
+      "chart_type": "line",
+      "panel_size": "small"
+    },
+    {
+      "name": "Stream Success Rate",
+      "description": "Percentage of successful streaming completions",
+      "query": "rate(stream_requests_total{status=\"success\"}[5m]) / rate(stream_requests_total[5m]) * 100",
+      "unit": "%",
+      "target": ">95%",
+      "alert_threshold": "<90%",
+      "chart_type": "line",
+      "panel_size": "small"
+    }
+  ],
+  "alerts": [
+    {
+      "name": "High Error Rate",
+      "condition": "error_rate > 2%",
+      "severity": "critical",
+      "duration": "5m",
+      "notification": ["slack:#beta-alerts", "email:beta@ainative.studio"],
+      "description": "Error rate exceeded 2% threshold",
+      "runbook": "https://github.com/AINative-Studio/ainative-code/wiki/Runbooks#high-error-rate"
+    },
+    {
+      "name": "Low Auth Success",
+      "condition": "auth_success_rate < 90%",
+      "severity": "high",
+      "duration": "5m",
+      "notification": ["slack:#beta-alerts"],
+      "description": "Authentication success rate dropped below 90%",
+      "runbook": "https://github.com/AINative-Studio/ainative-code/wiki/Runbooks#auth-issues"
+    },
+    {
+      "name": "High Latency",
+      "condition": "p95_latency > 5s",
+      "severity": "high",
+      "duration": "10m",
+      "notification": ["slack:#beta-alerts"],
+      "description": "P95 latency exceeded 5 seconds",
+      "runbook": "https://github.com/AINative-Studio/ainative-code/wiki/Runbooks#high-latency"
+    },
+    {
+      "name": "Chat Completion Failures",
+      "condition": "chat_completion_success < 95%",
+      "severity": "critical",
+      "duration": "5m",
+      "notification": ["slack:#beta-alerts", "email:beta@ainative.studio"],
+      "description": "Chat completion success rate dropped below 95%",
+      "runbook": "https://github.com/AINative-Studio/ainative-code/wiki/Runbooks#chat-failures"
+    },
+    {
+      "name": "Token Refresh Issues",
+      "condition": "token_refresh_success < 95%",
+      "severity": "medium",
+      "duration": "10m",
+      "notification": ["slack:#beta-alerts"],
+      "description": "Token refresh success rate dropped below 95%",
+      "runbook": "https://github.com/AINative-Studio/ainative-code/wiki/Runbooks#token-refresh"
+    },
+    {
+      "name": "Low Active Users",
+      "condition": "active_beta_users < 5",
+      "severity": "low",
+      "duration": "1h",
+      "notification": ["slack:#beta-monitoring"],
+      "description": "Beta user activity is unexpectedly low"
+    }
+  ],
+  "data_sources": [
+    {
+      "name": "prometheus",
+      "type": "Prometheus",
+      "url": "${PROMETHEUS_URL}",
+      "scrape_interval": "15s"
+    },
+    {
+      "name": "loki",
+      "type": "Loki",
+      "url": "${LOKI_URL}",
+      "description": "Logs aggregation for debugging"
+    }
+  ],
+  "annotations": [
+    {
+      "name": "Deployments",
+      "query": "deployment_events",
+      "color": "blue"
+    },
+    {
+      "name": "Incidents",
+      "query": "incident_events",
+      "color": "red"
+    }
+  ],
+  "variables": [
+    {
+      "name": "environment",
+      "type": "constant",
+      "value": "beta"
+    },
+    {
+      "name": "version",
+      "type": "constant",
+      "value": "v1.1.0-beta.1"
+    }
+  ],
+  "links": [
+    {
+      "title": "Logs",
+      "url": "${LOKI_URL}"
+    },
+    {
+      "title": "Traces",
+      "url": "${JAEGER_URL}"
+    },
+    {
+      "title": "GitHub Issues",
+      "url": "https://github.com/AINative-Studio/ainative-code/issues?q=label:beta"
+    }
+  ]
+}
